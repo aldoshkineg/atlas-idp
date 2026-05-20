@@ -11,6 +11,7 @@ services:
       - REPO_URL=https://github.com/aldoshkineg/atlas-idp
       - RUNNER_TOKEN=${RUNNER_TOKEN}
       - LABELS=self-hosted
+      - RUNNER_ALLOW_RUNASROOT=1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./runner-data:/home/runner/_work
