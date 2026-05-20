@@ -9,15 +9,20 @@ on:
 jobs:
   check:
     name: Code Quality Checks
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, atlas-idp, kind, local]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.9
+      - name: Install Terraform
+        run: |
+          if ! command -v terraform &> /dev/null; then
+            echo "Terraform not found, installing..."
+            curl -fsSL https://releases.hashicorp.com/terraform/1.9.0/terraform_1.9.0_linux_amd64.zip -o /tmp/terraform.zip
+            unzip -o /tmp/terraform.zip -d /usr/local/bin/
+            rm /tmp/terraform.zip
+          fi
+          terraform version
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive infra/
