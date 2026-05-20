@@ -9,7 +9,7 @@ on:
 jobs:
   check:
     name: Code Quality Checks
-    runs-on: [self-hosted, atlas-idp, kind, local]
+    runs-on: [self-hosted]
     container:
       image: python:3.11-slim
     steps:
