@@ -13,9 +13,6 @@ env:
 # Default runner tags (matches original GitLab runner tags)
 runner_tags:
   - self-hosted
-  - atlas-idp
-  - kind
-  - local
 
 # Pipeline stages (in order)
 stages:
