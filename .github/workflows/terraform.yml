@@ -1,0 +1,35 @@
+name: Terraform Deploy KinD
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  terraform:
+    name: Terraform Apply
+    runs-on: self-hosted # Используем ваш self-hosted раннер c лейблом из настроек
+
+    defaults:
+      run:
+        # Укажите точный путь до папки с вашим main.tf относительно корня репозитория
+        working-directory: ./infra/environments/dev/
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.8.0"
+        terraform_wrapper: false # Отключаем wrapper для корректной передачи sensitive-данных в outputs
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Plan
+      run: terraform plan
+
+    - name: Terraform Apply
+      run: terraform apply -auto-approve

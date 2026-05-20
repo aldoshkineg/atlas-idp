@@ -3,6 +3,7 @@ services:
     image: myoung34/github-runner:latest
     container_name: github-runner-atlas-idp
     restart: unless-stopped
+    network_mode: host
     environment:
       - REPO_URL=https://github.com/aldoshkineg/atlas-idp
       - RUNNER_NAME=atlas-idp-docker-runner
