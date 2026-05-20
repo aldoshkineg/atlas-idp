@@ -9,26 +9,27 @@ on:
 jobs:
   check:
     name: Code Quality Checks
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, atlas-idp, kind, local]
+    container:
+      image: python:3.11-slim
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: |
+          apt-get update && apt-get install -y curl unzip
+          pip install yamllint
+
       - name: Install Terraform
         run: |
-          if ! command -v terraform &> /dev/null; then
-            echo "Terraform not found, installing..."
-            curl -fsSL https://releases.hashicorp.com/terraform/1.9.0/terraform_1.9.0_linux_amd64.zip -o /tmp/terraform.zip
-            unzip -o /tmp/terraform.zip -d /usr/local/bin/
-            rm /tmp/terraform.zip
-          fi
+          curl -fsSL https://releases.hashicorp.com/terraform/1.9.0/terraform_1.9.0_linux_amd64.zip -o /tmp/terraform.zip
+          unzip -o /tmp/terraform.zip -d /usr/local/bin/
+          rm /tmp/terraform.zip
           terraform version
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive infra/
-
-      - name: Install yamllint
-        run: pip install yamllint
 
       - name: YAML Lint
         run: yamllint -c .yamllint.yml gitops/ observability/ security/ clusters/ || true
