@@ -1,0 +1,43 @@
+# GitHub Actions Shared Configuration
+# Replaces variables/default section from .gitlab-ci.yml
+
+name: Shared Settings
+
+# Shared environment variables
+env:
+  CLUSTER_NAME: atlas-idp
+  CI_CLUSTER_NAME: atlas-idp-ci
+  KIND_CONFIG: clusters/kind/cluster-ci.yaml
+  TF_ROOT: infra/environments/local-kind
+
+# Default runner tags (matches original GitLab runner tags)
+runner_tags:
+  - self-hosted
+  - atlas-idp
+  - kind
+  - local
+
+# Pipeline stages (in order)
+stages:
+  - validate
+  - security
+  - build
+  - kind
+  - deploy
+
+# Shared timeouts
+timeouts:
+  kind_create: 15m
+  kind_verify: 5m
+  kind_delete: 5m
+
+# Trigger conditions
+triggers:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  merge_group: true
+
+# Manual deploy condition
+deploy_condition: github.ref == 'refs/heads/main'

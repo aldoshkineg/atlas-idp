@@ -1,0 +1,38 @@
+name: Security Scanning
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+jobs:
+  trivy-iac:
+    name: Trivy IaC
+    runs-on: [self-hosted, atlas-idp, kind, local]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: .
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          config: security/trivy/trivy.yaml
+          ignore-unfixed: true
+
+  trivy-images:
+    name: Trivy Images
+    runs-on: [self-hosted, atlas-idp, kind, local]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: apps/
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          config: security/trivy/trivy.yaml
+          ignore-unfixed: true

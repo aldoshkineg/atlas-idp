@@ -1,0 +1,10 @@
+# GitOps sync to production — отдельно от локального kind в ci/kind.yml
+deploy:gitops-sync:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - echo "Argo CD sync — configure ARGOCD_SERVER / ARGOCD_AUTH_TOKEN in CI variables"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  when: manual
+  allow_failure: true

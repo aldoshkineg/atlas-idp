@@ -1,0 +1,20 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
+  ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+
+jobs:
+  gitops-sync:
+    name: GitOps Sync
+    runs-on: [self-hosted, atlas-idp, kind, local]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: GitOps Sync
+        run: |
+          echo "Argo CD sync — configure ARGOCD_SERVER / ARGOCD_AUTH_TOKEN in secrets"

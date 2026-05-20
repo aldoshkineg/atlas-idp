@@ -1,0 +1,52 @@
+# Terraform / OpenTofu
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Kubernetes / kind
+kubeconfig
+*.kubeconfig
+kind-export/
+
+# Secrets (local files, stay in repo tree)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Build artifacts
+dist/
+target/
+__pycache__/
+*.pyc
+node_modules/
+
+# Trivy cache
+.trivycache/
+
+# Local overrides
+*.local.yaml
+*.local.yml
+
+# GitLab Runner (local-kind)
+infra/environments/local-kind/gitlab-runner/config/
+infra/environments/local-kind/gitlab-runner/.env
+
+# GitHub Actions Runner
+ci/runner/.env
+ci/runner/runner-data/

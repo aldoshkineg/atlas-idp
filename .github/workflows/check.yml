@@ -1,0 +1,42 @@
+name: Quick Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive infra/
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: YAML Lint
+        run: yamllint -c .yamllint.yml gitops/ observability/ security/ clusters/ || true
+
+      - name: Check for Merge Conflicts
+        run: |
+          if grep -r "^<<<<<<<|^=======|^>>>>>>>" --include="*.yaml" --include="*.yml" --include="*.tf" --include="*.json" .; then
+            echo "Merge conflicts found!"
+            exit 1
+          fi
+
+      - name: Validate JSON files
+        run: |
+          find . -name "*.json" -not -path "*/node_modules/*" -not -path "*/.terraform/*" | while read f; do
+            python3 -m json.tool "$f" > /dev/null 2>&1 || (echo "Invalid JSON: $f" && exit 1)
+          done

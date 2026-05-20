@@ -1,0 +1,18 @@
+services:
+  github-runner:
+    image: ghcr.io/actions/actions-runner:latest
+    container_name: github-runner-atlas-idp
+    restart: unless-stopped
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    environment:
+      - RUNNER_NAME=atlas-idp-docker-runner
+      - RUNNER_WORKDIR=/tmp/runner/work
+      - RUNNER_SCOPE=repo
+      - REPO_URL=https://github.com/aldoshkineg/atlas-idp
+      - RUNNER_TOKEN=${RUNNER_TOKEN}
+      - LABELS=self-hosted,docker,linux
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./runner-data:/home/runner/_work
+      - ./entrypoint.sh:/entrypoint.sh
+    privileged: true

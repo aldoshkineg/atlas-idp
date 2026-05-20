@@ -1,0 +1,14 @@
+groups:
+  - name: atlas-idp-capacity
+    rules:
+      - alert: HPAMaxedOut
+        expr: |
+          kube_horizontalpodautoscaler_status_current_replicas
+            ==
+          kube_horizontalpodautoscaler_spec_max_replicas
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: HPA at max replicas
+          description: Workload has been at max replicas for 15 minutes; consider raising limits or optimizing load.

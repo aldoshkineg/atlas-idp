@@ -1,0 +1,24 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+  pull_request:
+    paths:
+      - 'apps/**'
+
+jobs:
+  build-apps:
+    name: Build App Images
+    runs-on: [self-hosted, atlas-idp, kind, local]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker Info
+        run: docker info
+
+      - name: Build Images
+        run: |
+          echo "Build app images (backend-api, worker) — add Dockerfiles under apps/"

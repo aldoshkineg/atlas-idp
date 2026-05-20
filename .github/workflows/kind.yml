@@ -1,0 +1,65 @@
+name: Kind Cluster
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+env:
+  CLUSTER_NAME: atlas-idp-ci
+  KIND_CONFIG: clusters/kind/cluster-ci.yaml
+
+jobs:
+  kind-create:
+    name: Create Kind Cluster
+    runs-on: [self-hosted, atlas-idp, kind, local]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Tools
+        run: |
+          apk add --no-cache bash curl
+          chmod +x clusters/scripts/*.sh
+          ./clusters/scripts/ci-install-tools.sh
+
+      - name: Create Cluster
+        run: ./clusters/scripts/ci-kind-provision.sh
+
+  kind-verify:
+    name: Verify Cluster
+    runs-on: [self-hosted, atlas-idp, kind, local]
+    timeout-minutes: 5
+    needs: kind-create
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Tools
+        run: |
+          apk add --no-cache bash curl
+          chmod +x clusters/scripts/*.sh
+          ./clusters/scripts/ci-install-tools.sh
+
+      - name: Smoke Test
+        run: ./clusters/scripts/ci-kind-smoke.sh
+
+  kind-delete:
+    name: Delete Cluster
+    runs-on: [self-hosted, atlas-idp, kind, local]
+    if: always()
+    timeout-minutes: 5
+    needs:
+      - kind-create
+      - kind-verify
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Tools
+        run: |
+          apk add --no-cache bash curl
+          chmod +x clusters/scripts/*.sh
+          ./clusters/scripts/ci-install-tools.sh
+
+      - name: Delete Cluster
+        run: ./clusters/scripts/ci-kind-down.sh

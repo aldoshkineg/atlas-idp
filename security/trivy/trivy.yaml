@@ -1,0 +1,8 @@
+# Minimal Trivy config for CI (security stage)
+severity:
+  - HIGH
+  - CRITICAL
+scan:
+  skip-dirs:
+    - .git
+    - kind-kubeconfig
