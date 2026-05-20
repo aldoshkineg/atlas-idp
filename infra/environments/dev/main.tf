@@ -4,6 +4,7 @@ module "kind_cluster" {
   source = "../../modules/kind"
 
   cluster_name      = "dev-cluster"
+  kubernetes_version = "v1.35.0"
   create_cluster    = true
   worker_node_count = 2
 

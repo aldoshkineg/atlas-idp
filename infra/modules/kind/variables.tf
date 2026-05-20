@@ -53,7 +53,7 @@ variable "kind_config_path" {
 variable "kubernetes_version" {
   description = "Kubernetes version to use (e.g., v1.27.0). Requires matching node image."
   type        = string
-  default     = ""
+  default     = "v.1.35.0"
 }
 
 variable "enable_cache" {
