@@ -48,7 +48,6 @@ variable "kind_config_path" {
   description = "Path to the kind configuration file (optional, not used with kind provider)"
   type        = string
   default     = ""
-  deprecated  = "This variable is not used with the kind provider. Configuration is done via kind_config block."
 }
 
 variable "kubernetes_version" {
