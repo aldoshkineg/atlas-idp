@@ -16,3 +16,4 @@ services:
       - ./runner-data:/home/runner/_work
       - ./entrypoint.sh:/entrypoint.sh
     privileged: true
+    user: root
