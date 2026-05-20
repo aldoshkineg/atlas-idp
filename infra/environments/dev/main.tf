@@ -10,6 +10,9 @@ module "kind_cluster" {
   # Enable ingress-ready labels for ingress controllers
   ingress_ready = true
 
+  # Enable zot mirror repos
+  enable_cache = true
+
   # Expose ports for ingress
   extra_port_mappings = [
     {

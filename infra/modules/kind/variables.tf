@@ -55,3 +55,27 @@ variable "kubernetes_version" {
   type        = string
   default     = ""
 }
+
+variable "enable_cache" {
+  description = "Флаг для включения зеркалирования/кэширования через Zot"
+  type        = bool
+  default     = false
+}
+
+variable "cache_registry_server" {
+  description = "Базовый адрес апстрима (сервера) для конфигурации containerd"
+  type        = string
+  default     = "https://zot-registry.local"
+}
+
+variable "cache_host_url" {
+  description = "Адрес локального кэширующего прокси Zot внутри docker-сети"
+  type        = string
+  default     = "http://kind-zot-registry:5000"
+}
+
+variable "cache_host_capabilities" {
+  description = "Разрешенные операции для containerd при работе с кэшем"
+  type        = list(string)
+  default     = ["pull", "resolve"]
+}
