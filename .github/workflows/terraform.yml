@@ -33,3 +33,29 @@ jobs:
 
     - name: Terraform Apply
       run: terraform apply -auto-approve
+
+    - name: Setup kubectl
+      run: |
+        if ! command -v kubectl &> /dev/null; then
+          echo "Installing kubectl..."
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+        fi
+        kubectl version --client
+
+    - name: Check K8s Cluster Connection
+      run: |
+        echo "Checking cluster connectivity..."
+        kubectl cluster-info
+        echo ""
+        echo "Nodes status:"
+        kubectl get nodes -o wide
+
+    - name: Check Core Components
+      run: |
+        echo "Checking kube-system pods:"
+        kubectl get pods -n kube-system
+        echo ""
+        echo "Checking all namespaces:"
+        kubectl get namespaces
