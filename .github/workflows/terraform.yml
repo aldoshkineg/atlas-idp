@@ -22,7 +22,7 @@ jobs:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
-        terraform_version: "1.8.0"
+        terraform_version: "1.53.3"
         terraform_wrapper: false # Отключаем wrapper для корректной передачи sensitive-данных в outputs
 
     - name: Terraform Init
