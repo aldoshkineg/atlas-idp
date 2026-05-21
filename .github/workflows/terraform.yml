@@ -11,7 +11,7 @@ jobs:
     runs-on: self-hosted # Используем ваш self-hosted раннер c лейблом из настроек
 
     env:
-      KUBECONFIG: ~/.kube/kind
+      KUBECONFIG: /root/.kube/kind
 
     defaults:
       run:
