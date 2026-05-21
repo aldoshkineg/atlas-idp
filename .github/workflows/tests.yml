@@ -12,9 +12,31 @@ jobs:
     runs-on: self-hosted
 
     steps:
-    - name: Debug Info
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Check Terraform
+      run: terraform version
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive infra/
+
+    - name: Terraform Validate
       run: |
-        echo "Runner is working"
-        whoami
-        pwd
-        ls -la
+        cd infra/environments/dev
+        terraform init -backend=false
+        terraform validate
+
+    - name: Install yamllint
+      run: pip install yamllint || true
+
+    - name: YAML Lint
+      run: yamllint -c .yamllint.yml gitops/ observability/ security/ || true
+
+    - name: Trivy Security Scan
+      run: |
+        if command -v trivy &> /dev/null; then
+          trivy config --severity HIGH,CRITICAL infra/ gitops/ || true
+        else
+          echo "Trivy not installed, skipping"
+        fi
