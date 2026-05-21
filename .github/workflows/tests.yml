@@ -1,0 +1,44 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: self-hosted
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: "1.15.3"
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive infra/
+
+    - name: Terraform Validate
+      run: |
+        cd infra/environments/dev
+        terraform init -backend=false
+        terraform validate
+
+    - name: Install yamllint
+      run: pip install yamllint
+
+    - name: YAML Lint
+      run: yamllint -c .yamllint.yml gitops/ observability/ security/ || true
+
+    - name: Install Trivy
+      uses: aquasecurity/setup-trivy@v1
+      with:
+        version: v0.50.0
+
+    - name: Trivy Security Scan
+      run: trivy config --severity HIGH,CRITICAL infra/ gitops/ || true
