@@ -265,6 +265,7 @@ HashiCorp Vault manages secrets with fine-grained ACL policies. The `platform-re
 
 - **Cluster**: kind (1 control-plane + 2 workers)
 - **State**: Local filesystem
+- **Cache Images**: zot
 - **GitOps**: Argo CD installed via Terraform Helm provider
 - **Runner**: Docker Compose GitLab Runner
 
