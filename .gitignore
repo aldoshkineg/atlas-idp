@@ -46,6 +46,7 @@ node_modules/
 # GitLab Runner (local-kind)
 infra/environments/local-kind/gitlab-runner/config/
 infra/environments/local-kind/gitlab-runner/.env
+infra/modules/kind/hosts.toml
 
 # GitHub Actions Runner
 ci/runner/.env
