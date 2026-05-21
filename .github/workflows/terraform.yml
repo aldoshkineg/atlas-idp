@@ -31,6 +31,20 @@ jobs:
     - name: Terraform Init
       run: terraform init
 
+    - name: Cleanup Existing Cluster
+      run: |
+        echo "Checking for existing cluster..."
+        if kind get clusters 2>/dev/null | grep -q "dev-cluster"; then
+          echo "Cluster 'dev-cluster' exists, deleting..."
+          kind delete cluster --name dev-cluster
+          echo "Cluster deleted"
+        else
+          echo "No existing cluster found"
+        fi
+        # Also cleanup terraform state
+        rm -rf .terraform.lock.hcl
+        terraform init -force-copy 2>/dev/null || terraform init
+
     - name: Terraform Plan
       run: terraform plan
 
@@ -46,6 +60,16 @@ jobs:
           sudo mv kubectl /usr/local/bin/
         fi
         kubectl version --client
+
+    - name: Setup kind
+      run: |
+        if ! command -v kind &> /dev/null; then
+          echo "Installing kind..."
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+        fi
+        kind version
 
     - name: Check K8s Cluster Connection
       run: |
