@@ -1,15 +1,4 @@
-# 1. Генерируем локальный файл (теперь он гарантированно создастся как файл, т.к. мы очистили раннер)
-resource "local_file" "containerd_hosts" {
-  filename = "${path.module}/hosts.toml"
-  content  = <<-EOT
-    server = "${var.cache_registry_server}"
-
-    [host."${var.cache_host_url}"]
-      capabilities = ${jsonencode(var.cache_host_capabilities)}
-  EOT
-}
-
-# 2. Создаем кластер KinD (БЕЗ extra_mounts для hosts.toml)
+# 1. Создаем кластер KinD (БЕЗ каких-либо extra_mounts для hosts.toml)
 resource "kind_cluster" "default" {
   count = var.create_cluster ? 1 : 0
 
@@ -21,6 +10,7 @@ resource "kind_cluster" "default" {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
 
+    # Патч, включающий поиск конфигураций в certs.d
     containerd_config_patches = var.enable_cache ? [
       <<-TOML
       [plugins."io.containerd.grpc.v1.cri".registry]
@@ -28,6 +18,7 @@ resource "kind_cluster" "default" {
       TOML
     ] : null
 
+    # --- Control-plane нода ---
     node {
       role = "control-plane"
 
@@ -48,45 +39,46 @@ resource "kind_cluster" "default" {
           protocol       = upper(extra_port_mappings.value.protocol)
         }
       }
-      # ЗДЕСЬ ПУСТО, НИКАКИХ extra_mounts ДЛЯ ФАЙЛА hosts.toml
     }
 
+    # --- Worker ноды ---
     dynamic "node" {
       for_each = range(var.worker_node_count)
       content {
         role = "worker"
-        # ЗДЕСЬ ТОЖЕ ПУСТО
       }
     }
   }
-}
 
-# 3. Безопасная доставка файла через Docker API
-resource "null_resource" "inject_containerd_config" {
-  count      = var.enable_cache && var.create_cluster ? 1 : 0
-  depends_on = [kind_cluster.default]
-
-  triggers = {
-    config_hash = md5(local_file.containerd_hosts.content)
-  }
-
+  # 2. Элегантная и надежная доставка конфигурации напрямую через Docker
   provisioner "local-exec" {
     command = <<-EOT
-      echo "Injecting containerd hosts.toml into KinD nodes..."
-      for node in $(kind get nodes --name ${var.cluster_name}); do
-        # 1. На всякий случай зачищаем целевой путь внутри ноды, если там образовалась папка
-        docker exec $node rm -rf /etc/containerd/certs.d/_default/hosts.toml
+      if [ "${var.enable_cache}" = "true" ]; then
+        echo "=== Настройка containerd зеркалирования ==="
 
-        # 2. Создаем родительскую директорию
-        docker exec $node mkdir -p /etc/containerd/certs.d/_default
+        # Находим айдишники всех контейнеров нашего кластера через чистый Docker API
+        for node in $(docker ps -q --filter name="${var.cluster_name}-"); do
+          echo "Настраиваем ноду: $node"
 
-        # 3. Копируем файл напрямую через поток Docker API (это на 100% создаст файл)
-        docker cp ${local_file.containerd_hosts.filename} $node:/etc/containerd/certs.d/_default/hosts.toml
+          # Жестко сносим ложные папки, если Docker успел их там создать
+          docker exec $node rm -rf /etc/containerd/certs.d/_default/hosts.toml
 
-        # 4. Перезапускаем containerd для применения изменений
-        docker exec $node systemctl restart containerd
-        echo "Successfully configured node: $node"
-      done
+          # Создаем структуру директорий прямо внутри ноды
+          docker exec $node mkdir -p /etc/containerd/certs.d/_default
+
+          # Заливаем контент напрямую в файл внутри контейнера через стандартный поток ввода
+          docker exec -i $node sh -c "cat > /etc/containerd/certs.d/_default/hosts.toml" << 'EOF'
+server = "${var.cache_registry_server}"
+
+[host."${var.cache_host_url}"]
+  capabilities = ${jsonencode(var.cache_host_capabilities)}
+EOF
+
+          # Перезапускаем containerd внутри этой ноды
+          docker exec $node systemctl restart containerd
+          echo "Нода $node успешно настроена!"
+        done
+      fi
     EOT
   }
 }
