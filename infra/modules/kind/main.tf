@@ -1,4 +1,4 @@
-# 1. Автоматически генерируем файл hosts.toml для настройки зеркалирования образов в Zot
+# 1. Автоматически генерируем локальный файл hosts.toml
 resource "local_file" "containerd_hosts" {
   filename = "${path.module}/hosts.toml"
   content  = <<-EOT
@@ -9,7 +9,7 @@ resource "local_file" "containerd_hosts" {
   EOT
 }
 
-# 2. Создаем кластер KinD через нативный блок конфигурации провайдера `kind_config`
+# 2. Создаем кластер KinD через нативный блок конфигурации
 resource "kind_cluster" "default" {
   count = var.create_cluster ? 1 : 0
 
@@ -21,7 +21,7 @@ resource "kind_cluster" "default" {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
 
-    # Патч для containerd применяется только если активирован enable_cache
+    # Включаем поддержку директории certs.d только если кэш активен
     containerd_config_patches = var.enable_cache ? [
       <<-TOML
       [plugins."io.containerd.grpc.v1.cri".registry]
@@ -51,7 +51,7 @@ resource "kind_cluster" "default" {
         }
       }
 
-      # Монтируем hosts.toml в control-plane только при enable_cache = true
+      # Твой родной рабочий маут, который активируется только при var.enable_cache = true
       dynamic "extra_mounts" {
         for_each = var.enable_cache ? [1] : []
         content {
@@ -68,7 +68,7 @@ resource "kind_cluster" "default" {
       content {
         role = "worker"
 
-        # Монтируем hosts.toml во все worker-ноды только при enable_cache = true
+        # Динамически монтируем hosts.toml в каждую worker ноду, если кэш включен
         dynamic "extra_mounts" {
           for_each = var.enable_cache ? [1] : []
           content {
