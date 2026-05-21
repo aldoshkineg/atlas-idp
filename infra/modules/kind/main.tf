@@ -1,4 +1,4 @@
-# 1. Автоматически генерируем локальный файл hosts.toml
+# 1. Генерируем локальный файл (теперь он гарантированно создастся как файл, т.к. мы очистили раннер)
 resource "local_file" "containerd_hosts" {
   filename = "${path.module}/hosts.toml"
   content  = <<-EOT
@@ -9,7 +9,7 @@ resource "local_file" "containerd_hosts" {
   EOT
 }
 
-# 2. Создаем кластер KinD через нативный блок конфигурации
+# 2. Создаем кластер KinD (БЕЗ extra_mounts для hosts.toml)
 resource "kind_cluster" "default" {
   count = var.create_cluster ? 1 : 0
 
@@ -21,7 +21,6 @@ resource "kind_cluster" "default" {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
 
-    # Включаем поддержку директории certs.d только если кэш активен
     containerd_config_patches = var.enable_cache ? [
       <<-TOML
       [plugins."io.containerd.grpc.v1.cri".registry]
@@ -29,7 +28,6 @@ resource "kind_cluster" "default" {
       TOML
     ] : null
 
-    # --- Control-plane нода ---
     node {
       role = "control-plane"
 
@@ -50,34 +48,45 @@ resource "kind_cluster" "default" {
           protocol       = upper(extra_port_mappings.value.protocol)
         }
       }
-
-      # Твой родной рабочий маут, который активируется только при var.enable_cache = true
-      dynamic "extra_mounts" {
-        for_each = var.enable_cache ? [1] : []
-        content {
-          host_path      = abspath(local_file.containerd_hosts.filename)
-          container_path = "/etc/containerd/certs.d/_default/hosts.toml"
-          read_only      = true
-        }
-      }
+      # ЗДЕСЬ ПУСТО, НИКАКИХ extra_mounts ДЛЯ ФАЙЛА hosts.toml
     }
 
-    # --- Worker ноды ---
     dynamic "node" {
       for_each = range(var.worker_node_count)
       content {
         role = "worker"
-
-        # Динамически монтируем hosts.toml в каждую worker ноду, если кэш включен
-        dynamic "extra_mounts" {
-          for_each = var.enable_cache ? [1] : []
-          content {
-            host_path      = abspath(local_file.containerd_hosts.filename)
-            container_path = "/etc/containerd/certs.d/_default/hosts.toml"
-            read_only      = true
-          }
-        }
+        # ЗДЕСЬ ТОЖЕ ПУСТО
       }
     }
+  }
+}
+
+# 3. Безопасная доставка файла через Docker API
+resource "null_resource" "inject_containerd_config" {
+  count      = var.enable_cache && var.create_cluster ? 1 : 0
+  depends_on = [kind_cluster.default]
+
+  triggers = {
+    config_hash = md5(local_file.containerd_hosts.content)
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Injecting containerd hosts.toml into KinD nodes..."
+      for node in $(kind get nodes --name ${var.cluster_name}); do
+        # 1. На всякий случай зачищаем целевой путь внутри ноды, если там образовалась папка
+        docker exec $node rm -rf /etc/containerd/certs.d/_default/hosts.toml
+
+        # 2. Создаем родительскую директорию
+        docker exec $node mkdir -p /etc/containerd/certs.d/_default
+
+        # 3. Копируем файл напрямую через поток Docker API (это на 100% создаст файл)
+        docker cp ${local_file.containerd_hosts.filename} $node:/etc/containerd/certs.d/_default/hosts.toml
+
+        # 4. Перезапускаем containerd для применения изменений
+        docker exec $node systemctl restart containerd
+        echo "Successfully configured node: $node"
+      done
+    EOT
   }
 }
