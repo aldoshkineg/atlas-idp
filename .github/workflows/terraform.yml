@@ -33,26 +33,14 @@ jobs:
 
     - name: Cleanup Existing Cluster
       run: |
-        echo "Checking for existing cluster and state..."
+        echo "Aggressive cleanup of existing resources..."
         # Delete cluster via kind if exists
-        if kind get clusters 2>/dev/null | grep -q "dev-cluster"; then
-          echo "Cluster 'dev-cluster' exists via kind, deleting..."
-          kind delete cluster --name dev-cluster
-          echo "Cluster deleted via kind"
-        else
-          echo "No existing cluster found via kind"
-        fi
-        # Cleanup terraform state and lock file
-        rm -rf .terraform.lock.hcl .terraform/terraform.tfstate.backup
-        # Re-init terraform
-        terraform init -force-copy
-        # Try to destroy any existing resources
-        if terraform show 2>/dev/null | grep -q "kind_cluster"; then
-          echo "Found existing terraform state, destroying..."
-          terraform destroy -auto-approve || echo "Destroy failed, continuing..."
-        fi
-        # Re-init after destroy
-        terraform init -force-copy
+        kind delete cluster --name dev-cluster 2>/dev/null || echo "No cluster to delete via kind"
+        # Remove all terraform state files
+        rm -rf .terraform/ terraform.tfstate terraform.tfstate.backup .terraform.lock.hcl
+        echo "Cleanup completed"
+        # Re-init terraform from scratch
+        terraform init
 
     - name: Terraform Plan
       run: terraform plan
