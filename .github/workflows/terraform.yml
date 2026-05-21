@@ -62,3 +62,25 @@ jobs:
         echo ""
         echo "Checking all namespaces:"
         kubectl get namespaces
+
+    - name: Wait for Nodes Ready
+      run: |
+        echo "Waiting for nodes to be ready..."
+        for i in {1..30}; do
+          READY_NODES=$(kubectl get nodes --no-headers 2>/dev/null | grep -c " Ready" || echo "0")
+          TOTAL_NODES=$(kubectl get nodes --no-headers 2>/dev/null | wc -l)
+          echo "Attempt $i: $READY_NODES/$TOTAL_NODES nodes ready"
+          if [ "$READY_NODES" = "$TOTAL_NODES" ] && [ "$TOTAL_NODES" -gt 0 ]; then
+            echo "All nodes are ready!"
+            kubectl get nodes -o wide
+            exit 0
+          fi
+          sleep 10
+        done
+        echo "Timeout waiting for nodes to be ready"
+        kubectl get nodes -o wide
+        exit 1
+
+    - name: Terraform Destroy
+      if: always()
+      run: terraform destroy -auto-approve
