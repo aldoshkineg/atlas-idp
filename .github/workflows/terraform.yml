@@ -10,6 +10,9 @@ jobs:
     name: Terraform Apply
     runs-on: self-hosted # Используем ваш self-hosted раннер c лейблом из настроек
 
+    env:
+      KUBECONFIG: ~/.kube/kind
+
     defaults:
       run:
         # Укажите точный путь до папки с вашим main.tf относительно корня репозитория
