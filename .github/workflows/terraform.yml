@@ -34,12 +34,14 @@ jobs:
     - name: Cleanup Existing Cluster
       run: |
         echo "Aggressive cleanup of existing resources..."
-        # Delete cluster via kind if exists
-        kind delete cluster --name dev-cluster 2>/dev/null || echo "No cluster to delete via kind"
-        # Remove all terraform state files
-        rm -rf .terraform/ terraform.tfstate terraform.tfstate.backup .terraform.lock.hcl
-        echo "Cleanup completed"
-        # Re-init terraform from scratch
+        # Delete cluster via kind if exists (ignore errors)
+        kind delete cluster --name dev-cluster 2>/dev/null || true
+        # Kill any kind containers that might be running
+        docker ps -a --filter "name=dev-cluster" -q | xargs -r docker rm -f 2>/dev/null || true
+        # Remove all terraform state files completely
+        rm -rf .terraform/ .terraform.lock.hcl terraform.tfstate* 
+        echo "Cleanup completed - all state removed"
+        # Fresh init
         terraform init
 
     - name: Terraform Plan
