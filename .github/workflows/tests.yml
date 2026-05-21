@@ -20,7 +20,8 @@ jobs:
       run: terraform version
 
     - name: Terraform Format Check
-      run: terraform fmt -check -recursive infra/ || echo "Warning: Terraform files need formatting"
+      run: |
+        terraform fmt -check -recursive infra/ || echo "Warning: Terraform files need formatting"
 
     - name: Terraform Validate
       run: |
