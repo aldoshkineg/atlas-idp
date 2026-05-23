@@ -13,8 +13,6 @@ jobs:
         working-directory: ./infra/environments/dev
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
 
     - name: Setup kind (if missing)
       run: |
