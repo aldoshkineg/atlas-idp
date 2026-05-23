@@ -7,7 +7,7 @@ jobs:
 
   terraform:
 
-    runs-on: [self-hosted, kind]
+    runs-on: [self-hosted]
 
     env:
       KUBECONFIG: /root/.kube/kind

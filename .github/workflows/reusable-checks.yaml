@@ -6,7 +6,7 @@ on:
 jobs:
 
   checks:
-    runs-on: [self-hosted, local]
+    runs-on: [self-hosted]
 
     steps:
 
