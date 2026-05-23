@@ -32,14 +32,10 @@ jobs:
       run: |
         echo "Aggressive cleanup of existing resources..."
 
-        # 1. Delete cluster via kind utility
+        # Delete cluster via kind utility
         kind delete cluster --name atlas-idp 2>/dev/null || true
 
-        # 2. Force-remove docker containers if kind left anything behind
-        echo "Forcing docker containers removal..."
-        docker ps -a --filter "name=atlas-idp" -q | xargs -r docker rm -f 2>/dev/null || true
-
-        # 3. Completely wipe local terraform state and plugins
+        # Completely wipe local terraform state and plugins
         echo "Removing terraform state files..."
         rm -rf .terraform .terraform.lock.hcl terraform.tfstate*
 
