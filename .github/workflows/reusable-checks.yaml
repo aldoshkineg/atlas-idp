@@ -1,0 +1,38 @@
+name: Reusable Checks
+
+on:
+  workflow_call:
+
+jobs:
+
+  checks:
+    runs-on: [self-hosted, local]
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Terraform Format
+        run: terraform fmt -check -recursive infra/
+
+      - name: Terraform Validate
+        run: |
+          cd infra/environments/dev
+          terraform init -backend=false
+          terraform validate
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: YAML Lint
+        run: |
+          yamllint -c .yamllint.yml \
+          gitops/ \
+          observability/ \
+          security/
+
+      - name: Security Scan
+        run: |
+          trivy config \
+          --severity HIGH,CRITICAL \
+          infra/ gitops/

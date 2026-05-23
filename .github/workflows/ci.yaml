@@ -1,0 +1,28 @@
+name: Platform CI
+
+on:
+  push:
+    branches: [main]
+
+  pull_request:
+    branches: [main]
+
+  workflow_dispatch:
+
+jobs:
+
+  tools:
+    uses: ./.github/workflows/reusable-tools.yaml
+
+  checks:
+    needs: tools
+    uses: ./.github/workflows/reusable-checks.yaml
+
+  terraform-kind:
+    needs: checks
+    uses: ./.github/workflows/terraform-kind.yaml
+
+  terraform-eks:
+    needs: checks
+    if: false
+    uses: ./.github/workflows/terraform-eks.yaml

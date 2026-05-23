@@ -1,0 +1,52 @@
+name: Terraform Kind
+
+on:
+  workflow_call:
+
+jobs:
+
+  terraform:
+
+    runs-on: [self-hosted, kind]
+
+    env:
+      KUBECONFIG: /root/.kube/kind
+
+    defaults:
+      run:
+        working-directory: ./infra/environments/dev
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan
+        run: terraform plan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      - name: Check cluster
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Wait nodes
+        run: |
+          kubectl wait \
+            --for=condition=Ready node \
+            --all \
+            --timeout=300s
+
+      - name: Verify ArgoCD
+        run: |
+          kubectl wait \
+          --for=condition=available \
+          deployment/argocd-server \
+          -n argocd \
+          --timeout=180s
+
+          kubectl get applications -n argocd

@@ -1,11 +1,18 @@
-name: Manual Cleanup KinD (Local)
+name: Manual Cleanup KinD
 
 on:
-  workflow_dispatch: # Allows manual trigger from the UI or via gh CLI
+  workflow_dispatch:
 
 jobs:
+
+  tools:
+    uses: ./.github/workflows/reusable-tools.yaml
+
   cleanup:
     name: Aggressive Cleanup
+
+    needs: tools
+
     runs-on: self-hosted
 
     defaults:
@@ -14,27 +21,23 @@ jobs:
 
     steps:
 
-    - name: Setup kind (if missing)
-      run: |
-        if ! command -v kind &> /dev/null; then
-          echo "kind is missing. Installing version v0.29.0..."
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.29.0/kind-linux-amd64
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
-        else
-          echo "kind is already installed."
-        fi
-        kind version
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Run Aggressive Cleanup
-      run: |
-        echo "Aggressive cleanup of existing resources..."
+      - name: Verify kind
+        run: kind version
 
-        # Delete cluster via kind utility
-        kind delete cluster --name atlas-idp 2>/dev/null || true
+      - name: Run Aggressive Cleanup
+        run: |
+          echo "Aggressive cleanup of existing resources..."
 
-        # Completely wipe local terraform state and plugins
-        echo "Removing terraform state files..."
-        rm -rf .terraform .terraform.lock.hcl terraform.tfstate*
+          echo "Deleting KinD cluster..."
+          kind delete cluster --name atlas-idp || true
 
-        echo "Cleanup completed - host is fresh and clean!"
+          echo "Removing Terraform local state..."
+          rm -rf \
+            .terraform \
+            .terraform.lock.hcl \
+            terraform.tfstate*
+
+          echo "Cleanup completed"
