@@ -1,4 +1,10 @@
 # Development environment configuration for kind cluster (using tehcyx/kind provider)
+terraform {
+  backend "local" {
+    # Absolute path on the runner server, outside the GitHub Actions workspace
+    path = "/var/tmp/atlas-idp-cluster.tfstate"
+  }
+}
 
 module "kind_cluster" {
   source = "../../modules/kind"

@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
 
 jobs:
-
   tools:
     uses: ./.github/workflows/reusable-tools.yaml
 
@@ -20,7 +19,6 @@ jobs:
         working-directory: ./infra/environments/dev
 
     steps:
-
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -34,10 +32,11 @@ jobs:
           echo "Deleting KinD cluster..."
           kind delete cluster --name atlas-idp || true
 
-          echo "Removing Terraform local state..."
+          echo "Removing Terraform local state and artifacts..."
           rm -rf \
             .terraform \
             .terraform.lock.hcl \
-            terraform.tfstate*
+            terraform.tfstate* \
+            /var/tmp/atlas-idp-cluster.tfstate
 
           echo "Cleanup completed"
