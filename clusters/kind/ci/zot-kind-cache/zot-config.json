@@ -25,6 +25,11 @@
           "tlsVerify": false
         },
         {
+          "urls": ["https://public.ecr.aws"],
+          "onDemand": true,
+          "tlsVerify": false
+        },
+        {
           "urls": ["https://quay.io"],
           "onDemand": true,
           "tlsVerify": false

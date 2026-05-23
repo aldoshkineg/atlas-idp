@@ -33,197 +33,111 @@ resource "helm_release" "argocd" {
   wait             = true
   timeout          = 600 # 10 minutes for initial install
 
-  # Default values for local kind environment
-  values = [
-    yamlencode({
-      global = {
-        domain = "argocd.local"
-      }
+  # Объединяем базовый конфиг и кастомные оверрайды в один список с помощью concat()
+  values = concat(
+    [
+      yamlencode({
+        global = {
+          domain = "argocd.local"
+        }
 
-      # Server configuration
-      server = {
-        service = {
-          type = "NodePort"
-          nodePortHttp = 30080
-        }
-        # Insecure mode for local dev (no TLS)
-        extraArgs = var.insecure_mode ? ["--insecure"] : []
-        
-        # Resource limits for kind
-        resources = {
-          limits = {
-            cpu    = "500m"
-            memory = "512Mi"
+        # Server configuration
+        server = {
+          service = {
+            type = "NodePort"
+            nodePortHttp = 30080
           }
-          requests = {
-            cpu    = "250m"
-            memory = "256Mi"
-          }
-        }
-      }
+          # Insecure mode for local dev (no TLS)
+          extraArgs = var.insecure_mode ? ["--insecure"] : []
 
-      # Repo server configuration
-      repoServer = {
-        resources = {
-          limits = {
-            cpu    = "500m"
-            memory = "512Mi"
-          }
-          requests = {
-            cpu    = "250m"
-            memory = "256Mi"
+          # Resource limits for kind
+          resources = {
+            limits = {
+              cpu    = "500m"
+              memory = "512Mi"
+            }
+            requests = {
+              cpu    = "250m"
+              memory = "256Mi"
+            }
           }
         }
-      }
 
-      # Controller configuration
-      controller = {
-        resources = {
-          limits = {
-            cpu    = "1000m"
-            memory = "1Gi"
-          }
-          requests = {
-            cpu    = "500m"
-            memory = "512Mi"
+        # Repo server configuration
+        repoServer = {
+          resources = {
+            limits = {
+              cpu    = "500m"
+              memory = "512Mi"
+            }
+            requests = {
+              cpu    = "250m"
+              memory = "256Mi"
+            }
           }
         }
-      }
 
-      # Application controller metrics
-      applicationSet = {
-        enabled = true
-        resources = {
-          limits = {
-            cpu    = "200m"
-            memory = "256Mi"
-          }
-          requests = {
-            cpu    = "100m"
-            memory = "128Mi"
+        # Controller configuration
+        controller = {
+          resources = {
+            limits = {
+              cpu    = "1000m"
+              memory = "1Gi"
+            }
+            requests = {
+              cpu    = "500m"
+              memory = "512Mi"
+            }
           }
         }
-      }
 
-      # Notifications (disabled for minimal install)
-      notifications = {
-        enabled = false
-      }
+        # Application controller metrics
+        applicationSet = {
+          enabled = true
+          resources = {
+            limits = {
+              cpu    = "200m"
+              memory = "256Mi"
+            }
+            requests = {
+              cpu    = "100m"
+              memory = "128Mi"
+            }
+          }
+        }
 
-      # Dex (OAuth, disabled for local)
-      dex = {
-        enabled = false
-      }
+        # Notifications (disabled for minimal install)
+        notifications = {
+          enabled = false
+        }
 
-      # Redis HA (disabled for kind, using single redis)
-      redis = {
-        enabled = true
-      }
-      redis-ha = {
-        enabled = false
-      }
+        # Dex (OAuth, disabled for local)
+        dex = {
+          enabled = false
+        }
 
-      # Configure repository credentials if repo_url provided
-      configs = var.repo_url != "" ? {
-        repositories = {
-          "atlas-idp-repo" = {
-            url  = var.repo_url
-            type = var.repo_type
-            name = "atlas-idp"
-          }
+        # Redis HA (disabled for kind, using single redis)
+        redis = {
+          enabled = true
         }
-      } : {}
-    })
-  ]
+        redis-ha = {
+          enabled = false
+        }
 
-  # Merge with custom values if provided
-  values = var.argocd_values_override != "" ? [
-    yamlencode({
-      global = {
-        domain = "argocd.local"
-      }
-      server = {
-        service = {
-          type = "NodePort"
-          nodePortHttp = 30080
-        }
-        extraArgs = var.insecure_mode ? ["--insecure"] : []
-      }
-    }),
-    var.argocd_values_override
-  ] : [
-    yamlencode({
-      global = {
-        domain = "argocd.local"
-      }
-      server = {
-        service = {
-          type = "NodePort"
-          nodePortHttp = 30080
-        }
-        extraArgs = var.insecure_mode ? ["--insecure"] : []
-        resources = {
-          limits = {
-            cpu    = "500m"
-            memory = "512Mi"
+        # Configure repository credentials if repo_url provided
+        configs = var.repo_url != "" ? {
+          repositories = {
+            "atlas-idp-repo" = {
+              url  = var.repo_url
+              type = var.repo_type
+              name = "atlas-idp"
+            }
           }
-          requests = {
-            cpu    = "250m"
-            memory = "256Mi"
-          }
-        }
-      }
-      repoServer = {
-        resources = {
-          limits = {
-            cpu    = "500m"
-            memory = "512Mi"
-          }
-          requests = {
-            cpu    = "250m"
-            memory = "256Mi"
-          }
-        }
-      }
-      controller = {
-        resources = {
-          limits = {
-            cpu    = "1000m"
-            memory = "1Gi"
-          }
-          requests = {
-            cpu    = "500m"
-            memory = "512Mi"
-          }
-        }
-      }
-      applicationSet = {
-        enabled = true
-        resources = {
-          limits = {
-            cpu    = "200m"
-            memory = "256Mi"
-          }
-          requests = {
-            cpu    = "100m"
-            memory = "128Mi"
-          }
-        }
-      }
-      notifications = {
-        enabled = false
-      }
-      dex = {
-        enabled = false
-      }
-      redis = {
-        enabled = true
-      }
-      redis-ha = {
-        enabled = false
-      }
-    })
-  ]
+        } : {}
+      })
+    ],
+    var.argocd_values_override != "" ? [var.argocd_values_override] : []
+  )
 
   depends_on = [
     kubernetes_namespace.argocd

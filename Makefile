@@ -1,5 +1,5 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
-	infra-init infra-plan gitops-bootstrap validate pre-commit \
+	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs
 
 CLUSTER_NAME     ?= atlas-idp
@@ -15,10 +15,12 @@ help:
 	@echo "Available Targets:"
 	@echo "  cluster-up        Create main kind cluster"
 	@echo "  cluster-down      Delete main kind cluster"
+	@echo "  cluster-nuke      Force/Hard delete kind cluster via CLI and wipe dev tfstate"
 	@echo "  cluster-ci-up     Provision local CI-specific kind cluster"
 	@echo "  cluster-ci-down   Tear down local CI-specific kind cluster"
 	@echo "  infra-init        Terraform init (ENV=$(ENV))"
 	@echo "  infra-plan        Terraform plan (ENV=$(ENV))"
+	@echo "  infra-apply       Initialize and Apply Terraform in infra/environments/dev"
 	@echo "  gitops-bootstrap  Install Argo CD (day-0) and apply root app"
 	@echo "  validate          Run fmt/validate checks (Terraform, Trivy, Yamllint)"
 	@echo "  pre-commit        Run pre-commit hooks on all project files"
@@ -38,6 +40,12 @@ cluster-up:
 cluster-down:
 	./clusters/scripts/destroy-cluster.sh
 
+cluster-nuke:
+	@echo "--> Force deleting Kind cluster '$(CLUSTER_NAME)'..."
+	kind delete cluster --name $(CLUSTER_NAME)
+	@echo "--> Wiping local Terraform state files for dev environment..."
+	rm -f infra/environments/dev/terraform.tfstate*
+
 cluster-ci-up:
 	CLUSTER_NAME=$(CI_CLUSTER) ./clusters/scripts/ci-kind-provision.sh
 
@@ -49,6 +57,12 @@ infra-init:
 
 infra-plan:
 	cd infra/environments/$(ENV) && terraform plan
+
+infra-apply:
+	@echo "--> Running initialization in dev environment..."
+	cd infra/environments/dev && terraform init
+	@echo "--> Applying infrastructure changes..."
+	cd infra/environments/dev && terraform apply -auto-approve
 
 gitops-bootstrap:
 	./clusters/scripts/bootstrap-gitops.sh
@@ -63,7 +77,6 @@ pre-commit:
 	pre-commit run --all-files
 
 # --- Local CI & Registry Cache Subsystem ---
-
 ci-cache-up:
 	@chmod +x $(ZOT_DIR)/setup-zot-cache.sh
 	cd $(ZOT_DIR) && ./setup-zot-cache.sh

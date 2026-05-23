@@ -15,8 +15,7 @@ jobs:
 
     defaults:
       run:
-        # Укажите точный путь до папки с вашим main.tf относительно корня репозитория
-        working-directory: ./infra/environments/dev/
+        working-directory: ./infra/environments/ci
 
     steps:
     - name: Checkout Code
@@ -35,11 +34,11 @@ jobs:
       run: |
         echo "Aggressive cleanup of existing resources..."
         # Delete cluster via kind if exists (ignore errors)
-        kind delete cluster --name dev-cluster 2>/dev/null || true
+        kind delete cluster --name atlas-idp-ci 2>/dev/null || true
         # Kill any kind containers that might be running
-        docker ps -a --filter "name=dev-cluster" -q | xargs -r docker rm -f 2>/dev/null || true
+        docker ps -a --filter "name=atlas-idp-ci" -q | xargs -r docker rm -f 2>/dev/null || true
         # Remove all terraform state files completely
-        rm -rf .terraform/ .terraform.lock.hcl terraform.tfstate* 
+        rm -rf .terraform/ .terraform.lock.hcl terraform.tfstate*
         echo "Cleanup completed - all state removed"
         # Fresh init
         terraform init
@@ -110,19 +109,19 @@ jobs:
         echo "Waiting for Argo CD server deployment..."
         kubectl wait --for=condition=available deployment/argocd-server \
           -n argocd --timeout=180s
-        
+
         echo ""
         echo "Argo CD pods status:"
         kubectl get pods -n argocd
-        
+
         echo ""
         echo "Argo CD Applications:"
         kubectl get applications -n argocd
-        
+
         echo ""
         echo "Root Application status:"
         kubectl describe application root-platform -n argocd || echo "Root app not yet synced"
-        
+
         echo ""
         echo "=== Argo CD Bootstrap Complete ==="
         echo "Access Argo CD UI: http://localhost:30080"
