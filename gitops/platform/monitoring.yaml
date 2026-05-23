@@ -28,15 +28,15 @@ spec:
               requests:
                 cpu: 500m
                 memory: 1Gi
-            
+
             # Retention
             retention: 7d
             retentionSize: "5GB"
-            
+
             # Service monitors
             serviceMonitorSelectorNilUsesHelmValues: false
             podMonitorSelectorNilUsesHelmValues: false
-            
+
             # Storage (ephemeral for kind, use PVC for production)
             storageSpec:
               volumeClaimTemplate:
@@ -45,19 +45,19 @@ spec:
                   resources:
                     requests:
                       storage: 10Gi
-            
+
             # Custom alert rules (mounted from observability/alerts/)
             additionalScrapeConfigs: []
-        
+
         # Grafana configuration
         grafana:
           enabled: true
           adminPassword: admin # Change in production
-          
+
           service:
             type: NodePort
             nodePort: 30300
-          
+
           resources:
             limits:
               cpu: 500m
@@ -65,10 +65,10 @@ spec:
             requests:
               cpu: 100m
               memory: 128Mi
-          
+
           persistence:
             enabled: false # Ephemeral for kind
-          
+
           dashboardProviders:
             dashboardproviders.yaml:
               apiVersion: 1
@@ -81,11 +81,11 @@ spec:
                   editable: true
                   options:
                     path: /var/lib/grafana/dashboards/default
-          
+
           # Default dashboards
           defaultDashboardsEnabled: true
           defaultDashboardsTimezone: UTC
-        
+
         # Alertmanager configuration
         alertmanager:
           enabled: true
@@ -97,7 +97,7 @@ spec:
               requests:
                 cpu: 50m
                 memory: 64Mi
-            
+
             storage:
               volumeClaimTemplate:
                 spec:
@@ -105,15 +105,15 @@ spec:
                   resources:
                     requests:
                       storage: 2Gi
-        
+
         # Node exporter
         nodeExporter:
           enabled: true
-        
+
         # Kube state metrics
         kubeStateMetrics:
           enabled: true
-        
+
         # Prometheus operator
         prometheusOperator:
           resources:
@@ -123,18 +123,18 @@ spec:
             requests:
               cpu: 100m
               memory: 128Mi
-  
+
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
-  
+
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true # Required for CRDs
+      - ServerSideApply=true  # Required for CRDs
     retry:
       limit: 5
       backoff:

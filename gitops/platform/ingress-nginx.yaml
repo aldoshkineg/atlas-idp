@@ -24,14 +24,14 @@ spec:
             ports:
               http: 80
               https: 443
-          
+
           service:
             type: NodePort
-          
+
           # Publish service on kind control-plane node
           nodeSelector:
             ingress-ready: "true"
-          
+
           tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Equal
@@ -39,7 +39,7 @@ spec:
             - key: node-role.kubernetes.io/master
               operator: Equal
               effect: NoSchedule
-          
+
           # Resource limits for kind
           resources:
             limits:
@@ -48,21 +48,21 @@ spec:
             requests:
               cpu: 100m
               memory: 128Mi
-          
+
           # Metrics for Prometheus
           metrics:
             enabled: true
             serviceMonitor:
               enabled: true
-          
+
           # Admission webhook (optional, disable for simplicity)
           admissionWebhooks:
             enabled: false
-  
+
   destination:
     server: https://kubernetes.default.svc
     namespace: ingress-nginx
-  
+
   syncPolicy:
     automated:
       prune: true

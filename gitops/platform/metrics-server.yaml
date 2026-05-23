@@ -21,7 +21,7 @@ spec:
         args:
           - --kubelet-insecure-tls
           - --kubelet-preferred-address-types=InternalIP
-        
+
         # Resource limits
         resources:
           limits:
@@ -30,22 +30,22 @@ spec:
           requests:
             cpu: 100m
             memory: 128Mi
-        
+
         # Enable APIService registration
         apiService:
           create: true
-        
+
         # Service monitor for Prometheus (optional)
         metrics:
           enabled: true
-        
+
         # HA mode (disabled for kind)
         replicas: 1
-  
+
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
-  
+
   syncPolicy:
     automated:
       prune: true
