@@ -15,7 +15,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ./infra/environments/ci
+        working-directory: ./infra/environments/dev
 
     steps:
     - name: Checkout Code
@@ -29,19 +29,6 @@ jobs:
 
     - name: Terraform Init
       run: terraform init
-
-    - name: Cleanup Existing Cluster
-      run: |
-        echo "Aggressive cleanup of existing resources..."
-        # Delete cluster via kind if exists (ignore errors)
-        kind delete cluster --name atlas-idp-ci 2>/dev/null || true
-        # Kill any kind containers that might be running
-        docker ps -a --filter "name=atlas-idp-ci" -q | xargs -r docker rm -f 2>/dev/null || true
-        # Remove all terraform state files completely
-        rm -rf .terraform/ .terraform.lock.hcl terraform.tfstate*
-        echo "Cleanup completed - all state removed"
-        # Fresh init
-        terraform init
 
     - name: Terraform Plan
       run: terraform plan
@@ -127,6 +114,3 @@ jobs:
         echo "Access Argo CD UI: http://localhost:30080"
         echo "Username: admin"
         echo "Get password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
-
-    # NOTE: Removed auto-destroy to keep cluster running
-    # Use workflow_dispatch with destroy input or separate workflow for cleanup
