@@ -8,11 +8,14 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://gitlab.com/example/atlas-idp.git
+    # IMPORTANT: Replace with your actual GitHub repository URL
+    repoURL: https://github.com/REPLACE_WITH_YOUR_ORG/atlas-idp.git
     targetRevision: main
     path: gitops/platform
     directory:
       recurse: true
+      jsonnet: {}
+      exclude: 'README.md'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

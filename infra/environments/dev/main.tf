@@ -29,7 +29,7 @@ module "kind_cluster" {
   ]
 }
 
-# Корневой провайдер инициализируется строго во время apply, когда модуль готов
+# Providers: initialized after kind cluster is ready
 provider "kubernetes" {
   host                   = module.kind_cluster.endpoint
   cluster_ca_certificate = module.kind_cluster.cluster_ca_certificate
@@ -37,7 +37,49 @@ provider "kubernetes" {
   client_key             = module.kind_cluster.client_key
 }
 
-# Namespace создается без проблем, так как он ждет завершения модуля
+provider "helm" {
+  kubernetes {
+    host                   = module.kind_cluster.endpoint
+    cluster_ca_certificate = module.kind_cluster.cluster_ca_certificate
+    client_certificate     = module.kind_cluster.client_certificate
+    client_key             = module.kind_cluster.client_key
+  }
+}
+
+# Day-0: Argo CD bootstrap via Helm
+module "argocd_bootstrap" {
+  source = "../../modules/argocd-bootstrap"
+
+  argocd_namespace     = "argocd"
+  argocd_chart_version = "7.7.5"
+  insecure_mode        = true # HTTP for local dev
+  create_namespace     = true
+  
+  # Configure GitHub repository (replace with actual repo URL)
+  repo_url  = "https://github.com/REPLACE_WITH_YOUR_ORG/atlas-idp"
+  repo_type = "git"
+
+  depends_on = [module.kind_cluster]
+}
+
+# Day-1: Apply root Application CR to kickstart GitOps
+resource "null_resource" "argocd_root_app" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Wait for Argo CD server to be ready
+      kubectl wait --for=condition=available deployment/argocd-server \
+        -n argocd --timeout=120s --kubeconfig=${module.kind_cluster.kubeconfig_path}
+      
+      # Apply root Application
+      kubectl apply -f ${path.root}/../../../gitops/bootstrap/root-app.yaml \
+        --kubeconfig=${module.kind_cluster.kubeconfig_path}
+    EOT
+  }
+
+  depends_on = [module.argocd_bootstrap]
+}
+
+# Example namespace for testing
 resource "kubernetes_namespace" "example" {
   metadata {
     name = "example-app"
@@ -46,7 +88,7 @@ resource "kubernetes_namespace" "example" {
   depends_on = [module.kind_cluster]
 }
 
-# Выводы (Outputs)
+# Outputs
 output "kubeconfig_path" {
   value     = module.kind_cluster.kubeconfig_path
   sensitive = true
@@ -58,4 +100,15 @@ output "cluster_ready" {
 
 output "cluster_name" {
   value = module.kind_cluster.cluster_name
+}
+
+output "argocd_server_url" {
+  description = "Argo CD server URL (NodePort)"
+  value       = module.argocd_bootstrap.argocd_server_url
+}
+
+output "argocd_admin_password" {
+  description = "Argo CD admin password"
+  value       = module.argocd_bootstrap.argocd_admin_password
+  sensitive   = true
 }

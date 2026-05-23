@@ -10,39 +10,39 @@ Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP) 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      CI/CD (GitLab CI)                          │
-│   ┌─────────┐  ┌────────┐  ┌───────┐  ┌──────┐  ┌────────┐   │
-│   │Validate │  │Security│  │ Build │  │ Kind │  │ Deploy │   │
-│   └─────────┘  └────────┘  └───────┘  └──────┘  └────────┘   │
+│                   CI/CD (GitHub Actions)                        │
+│   ┌─────────┐  ┌────────┐  ┌───────┐  ┌──────┐  ┌────────┐      │
+│   │Validate │  │Security│  │ Build │  │ Kind │  │ Deploy │      │
+│   └─────────┘  └────────┘  └───────┘  └──────┘  └────────┘      │
 └─────────────────────────────────────────────────────────────────┘
                               │
-┌─────────────────────────────┴──────────────────────────────────┐
+┌─────────────────────────────┴───────────────────────────────────┐
 │                   GitOps (Argo CD)                              │
 │   App-of-Apps: root → platform services → workloads             │
 └─────────────────────────────────────────────────────────────────┘
                               │
-┌─────────────────────────────┴──────────────────────────────────┐
+┌─────────────────────────────┴───────────────────────────────────┐
 │                Kubernetes Runtime (kind)                        │
-│   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐         │
-│   │ Ingress  │ │ Metrics  │ │ Prom/    │ │ Vault    │         │
-│   │  Nginx   │ │  Server  │ │ Grafana  │ │          │         │
-│   └──────────┘ └──────────┘ └──────────┘ └──────────┘         │
-│   ┌──────────┐ ┌──────────┐ ┌──────────┐                       │
-│   │  Cert    │ │  Velero  │ │  Backend │  Worker  Cron         │
-│   │ Manager  │ │   (DR)   │ │   API    │                       │
-│   └──────────┘ └──────────┘ └──────────┘                       │
+│   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
+│   │ Ingress  │ │ Metrics  │ │ Prom/    │ │ Vault    │           │
+│   │  Nginx   │ │  Server  │ │ Grafana  │ │          │           │
+│   └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
+│   ┌──────────┐ ┌──────────┐ ┌──────────┐                        │
+│   │  Cert    │ │  Velero  │ │  Backend │  Worker  Cron          │
+│   │ Manager  │ │   (DR)   │ │   API    │                        │
+│   └──────────┘ └──────────┘ └──────────┘                        │
 └─────────────────────────────────────────────────────────────────┘
                               │
-┌─────────────────────────────┴──────────────────────────────────┐
+┌─────────────────────────────┴───────────────────────────────────┐
 │                 Infrastructure (Terraform)                      │
-│   Local-kind            AWS (planned)            Modules       │
-│   ┌──────────────┐  ┌──────────────────┐  ┌────────────────┐  │
-│   │ kind cluster │  │ VPC · EKS · IRSA │  │ cluster        │  │
-│   │ Argo CD helm │  │ S3 · EBS · AMP   │  │ networking     │  │
-│   │ GitLab Runner│  │                  │  │ iam · storage  │  │
-│   └──────────────┘  └──────────────────┘  │ addons         │  │
-│                                            │ observability  │  │
-│                                            └────────────────┘  │
+│   Local-kind (dev)      AWS (planned)            Modules        │
+│   ┌──────────────┐  ┌──────────────────┐  ┌────────────────┐    │
+│   │ kind cluster │  │ VPC · EKS · IRSA │  │ kind           │    │
+│   │ Argo CD helm │  │ S3 · EBS · AMP   │  │ argocd-boot    │    │
+│   │ GH Actions   │  │                  │  │ networking     │    │
+│   └──────────────┘  └──────────────────┘  │ iam · storage  │    │
+│                                           │ addons         │    │
+│                                           └────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -50,18 +50,18 @@ Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP) 
 
 ## Tech Stack
 
-| Category              | Tools                                                                 |
-|-----------------------|-----------------------------------------------------------------------|
-| **Infrastructure**    | Terraform / OpenTofu                                                  |
-| **Kubernetes**        | kind (local), EKS (planned)                                           |
-| **GitOps**            | Argo CD                                                               |
-| **CI/CD**             | GitLab CI · GitLab Runner (Docker)                                    |
-| **Observability**     | Prometheus · Grafana · Loki (planned)                                 |
-| **Secrets**           | HashiCorp Vault                                                       |
-| **Security**          | Trivy · yamllint · RBAC · pre-commit hooks                            |
-| **Backup / DR**       | Velero (planned)                                                      |
-| **Ingress**           | ingress-nginx · cert-manager                                          |
-| **Languages**         | HCL · YAML · Shell · Go (planned for apps)                            |
+| Category           | Tools                                      |
+| ------------------ | ------------------------------------------ |
+| **Infrastructure** | Terraform / OpenTofu                       |
+| **Kubernetes**     | kind (local), EKS                          |
+| **GitOps**         | Argo CD                                    |
+| **CI/CD**          | GitHub Actions                             |
+| **Observability**  | Prometheus · Grafana · Loki                |
+| **Secrets**        | HashiCorp Vault                            |
+| **Security**       | Trivy · yamllint · RBAC · pre-commit hooks |
+| **Backup / DR**    | Velero                                     |
+| **Ingress**        | ingress-nginx · cert-manager               |
+| **Languages**      | HCL · YAML · Shell                         |
 
 ---
 
@@ -69,14 +69,17 @@ Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP) 
 
 ```
 atlas-idp/
+├── .github/
+│   └── workflows/
+│       ├── terraform.yml       # Terraform deploy: kind + Argo CD bootstrap
+│       └── tests.yml           # Validate: fmt, lint, trivy, yamllint
 ├── infra/                      # Infrastructure as Code (Terraform)
-│   ├── bootstrap/argocd/       #   Day-0 Argo CD Helm install
 │   ├── environments/
-│   │   ├── local-kind/         #   Active: kind cluster + GitLab Runner
-│   │   │   └── gitlab-runner/  #     Docker Compose · registration scripts
+│   │   ├── dev/                #   ACTIVE: kind cluster + Argo CD bootstrap
 │   │   └── aws/                #   Planned: EKS production environment
 │   └── modules/                #   Reusable Terraform modules
-│       ├── cluster/            #     kind cluster metadata
+│       ├── kind/               #     kind cluster (tehcyx/kind provider)
+│       ├── argocd-bootstrap/   #     Day-0 Argo CD Helm install
 │       ├── networking/         #     VPC · subnets · security groups (stub)
 │       ├── iam/                #     IRSA / IAM roles (stub)
 │       ├── storage/            #     S3 · PVC storage classes (stub)
@@ -95,6 +98,11 @@ atlas-idp/
 │   ├── bootstrap/              #   App-of-Apps root and argocd self-mgmt
 │   │   ├── root-app.yaml       #     Root Application (platform layer)
 │   │   └── argocd/             #     Day-1 self-management manifests
+│   ├── platform/               #   Platform-layer Applications
+│   │   ├── ingress-nginx.yaml  #     Ingress controller
+│   │   ├── cert-manager.yaml   #     TLS certificate management
+│   │   ├── metrics-server.yaml #     Resource metrics (HPA)
+│   │   └── monitoring.yaml     #     kube-prometheus-stack
 │   └── workloads/              #   Workload Applications
 │       └── application.yaml    #     Workloads app (backend-api, worker, cron)
 ├── apps/                       # Sample application code
@@ -102,12 +110,7 @@ atlas-idp/
 │   ├── worker/                 #   Worker service (planned)
 │   ├── cronjob/                #   CronJob (planned)
 │   └── charts/                 #   Helm charts (planned)
-├── ci/                         # GitLab CI job definitions
-│   ├── terraform.yml           #   Terraform validate
-│   ├── security.yml            #   Trivy scans (IaC + container images)
-│   ├── build.yml               #   Container image builds
-│   ├── deploy.yml              #   Argo CD sync (manual)
-│   └── kind.yml                #   Kind cluster lifecycle in CI
+
 ├── observability/              # Monitoring & alerting
 │   ├── alerts/                 #   Prometheus custom alert rules
 │   │   ├── custom-rule-1.yaml  #     HighErrorRate
@@ -129,9 +132,8 @@ atlas-idp/
 │   └── diagrams/               #   Architecture diagrams (planned)
 ├── ai/                         # AI-assisted design specification
 │   └── system-prompt.md        #   Full platform spec for AI agents
-├── assets/diagrams/            # Diagram assets (planned)
 ├── Makefile                    # Developer workflow targets
-├── .gitlab-ci.yml              # Root CI pipeline (5 stages)
+├── TODO.md                     # Implementation roadmap
 ├── .pre-commit-config.yaml     # Pre-commit hooks
 ├── .yamllint.yml               # YAML linting rules
 └── .gitignore
@@ -151,28 +153,47 @@ atlas-idp/
 - [yamllint](https://github.com/adrienverge/yamllint)
 - [Trivy](https://github.com/aquasecurity/trivy)
 
-### 1. Create the cluster
+### 1. Configure GitHub repository URL
+
+**IMPORTANT:** Before running Terraform, replace placeholder URLs:
 
 ```bash
-make cluster-up
+# Edit infra/environments/dev/main.tf
+# Change: https://github.com/REPLACE_WITH_YOUR_ORG/atlas-idp
+# To:     https://github.com/your-org/your-repo
+
+# Edit gitops/bootstrap/root-app.yaml
+# Change: https://github.com/REPLACE_WITH_YOUR_ORG/atlas-idp.git
+# To:     https://github.com/your-org/your-repo.git
 ```
 
-This provisions a 3-node kind cluster (1 control-plane + 2 workers) with ingress ports 80/443 mapped to the host.
-
-### 2. Deploy Argo CD (Day-0 bootstrap)
+### 2. Deploy cluster + Argo CD (Day-0 bootstrap)
 
 ```bash
-make infra-init     # Terraform init for local-kind environment
-make infra-plan     # Review the plan
-make gitops-bootstrap  # Terraform apply → Argo CD install → root app
+cd infra/environments/dev
+terraform init
+terraform plan
+terraform apply -auto-approve
 ```
 
-### 3. (Optional) Set up GitLab Runner locally
+This will:
+
+1. Create a 3-node kind cluster (1 CP + 2 workers)
+2. Install Argo CD via Helm
+3. Apply root Application CR
+4. Argo CD syncs all platform services automatically
+
+### 3. Access Argo CD UI
 
 ```bash
-make secrets-init                      # Create .env from template
-# Edit infra/environments/local-kind/gitlab-runner/.env with your tokens
-make runner-up                         # Register + start GitLab Runner
+# Get admin password
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' | base64 -d
+
+# Access UI
+open http://localhost:30080
+# Username: admin
+# Password: <from above>
 ```
 
 ### 4. Validate everything
@@ -193,39 +214,38 @@ make cluster-down   # Delete kind cluster
 
 ## Makefile Targets
 
-| Target               | Description                                         |
-|----------------------|-----------------------------------------------------|
-| `cluster-up`         | Create kind cluster                                 |
-| `cluster-down`       | Delete kind cluster                                 |
-| `infra-init`         | Terraform init (ENV=local-kind)                     |
-| `infra-plan`         | Terraform plan (ENV=local-kind)                     |
-| `gitops-bootstrap`   | Install Argo CD (day-0) and apply root app          |
-| `validate`           | Run fmt, Trivy, yamllint checks                     |
-| `pre-commit`         | Run pre-commit on all files                         |
-| `secrets-init`       | Copy `.env.example` → `.env`                        |
-| `runner-create-api`  | Create runner via GitLab API                        |
-| `runner-register`    | Register GitLab Runner                              |
-| `runner-up`          | Register + start GitLab Runner container            |
-| `runner-down`        | Stop GitLab Runner container                        |
-| `runner-logs`        | Follow GitLab Runner logs                           |
+| Target         | Description                       |
+| -------------- | --------------------------------- |
+| `cluster-up`   | Create kind cluster               |
+| `cluster-down` | Delete kind cluster               |
+| `infra-init`   | Terraform init (ENV=dev, default) |
+| `infra-plan`   | Terraform plan (ENV=dev, default) |
+| `validate`     | Run fmt, Trivy, yamllint checks   |
+| `pre-commit`   | Run pre-commit on all files       |
 
 ---
 
 ## CI/CD Pipeline
 
-The GitLab CI pipeline consists of **5 stages**:
+GitHub Actions workflows (`.github/workflows/`):
 
-| Stage       | Jobs                                        | Trigger                     |
-|-------------|---------------------------------------------|-----------------------------|
-| `validate`  | Terraform fmt, init, validate               | MR / default branch         |
-| `security`  | Trivy IaC scan, Trivy image scan            | MR / default branch         |
-| `build`     | Docker image build (backend-api, worker)    | `apps/**` changes on main   |
-| `kind`      | Provision kind cluster, smoke tests, delete | Tagged `atlas-idp` runners  |
-| `deploy`    | Argo CD sync (manual)                       | Manual approval             |
+| Workflow        | Trigger              | Purpose                                          |
+| --------------- | -------------------- | ------------------------------------------------ |
+| `terraform.yml` | push to main, manual | Deploy kind cluster + Argo CD bootstrap          |
+| `tests.yml`     | push, PR             | Terraform fmt/validate, yamllint, Trivy IaC scan |
 
-### Local CI Pipeline
+### Terraform Workflow
 
-Run the full pipeline on your local kind cluster using a GitLab Runner registered via `make runner-up`. The pipeline uses resource group `local-kind` to prevent concurrent runs.
+Runs on **self-hosted runner** (Docker on local machine):
+
+1. **Cleanup** — Delete existing cluster, remove state
+2. **Terraform Init** — Initialize providers
+3. **Terraform Plan** — Preview changes
+4. **Terraform Apply** — Create cluster + deploy Argo CD
+5. **Verify Nodes** — Wait for all nodes ready
+6. **Verify Argo CD** — Check Argo CD server, list Applications
+
+Cluster persists after workflow completes (no auto-destroy).
 
 ---
 
@@ -233,10 +253,10 @@ Run the full pipeline on your local kind cluster using a GitLab Runner registere
 
 ### Alert Rules
 
-| Rule              | Description                                              | Severity |
-|-------------------|----------------------------------------------------------|----------|
-| `HighErrorRate`   | >5% of HTTP requests return 5xx for 5 minutes            | critical |
-| `HPAMaxedOut`     | HPA current replicas == max replicas for 15 minutes      | warning  |
+| Rule            | Description                                         | Severity |
+| --------------- | --------------------------------------------------- | -------- |
+| `HighErrorRate` | >5% of HTTP requests return 5xx for 5 minutes       | critical |
+| `HPAMaxedOut`   | HPA current replicas == max replicas for 15 minutes | warning  |
 
 ---
 
@@ -261,13 +281,13 @@ HashiCorp Vault manages secrets with fine-grained ACL policies. The `platform-re
 
 ## Environments
 
-### `local-kind` (Active)
+### `dev` (Active)
 
 - **Cluster**: kind (1 control-plane + 2 workers)
 - **State**: Local filesystem
 - **Cache Images**: zot
 - **GitOps**: Argo CD installed via Terraform Helm provider
-- **Runner**: Docker Compose GitLab Runner
+- **CI/CD**: GitHub Actions (self-hosted runner)
 
 ### `aws` (Planned)
 
@@ -279,29 +299,6 @@ HashiCorp Vault manages secrets with fine-grained ACL policies. The `platform-re
 
 ---
 
-## Project Status
-
-| Component              | Status          |
-|------------------------|-----------------|
-| Terraform modules      | Scaffolded      |
-| kind clusters          | ✅ Complete     |
-| Argo CD bootstrap      | ✅ Complete     |
-| GitLab CI pipeline     | ✅ Complete     |
-| GitLab Runner          | ✅ Complete     |
-| Pre-commit hooks       | ✅ Complete     |
-| Prometheus alert rules | ✅ Complete     |
-| Vault config           | ✅ Complete     |
-| Trivy scanning         | ✅ Complete     |
-| Application code       | 📋 Planned      |
-| Helm charts            | 📋 Planned      |
-| Velero / DR            | 📋 Planned      |
-| AWS environment        | 📋 Planned      |
-| Grafana dashboards     | 📋 Planned      |
-| Runbooks               | 📋 Planned      |
-
----
-
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
-

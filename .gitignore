@@ -43,11 +43,6 @@ node_modules/
 *.local.yaml
 *.local.yml
 
-# GitLab Runner (local-kind)
-infra/environments/local-kind/gitlab-runner/config/
-infra/environments/local-kind/gitlab-runner/.env
-infra/modules/kind/hosts.toml
-
 # GitHub Actions Runner
-ci/runner/.env
-ci/runner/runner-data/
+clusters/kind/ci/local-runner/runner-data
+clusters/kind/ci/local-runner/.env

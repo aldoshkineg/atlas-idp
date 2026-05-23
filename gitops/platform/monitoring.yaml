@@ -1,0 +1,143 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: observability
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    targetRevision: 68.2.0
+    chart: kube-prometheus-stack
+    helm:
+      releaseName: kube-prometheus-stack
+      values: |
+        # Prometheus configuration
+        prometheus:
+          prometheusSpec:
+            # Resource limits for kind
+            resources:
+              limits:
+                cpu: 1000m
+                memory: 2Gi
+              requests:
+                cpu: 500m
+                memory: 1Gi
+            
+            # Retention
+            retention: 7d
+            retentionSize: "5GB"
+            
+            # Service monitors
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            
+            # Storage (ephemeral for kind, use PVC for production)
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 10Gi
+            
+            # Custom alert rules (mounted from observability/alerts/)
+            additionalScrapeConfigs: []
+        
+        # Grafana configuration
+        grafana:
+          enabled: true
+          adminPassword: admin # Change in production
+          
+          service:
+            type: NodePort
+            nodePort: 30300
+          
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          
+          persistence:
+            enabled: false # Ephemeral for kind
+          
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+                - name: 'default'
+                  orgId: 1
+                  folder: ''
+                  type: file
+                  disableDeletion: false
+                  editable: true
+                  options:
+                    path: /var/lib/grafana/dashboards/default
+          
+          # Default dashboards
+          defaultDashboardsEnabled: true
+          defaultDashboardsTimezone: UTC
+        
+        # Alertmanager configuration
+        alertmanager:
+          enabled: true
+          alertmanagerSpec:
+            resources:
+              limits:
+                cpu: 200m
+                memory: 256Mi
+              requests:
+                cpu: 50m
+                memory: 64Mi
+            
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 2Gi
+        
+        # Node exporter
+        nodeExporter:
+          enabled: true
+        
+        # Kube state metrics
+        kubeStateMetrics:
+          enabled: true
+        
+        # Prometheus operator
+        prometheusOperator:
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # Required for CRDs
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 5m
