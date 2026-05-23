@@ -1,0 +1,16 @@
+name: Terraform EKS (stub)
+
+on:
+  workflow_call:
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: EKS not implemented yet
+        run: |
+          echo "EKS pipeline is not implemented yet"
+          echo "This is a stub workflow"
