@@ -3,10 +3,10 @@
 module "kind_cluster" {
   source = "../../modules/kind"
 
-  cluster_name      = "atlas-idp"
+  cluster_name       = "atlas-idp"
   kubernetes_version = "v1.35.0"
-  create_cluster    = true
-  worker_node_count = 2
+  create_cluster     = true
+  worker_node_count  = 2
 
   # Enable ingress-ready labels for ingress controllers
   ingress_ready = true

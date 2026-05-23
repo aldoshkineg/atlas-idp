@@ -44,7 +44,7 @@ resource "helm_release" "argocd" {
         # Server configuration
         server = {
           service = {
-            type = "NodePort"
+            type         = "NodePort"
             nodePortHttp = 30080
           }
           # Insecure mode for local dev (no TLS)
