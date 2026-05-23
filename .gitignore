@@ -46,3 +46,6 @@ node_modules/
 # GitHub Actions Runner
 clusters/kind/ci/local-runner/runner-data
 clusters/kind/ci/local-runner/.env
+
+# Zot cache images
+clusters/kind/ci/zot-kind-cache/zot-cache-data

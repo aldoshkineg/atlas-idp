@@ -1,45 +1,58 @@
 #!/bin/bash
-# GitHub Actions Runner Setup Script
-# Usage: ./setup-runner.sh <your-github-pat>
+# GitHub Actions Runner Setup Script using GitHub CLI
+set -o errexit
 
-set -e
+REPO="aldoshkineg/atlas-idp"
+CONTAINER_NAME="github-runner-atlas-idp"
 
-if [ -z "$1" ]; then
-    echo "Usage: $0 <github-personal-access-token>"
-    echo ""
-    echo "To create a PAT:"
-    echo "1. Go to https://github.com/settings/tokens"
-    echo "2. Generate new token (classic)"
-    echo "3. Select 'repo' scope"
-    echo "4. Copy the token and pass it as argument"
+# Check if github-cli is installed
+if ! command -v gh >/dev/null 2>&1; then
+    echo "Error: github-cli (gh) is not installed."
+    echo "Please install it or authenticate via 'gh auth login' first."
     exit 1
 fi
 
-GITHUB_TOKEN="$1"
-REPO="aldoshkineg/atlas-idp"
+# Check if gh is authenticated
+if ! gh auth status >/dev/null 2>&1; then
+    echo "Error: gh is not authenticated."
+    echo "Please run 'gh auth login' before executing this script."
+    exit 1
+fi
 
-echo "Getting runner registration token..."
+echo "Fetching runner registration token for $REPO via GitHub CLI..."
 
-# Get a registration token for the runner
-REGISTRATION_TOKEN=$(curl -s -X POST \
-  -H "Authorization: token ${GITHUB_TOKEN}" \
-  -H "Accept: application/vnd.github.v3+json" \
-  "https://api.github.com/repos/${REPO}/actions/runners/registration-token" \
-  | grep -o '"token": "[^"]*"' | cut -d'"' -f4)
+# Safely fetch the token using gh api and built-in jq expression
+REGISTRATION_TOKEN=$(gh api \
+  --method POST \
+  -H "Accept: application/vnd.github+json" \
+  "/repos/${REPO}/actions/runners/registration-token" \
+  --jq '.token')
 
 if [ -z "$REGISTRATION_TOKEN" ]; then
-    echo "Failed to get registration token. Check your PAT permissions."
+    echo "Failed to obtain registration token. Check your repository permissions."
     exit 1
 fi
 
 echo "Registration token obtained successfully."
-echo ""
-echo "To start the runner, run:"
-echo ""
-echo "  cd $(dirname "$0")"
-echo "  RUNNER_TOKEN=${REGISTRATION_TOKEN} docker-compose up -d"
-echo ""
-echo "Or export the token and run docker-compose:"
-echo ""
-echo "  export RUNNER_TOKEN=${REGISTRATION_TOKEN}"
-echo "  docker-compose up -d"
+echo "----------------------------------------"
+
+# Check if docker-compose configuration exists in the current directory
+if [ ! -f "docker-compose.yml" ] && [ ! -f "docker-compose.yaml" ]; then
+    echo "Error: No docker-compose.yml file found in $(pwd)."
+    echo "Please ensure the script is executed from your project directory."
+    exit 1
+fi
+
+# --- Handle Name Conflicts Automatically ---
+if docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
+    echo "Found an existing container named '$CONTAINER_NAME'. Removing it to avoid conflicts..."
+    docker rm -f "$CONTAINER_NAME" >/dev/null
+fi
+
+echo "Starting the GitHub Actions runner container..."
+export RUNNER_TOKEN="${REGISTRATION_TOKEN}"
+docker compose up -d
+
+echo "----------------------------------------"
+echo "Runner deployment initiated successfully!"
+echo "Check status with: docker-compose ps"

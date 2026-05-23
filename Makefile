@@ -1,28 +1,37 @@
-.PHONY: help cluster-up cluster-down infra-init infra-plan gitops-bootstrap validate pre-commit \
-	secrets-init runner-up runner-register runner-down runner-logs runner-create-api
+.PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
+	infra-init infra-plan gitops-bootstrap validate pre-commit \
+	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs
 
-CLUSTER_NAME ?= atlas-idp
-KIND_CONFIG  ?= clusters/kind/cluster.yaml
-CI_CLUSTER   ?= atlas-idp-ci
-ENV          ?= local-kind
-RUNNER_DIR   ?= infra/environments/local-kind/gitlab-runner
+CLUSTER_NAME     ?= atlas-idp
+KIND_CONFIG      ?= clusters/kind/cluster.yaml
+CI_CLUSTER       ?= atlas-idp-ci
+ENV              ?= local-kind
+
+# Local CI / Automation Directories
+LOCAL_RUNNER_DIR ?= clusters/kind/ci/local-runner
+ZOT_DIR          ?= clusters/kind/ci/zot-kind-cache
 
 help:
-	@echo "Targets:"
-	@echo "  cluster-up        Create kind cluster"
-	@echo "  cluster-down      Delete kind cluster"
+	@echo "Available Targets:"
+	@echo "  cluster-up        Create main kind cluster"
+	@echo "  cluster-down      Delete main kind cluster"
+	@echo "  cluster-ci-up     Provision local CI-specific kind cluster"
+	@echo "  cluster-ci-down   Tear down local CI-specific kind cluster"
 	@echo "  infra-init        Terraform init (ENV=$(ENV))"
 	@echo "  infra-plan        Terraform plan (ENV=$(ENV))"
 	@echo "  gitops-bootstrap  Install Argo CD (day-0) and apply root app"
-	@echo "  validate          Run fmt/validate checks"
-	@echo "  pre-commit        Run pre-commit on all files"
-	@echo "  secrets-init      Copy $(RUNNER_DIR)/.env.example → .env"
-	@echo "  runner-create-api Create runner via GitLab API (GITLAB_PAT in .env)"
-	@echo "  runner-register   Register GitLab Runner ($(RUNNER_DIR)/)"
-	@echo "  runner-up         Register + start GitLab Runner container"
-	@echo "  runner-down       Stop GitLab Runner container"
-	@echo "  runner-logs       Follow GitLab Runner logs"
+	@echo "  validate          Run fmt/validate checks (Terraform, Trivy, Yamllint)"
+	@echo "  pre-commit        Run pre-commit hooks on all project files"
+	@echo ""
+	@echo "Local CI & Registry Cache Subsystem:"
+	@echo "  ci-cache-up       Deploy/verify Zot local registry proxy cache"
+	@echo "  ci-cache-purge    Wipe the Zot container registry completely"
+	@echo "  ci-runner-up      Fetch fresh token via 'gh' and start local GitHub runner"
+	@echo "  ci-runner-down    Stop and remove local GitHub runner container"
+	@echo "  ci-runner-status  Check status of local GitHub runner container"
+	@echo "  ci-runner-logs    Follow logs from the local GitHub runner container"
 
+# --- Infrastructure Management ---
 cluster-up:
 	./clusters/scripts/create-cluster.sh
 
@@ -44,6 +53,7 @@ infra-plan:
 gitops-bootstrap:
 	./clusters/scripts/bootstrap-gitops.sh
 
+# --- Quality Assurance & Linting ---
 validate:
 	terraform fmt -check -recursive infra/
 	@command -v trivy >/dev/null && trivy config --severity HIGH,CRITICAL infra/ gitops/ || echo "trivy not installed, skip"
@@ -52,26 +62,25 @@ validate:
 pre-commit:
 	pre-commit run --all-files
 
-secrets-init:
-	@if [ -f $(RUNNER_DIR)/.env ]; then \
-		echo "Already exists: $(RUNNER_DIR)/.env"; \
-	else \
-		cp $(RUNNER_DIR)/.env.example $(RUNNER_DIR)/.env; \
-		chmod 600 $(RUNNER_DIR)/.env; \
-		echo "Created $(RUNNER_DIR)/.env — edit and add tokens"; \
-	fi
+# --- Local CI & Registry Cache Subsystem ---
 
-runner-create-api:
-	./$(RUNNER_DIR)/create-runner-via-api.sh
+ci-cache-up:
+	@chmod +x $(ZOT_DIR)/setup-zot-cache.sh
+	cd $(ZOT_DIR) && ./setup-zot-cache.sh
 
-runner-register:
-	./$(RUNNER_DIR)/register.sh
+ci-cache-purge:
+	@chmod +x $(ZOT_DIR)/setup-zot-cache.sh
+	cd $(ZOT_DIR) && ./setup-zot-cache.sh --purge
 
-runner-up:
-	./$(RUNNER_DIR)/start.sh
+ci-runner-up:
+	@chmod +x $(LOCAL_RUNNER_DIR)/setup-runner.sh
+	cd $(LOCAL_RUNNER_DIR) && ./setup-runner.sh
 
-runner-down:
-	docker compose -f $(RUNNER_DIR)/docker-compose.yml down
+ci-runner-down:
+	docker compose -f $(LOCAL_RUNNER_DIR)/docker-compose.yml down
 
-runner-logs:
-	docker compose -f $(RUNNER_DIR)/docker-compose.yml logs -f
+ci-runner-status:
+	docker compose -f $(LOCAL_RUNNER_DIR)/docker-compose.yml ps
+
+ci-runner-logs:
+	docker compose -f $(LOCAL_RUNNER_DIR)/docker-compose.yml logs -f
