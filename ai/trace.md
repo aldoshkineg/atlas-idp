@@ -5,7 +5,7 @@ CRITICAL: Keep log outputs strictly minimal to save context tokens. Never dump f
 * **Status & Wait:** `gh run watch --exit-status`
 * **Targeted Logs:** `gh run view --log-failed`
 * **Artifacts (if needed):** `gh run download <run-id> -n <artifact-name>`
-* **Runner State:** `docker logs github-runner-atlas-idp --tail 10`
+* **Runner State:** `docker logs github-runner-atlas-idp --tail 10` *(Note: Docker logs are UTC; use `date` to check local timezone)*
 
 ### K8s / ArgoCD Deep Tracing:
 * **Sync Status:** `kind export kubeconfig --name atlas-idp && kubectl wait --for=condition=Healthy application/bootstrap -n argocd --timeout=5m`
