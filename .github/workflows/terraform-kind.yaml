@@ -4,30 +4,40 @@ on:
   workflow_call:
 
 jobs:
-
   terraform:
-
     runs-on: [self-hosted]
 
     env:
       KUBECONFIG: /root/.kube/kind
+      TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+      TF_INPUT: false
 
     defaults:
       run:
         working-directory: ./infra/environments/dev
 
     steps:
-
       - uses: actions/checkout@v4
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          n=0
+          until [ "$n" -ge 3 ]
+          do
+            terraform init && break
+
+            n=$((n+1))
+            echo "Terraform init failed. Retry $n/5"
+            sleep 15
+          done
+
+          [ "$n" -lt 3 ] || exit 1
 
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform plan -lock-timeout=5m -out=tfplan
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve tfplan
 
       - name: Check cluster
         run: |
