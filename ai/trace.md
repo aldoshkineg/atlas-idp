@@ -2,10 +2,11 @@ Debug the GitHub Actions pipeline failure for **Atlas IDP** (local `kind` cluste
 CRITICAL: Keep log outputs strictly minimal to save context tokens. Never dump full workflow runs. Provide ONLY non-interactive, scriptable commands.
 
 ### Tracing & Diagnostic Commands:
-* **Status & Wait:** `gh run watch --exit-status`
+* **Silent Wait (CRITICAL for non-TTY):** `gh run watch <run-id> > /dev/null 2>&1` (Blocks until complete. Only rely on its exit code: 0 = success, 1 = fail).
+* **Targeted Logs:** `gh run view --log-failed` (Run this ONLY if the silent wait exits with code 1).
+* **Current Runner State:** `docker logs github-runner-atlas-idp --tail 20` (Do NOT use `-f` to avoid hanging the agent).
 * **Targeted Logs:** `gh run view --log-failed`
 * **Artifacts (if needed):** `gh run download <run-id> -n <artifact-name>`
-* **Runner State:** `docker logs github-runner-atlas-idp --tail 10` *(Note: Docker logs are UTC; use `date` to check local timezone)*
 
 ### K8s / ArgoCD Deep Tracing:
 * **Sync Status:** `kind export kubeconfig --name atlas-idp && kubectl wait --for=condition=Healthy application/bootstrap -n argocd --timeout=5m`
