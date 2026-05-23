@@ -33,6 +33,5 @@ jobs:
 
       - name: Security Scan
         run: |
-          trivy config \
-          --severity HIGH,CRITICAL \
-          infra/ gitops/
+          trivy config --severity HIGH,CRITICAL infra/
+          trivy config --severity HIGH,CRITICAL gitops/
