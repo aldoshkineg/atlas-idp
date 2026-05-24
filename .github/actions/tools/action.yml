@@ -13,12 +13,12 @@ runs:
         TRIVY_VERSION: "0.70.0"
         YAMLLINT_VERSION: "1.35.1"
       run: |
-        chmod +x .github/scripts/install-tool.sh
-        .github/scripts/install-tool.sh terraform $TERRAFORM_VERSION
-        .github/scripts/install-tool.sh kubectl $KUBECTL_VERSION
-        .github/scripts/install-tool.sh kind $KIND_VERSION
-        .github/scripts/install-tool.sh trivy $TRIVY_VERSION
-        .github/scripts/install-tool.sh yamllint $YAMLLINT_VERSION
+        chmod +x .github/scripts/install-tools.sh
+        .github/scripts/install-tools.sh terraform $TERRAFORM_VERSION
+        .github/scripts/install-tools.sh kubectl $KUBECTL_VERSION
+        .github/scripts/install-tools.sh kind $KIND_VERSION
+        .github/scripts/install-tools.sh trivy $TRIVY_VERSION
+        .github/scripts/install-tools.sh yamllint $YAMLLINT_VERSION
 
     - name: Verify tools
       shell: bash
