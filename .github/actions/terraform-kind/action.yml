@@ -1,63 +1,58 @@
 name: Terraform Kind
+description: "Deploy KinD cluster via Terraform"
 
-on:
-  workflow_call:
+runs:
+  using: composite
+  steps:
+    - name: Terraform Init
+      shell: bash
+      working-directory: ./infra/environments/dev
+      env:
+        TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+      run: |
+        n=0
+        until [ "$n" -ge 3 ]; do
+          terraform init && break
+          n=$((n+1))
+          echo "Terraform init failed. Retry $n/3"
+          sleep 15
+        done
+        [ "$n" -lt 3 ] || exit 1
 
-jobs:
-  terraform:
-    runs-on: [self-hosted]
+    - name: Terraform Plan
+      shell: bash
+      working-directory: ./infra/environments/dev
+      env:
+        TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+      run: terraform plan -lock-timeout=5m -out=tfplan
 
-    env:
-      KUBECONFIG: /root/.kube/kind
-      TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
-      TF_INPUT: false
+    - name: Terraform Apply
+      shell: bash
+      working-directory: ./infra/environments/dev
+      env:
+        KUBECONFIG: /root/.kube/kind
+        TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+      run: terraform apply -auto-approve tfplan
 
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./infra/environments/dev
+    - name: Check cluster
+      shell: bash
+      env:
+        KUBECONFIG: /root/.kube/kind
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
 
-    steps:
-      - uses: actions/checkout@v4
+    - name: Wait nodes
+      shell: bash
+      env:
+        KUBECONFIG: /root/.kube/kind
+      run: |
+        kubectl wait --for=condition=Ready node --all --timeout=300s
 
-      - name: Terraform Init
-        run: |
-          n=0
-          until [ "$n" -ge 3 ]
-          do
-            terraform init && break
-
-            n=$((n+1))
-            echo "Terraform init failed. Retry $n/5"
-            sleep 15
-          done
-
-          [ "$n" -lt 3 ] || exit 1
-
-      - name: Terraform Plan
-        run: terraform plan -lock-timeout=5m -out=tfplan
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
-
-      - name: Check cluster
-        run: |
-          kubectl cluster-info
-          kubectl get nodes
-
-      - name: Wait nodes
-        run: |
-          kubectl wait \
-            --for=condition=Ready node \
-            --all \
-            --timeout=300s
-
-      - name: Verify ArgoCD
-        run: |
-          kubectl wait \
-          --for=condition=available \
-          deployment/argocd-server \
-          -n argocd \
-          --timeout=180s
-
-          kubectl get applications -n argocd
+    - name: Verify ArgoCD
+      shell: bash
+      env:
+        KUBECONFIG: /root/.kube/kind
+      run: |
+        kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=180s
+        kubectl get applications -n argocd
