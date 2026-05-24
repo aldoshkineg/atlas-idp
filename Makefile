@@ -68,10 +68,21 @@ gitops-bootstrap:
 	./clusters/scripts/bootstrap-gitops.sh
 
 # --- Quality Assurance & Linting ---
-validate:
+validate: validate-terraform validate-yaml validate-security
+
+validate-terraform:
+	@echo "==> Running Terraform format check..."
 	terraform fmt -check -recursive infra/
-	@command -v trivy >/dev/null && trivy config --severity HIGH,CRITICAL infra/ gitops/ || echo "trivy not installed, skip"
+	@echo "==> Running Terraform validate..."
+	cd infra/environments/dev && terraform init -backend=false && terraform validate
+
+validate-yaml:
+	@echo "==> Running YAML lint..."
 	@command -v yamllint >/dev/null && yamllint -c .yamllint.yml gitops/ observability/ security/ || echo "yamllint not installed, skip"
+
+validate-security:
+	@echo "==> Running security scan..."
+	@command -v trivy >/dev/null && (trivy config --severity HIGH,CRITICAL infra/; trivy config --severity HIGH,CRITICAL gitops/) || echo "trivy not installed, skip"
 
 pre-commit:
 	pre-commit run --all-files
