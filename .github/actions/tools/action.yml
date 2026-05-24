@@ -13,6 +13,7 @@ runs:
   steps:
 
     - name: Install required binaries
+      shell: bash
       run: |
         chmod +x .github/scripts/install-tools.sh
 
@@ -23,6 +24,7 @@ runs:
         .github/scripts/install-tools.sh yamllint $YAMLLINT_VERSION
 
     - name: Verify tools
+      shell: bash
       run: |
         terraform version
         kubectl version --client
