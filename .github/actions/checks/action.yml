@@ -1,18 +1,17 @@
 name: Base Checks
+description: "Run base checks and linters"
 
 runs:
   using: composite
-
   steps:
-
     - name: Terraform Format
       shell: bash
       run: terraform fmt -check -recursive infra/
 
     - name: Terraform Validate
       shell: bash
+      working-directory: infra/environments/dev
       run: |
-        cd infra/environments/dev
         terraform init -backend=false
         terraform validate
 
@@ -23,10 +22,7 @@ runs:
     - name: YAML Lint
       shell: bash
       run: |
-        yamllint -c .yamllint.yml \
-        gitops/ \
-        observability/ \
-        security/
+        yamllint -c .yamllint.yml gitops/ observability/ security/
 
     - name: Security Scan
       shell: bash
