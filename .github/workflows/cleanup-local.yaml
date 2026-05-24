@@ -6,9 +6,6 @@ on:
 jobs:
   cleanup:
     name: Aggressive Cleanup
-
-    needs: tools
-
     runs-on: [self-hosted]
 
     defaults:
