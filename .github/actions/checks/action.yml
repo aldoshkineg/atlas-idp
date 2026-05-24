@@ -6,18 +6,22 @@ runs:
   steps:
 
     - name: Terraform Format
+      shell: bash
       run: terraform fmt -check -recursive infra/
 
     - name: Terraform Validate
+      shell: bash
       run: |
         cd infra/environments/dev
         terraform init -backend=false
         terraform validate
 
     - name: Install yamllint
+      shell: bash
       run: pip install yamllint
 
     - name: YAML Lint
+      shell: bash
       run: |
         yamllint -c .yamllint.yml \
         gitops/ \
@@ -25,6 +29,7 @@ runs:
         security/
 
     - name: Security Scan
+      shell: bash
       run: |
         trivy config --severity HIGH,CRITICAL infra/
         trivy config --severity HIGH,CRITICAL gitops/

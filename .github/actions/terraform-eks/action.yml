@@ -6,6 +6,7 @@ runs:
   steps:
 
     - name: EKS not implemented yet
+      shell: bash
       run: |
         echo "EKS pipeline is not implemented yet"
         echo "This is a stub workflow"
