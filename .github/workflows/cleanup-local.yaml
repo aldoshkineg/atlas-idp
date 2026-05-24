@@ -4,9 +4,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  tools:
-    uses: ./.github/workflows/reusable-tools.yaml
-
   cleanup:
     name: Aggressive Cleanup
 
@@ -21,6 +18,9 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Run local tools action
+        uses: ./.github/actions/tools
 
       - name: Verify kind
         run: kind version

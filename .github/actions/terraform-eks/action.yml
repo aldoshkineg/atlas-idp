@@ -4,7 +4,6 @@ runs:
   using: composite
 
   steps:
-
     - name: EKS not implemented yet
       shell: bash
       run: |
