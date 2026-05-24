@@ -11,18 +11,20 @@ on:
 
 jobs:
 
-  tools:
-    uses: ./.github/workflows/reusable-tools.yaml
+  ci:
+    runs-on: [self-hosted]
 
-  checks:
-    needs: tools
-    uses: ./.github/workflows/reusable-checks.yaml
+    steps:
 
-  terraform-kind:
-    needs: checks
-    uses: ./.github/workflows/terraform-kind.yaml
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-  terraform-eks:
-    needs: checks
-    if: false
-    uses: ./.github/workflows/terraform-eks.yaml
+      - uses: ./.github/actions/tools
+
+      - uses: ./.github/actions/checks
+
+      - uses: ./.github/actions/terraform-kind
+
+      - uses: ./.github/actions/terraform-eks
+        if: false
