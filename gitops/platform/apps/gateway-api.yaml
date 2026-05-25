@@ -52,7 +52,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://nginx.github.io/nginx-gateway-fabric
+    repoURL: oci://ghcr.io/nginxinc/charts
     targetRevision: v1.4.0
     chart: nginx-gateway-fabric
     helm:
