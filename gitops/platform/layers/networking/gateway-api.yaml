@@ -103,15 +103,15 @@ spec:
     automated:
       prune: true
       selfHeal: true
-      retry:
-        limit: 10
-        backoff:
-          duration: 5s
-          factor: 2
-          maxDuration: 2m
     syncOptions:
       - CreateNamespace=true
       - PruneLast=true
       - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m
   dependsOn:
     - name: nginx-gateway-fabric

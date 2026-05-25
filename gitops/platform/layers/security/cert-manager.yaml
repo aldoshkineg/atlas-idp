@@ -12,14 +12,6 @@ metadata:
     app.kubernetes.io/layer: security
 spec:
   project: default
-  source:
-    repoURL: https://charts.jetstack.io
-    targetRevision: v1.16.2
-    chart: cert-manager
-    helm:
-      releaseName: cert-manager
-      valueFiles:
-        - $values/gitops/platform/layers/security/values/cert-manager.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
