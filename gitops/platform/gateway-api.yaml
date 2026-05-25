@@ -1,4 +1,4 @@
-# Gateway API CRDs (v1.1.0)
+# Step 1: Install official Gateway API CRDs from upstream
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,6 +6,8 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
   labels:
     app.kubernetes.io/component: platform
     app.kubernetes.io/layer: networking
@@ -35,7 +37,7 @@ spec:
         factor: 2
         maxDuration: 3m
 ---
-# NGINX Gateway Fabric - Gateway API Controller
+# Step 2: Install NGINX Gateway Fabric Controller via official Helm Chart
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -43,6 +45,8 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app.kubernetes.io/component: platform
     app.kubernetes.io/layer: networking
@@ -57,6 +61,8 @@ spec:
       values: |
         nginxGateway:
           gatewayClassName: nginx
+
+          # Bind NGINX directly to the kind node network ports (80/443)
           hostNetwork: true
 
           pod:
@@ -78,6 +84,8 @@ spec:
                 memory: 128Mi
           telemetry:
             enable: true
+
+        # Disable default LoadBalancer service to prevent "Pending" status in local kind
         service:
           create: false
   destination:
@@ -89,11 +97,31 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
   dependsOn:
     - name: gateway-api-crds
+---
+# Step 3: Deploy custom platform configurations (Gateways, HTTPRoutes)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-configs
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/aldoshkineg/atlas-idp
+    targetRevision: HEAD
+    path: gitops/platform/configs
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nginx-gateway-fabric
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+  dependsOn:
+    - name: nginx-gateway-fabric

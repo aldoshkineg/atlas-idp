@@ -14,7 +14,7 @@ CRITICAL: Keep log outputs strictly minimal to save context tokens. Never dump f
 
 ### Remediation & Lifecycle:
 * **Retry Failed:** `gh run rerun <run-id> --failed && gh run watch`
-* **Full Cluster Cleanup:** `gh workflow run cleanup-local.yml`
+* **Full Cluster Cleanup:** `gh workflow run cleanup-local.yaml`
 
 ### Output Format (Strict Constraint):
 1. **Root Cause**: (Max 2 sentences)
