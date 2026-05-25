@@ -33,7 +33,7 @@ prometheus:
 # Grafana configuration
 grafana:
   enabled: true
-  adminPassword: admin # Change in production
+  adminPassword: admin
 
   service:
     type: NodePort
@@ -48,15 +48,15 @@ grafana:
       memory: 128Mi
 
   persistence:
-    enabled: false # Ephemeral for kind
+    enabled: false
 
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
       providers:
-        - name: 'default'
+        - name: "default"
           orgId: 1
-          folder: ''
+          folder: ""
           type: file
           disableDeletion: false
           editable: true

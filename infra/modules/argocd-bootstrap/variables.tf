@@ -7,7 +7,7 @@ variable "argocd_namespace" {
 variable "argocd_chart_version" {
   description = "Argo CD Helm chart version"
   type        = string
-  default     = "7.7.5" # Stable version from argo-helm repo
+  default     = "9.5.15" # Stable version from argo-helm repo
 }
 
 variable "argocd_values_override" {
