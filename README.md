@@ -70,9 +70,16 @@ Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP) 
 ```
 atlas-idp/
 ├── .github/
-│   └── workflows/
-│       ├── terraform.yml       # Terraform deploy: kind + Argo CD bootstrap
-│       └── tests.yml           # Validate: fmt, lint, trivy, yamllint
+│   ├── workflows/
+│   │   ├── ci.yaml             # Platform CI: checks + terraform-kind deploy
+│   │   └── cleanup-local.yaml  # Manual KinD cluster cleanup
+│   ├── actions/
+│   │   ├── tools/              #   Install CLI tools (terraform, kubectl, kind, trivy)
+│   │   ├── checks/             #   terraform fmt/validate, yamllint, trivy
+│   │   ├── terraform-kind/     #   kind cluster + Argo CD bootstrap
+│   │   └── terraform-eks/      #   EKS stub (not implemented)
+│   └── scripts/
+│       └── install-tools.sh    #   Tool installation helper
 ├── infra/                      # Infrastructure as Code (Terraform)
 │   ├── environments/
 │   │   ├── dev/                #   ACTIVE: kind cluster + Argo CD bootstrap
@@ -159,11 +166,11 @@ atlas-idp/
 
 ```bash
 # Edit infra/environments/dev/main.tf
-# Change: https://github.com/REPLACE_WITH_YOUR_ORG/atlas-idp
+# Change: https://github.com/aldoshkineg/atlas-idp
 # To:     https://github.com/your-org/your-repo
 
 # Edit gitops/bootstrap/root-app.yaml
-# Change: https://github.com/REPLACE_WITH_YOUR_ORG/atlas-idp.git
+# Change: https://github.com/aldoshkineg/atlas-idp.git
 # To:     https://github.com/your-org/your-repo.git
 ```
 
@@ -229,21 +236,35 @@ make cluster-down   # Delete kind cluster
 
 GitHub Actions workflows (`.github/workflows/`):
 
-| Workflow        | Trigger              | Purpose                                          |
-| --------------- | -------------------- | ------------------------------------------------ |
-| `terraform.yml` | push to main, manual | Deploy kind cluster + Argo CD bootstrap          |
-| `tests.yml`     | push, PR             | Terraform fmt/validate, yamllint, Trivy IaC scan |
+| Workflow             | Trigger              | Purpose                                                    |
+| -------------------- | -------------------- | ---------------------------------------------------------- |
+| `ci.yaml`            | push, PR, manual     | Unified CI: tools → checks → terraform-kind deploy         |
+| `cleanup-local.yaml` | manual               | Aggressive cleanup: delete KinD cluster, remove TF state   |
 
-### Terraform Workflow
+### Composite Actions Architecture
+
+The CI uses **composite actions** for reusability:
+
+| Action               | Purpose                                                     |
+| -------------------- | ----------------------------------------------------------- |
+| `actions/tools/`     | Install CLI tools (terraform, kubectl, kind, trivy, yamllint) |
+| `actions/checks/`    | Terraform fmt/validate, yamllint, Trivy IaC scan            |
+| `actions/terraform-kind/` | kind cluster + Argo CD bootstrap (init, plan, apply, verify) |
+| `actions/terraform-eks/`  | EKS stub (not implemented yet)                          |
+
+### CI Pipeline Flow (`ci.yaml`)
 
 Runs on **self-hosted runner** (Docker on local machine):
 
-1. **Cleanup** — Delete existing cluster, remove state
-2. **Terraform Init** — Initialize providers
-3. **Terraform Plan** — Preview changes
-4. **Terraform Apply** — Create cluster + deploy Argo CD
-5. **Verify Nodes** — Wait for all nodes ready
-6. **Verify Argo CD** — Check Argo CD server, list Applications
+1. **Checkout** — Fetch repository code
+2. **Tools** — Install/verify required CLI tools
+3. **Checks** — Terraform fmt/validate, yamllint, Trivy config scan
+4. **Terraform Kind** — Deploy infrastructure:
+   - Terraform init (with retry logic)
+   - Terraform plan
+   - Terraform apply (create kind cluster + Argo CD)
+   - Verify cluster nodes ready
+   - Verify Argo CD deployment and Applications
 
 Cluster persists after workflow completes (no auto-destroy).
 

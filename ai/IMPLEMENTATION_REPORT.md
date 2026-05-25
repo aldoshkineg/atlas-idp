@@ -214,7 +214,7 @@ source:
 ```yaml
 source:
   # IMPORTANT: Replace with your actual GitHub repository URL
-  repoURL: https://github.com/REPLACE_WITH_YOUR_ORG/atlas-idp.git
+  repoURL: https://github.com/aldoshkineg/atlas-idp.git
   targetRevision: main
   path: gitops/platform
   directory:
@@ -233,7 +233,7 @@ source:
 
 **Placeholder for user:**
 ```hcl
-repo_url = "https://github.com/REPLACE_WITH_YOUR_ORG/atlas-idp"
+repo_url = "https://github.com/aldoshkineg/atlas-idp"
 ```
 
 ---

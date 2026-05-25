@@ -43,9 +43,6 @@
 ## Phase 2 — Kubernetes Runtime
 
 - [x] Cluster creation via Terraform `kind_cluster` resource (tehcyx/kind provider)
-- [ ] `clusters/scripts/create-cluster.sh` — create cluster via kind CLI
-- [ ] `clusters/scripts/destroy-cluster.sh` — delete cluster
-- [ ] `clusters/scripts/bootstrap-gitops.sh` — post-cluster: terraform apply → root-app apply
 - [x] Validate `kind` + `kubectl` installed on self-hosted runner (runner image includes tools)
 
 ---
@@ -59,7 +56,7 @@
   - [x] Namespace pre-creation via `kubernetes_namespace`
   - [x] `values.yaml` override: server NodePort, insecure mode for local, admin password BCrypt hash
   - [x] `depends_on = [module.kind_cluster]`
-- [x] **Add Argo CD bootstrap step to GitHub Actions workflow `terraform.yml`**
+- [x] **Add Argo CD bootstrap step to GitHub Actions workflow `ci.yaml`**
   - [x] `kubectl wait --for=condition=available deploy/argocd-server -n argocd --timeout=180s`
   - [x] Smoke test: `kubectl get applications -n argocd`
 
@@ -104,16 +101,17 @@
 
 ## Phase 5 — CI/CD Layer (GitHub Actions)
 
-- [x] `.github/workflows/terraform.yml` — Terraform deploy: kind lifecycle + Argo CD verification
-- [x] `.github/workflows/tests.yml` — fmt check, validate, yamllint, trivy
-- [ ] Split workflow concerns:
-  - [ ] `validate.yml` — PR gate: terraform fmt/validate, yamllint, trivy config scan
-  - [ ] `deploy.yml` — push to main: terraform apply (cluster + argocd bootstrap)
-  - [ ] `destroy.yml` — scheduled or manual: terraform destroy
-- [x] Remove `terraform destroy` from deploy workflow `if: always()` — cluster persists after apply
-- [x] Add Argo CD bootstrap verification step to deploy workflow
-- [ ] `security.yml` — Trivy image scan on `apps/**` changes
-- [ ] Add `workflow_dispatch` inputs: `action: apply|destroy`, `environment: dev|staging`
+- [x] `.github/workflows/ci.yaml` — Unified CI workflow with composite actions:
+  - [x] `.github/actions/tools/` — Install terraform, kubectl, kind, trivy, yamllint
+  - [x] `.github/actions/checks/` — terraform fmt/validate, yamllint, trivy config scan
+  - [x] `.github/actions/terraform-kind/` — kind cluster + Argo CD bootstrap (init, plan, apply, verify)
+  - [x] `.github/actions/terraform-eks/` — EKS stub (not implemented)
+- [x] `.github/workflows/cleanup-local.yaml` — Manual KinD cluster cleanup workflow
+- [x] Composite action architecture — reusable steps instead of separate workflow files
+- [x] Cluster persists after apply (no auto-destroy)
+- [x] Argo CD bootstrap verification step (wait for deployment, list applications)
+- [ ] `security.yml` — Trivy image scan on `apps/**` changes (blocked: no app images yet)
+- [ ] Add `workflow_dispatch` inputs to `ci.yaml`: `action: apply|destroy`, `environment: dev|staging`
 
 ---
 

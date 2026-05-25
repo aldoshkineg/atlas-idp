@@ -62,7 +62,7 @@ module "argocd_bootstrap" {
   create_namespace     = true
 
   # Configure GitHub repository (replace with actual repo URL)
-  repo_url  = "https://github.com/REPLACE_WITH_YOUR_ORG/atlas-idp"
+  repo_url  = "https://github.com/aldoshkineg/atlas-idp"
   repo_type = "git"
 
   depends_on = [module.kind_cluster]
