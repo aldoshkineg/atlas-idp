@@ -57,6 +57,7 @@ spec:
     chart: nginx-gateway-fabric
     helm:
       releaseName: nginx-gateway-fabric
+      enableOci: true
       values: |
         nginxGateway:
           gatewayClassName: nginx
