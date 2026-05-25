@@ -16,10 +16,9 @@ spec:
   source:
     repoURL: https://github.com/kubernetes-sigs/gateway-api
     targetRevision: v1.1.0
-    path: config/crd
+    path: config/crd/standard
     directory:
-      recurse: true
-      exclude: "*.md"
+      recurse: false
   destination:
     server: https://kubernetes.default.svc
     namespace: default
@@ -61,10 +60,7 @@ spec:
       values: |
         nginxGateway:
           gatewayClassName: nginx
-
-          # Bind NGINX directly to the kind node network ports (80/443)
           hostNetwork: true
-
           pod:
             nodeSelector:
               ingress-ready: "true"
@@ -84,8 +80,6 @@ spec:
                 memory: 128Mi
           telemetry:
             enable: true
-
-        # Disable default LoadBalancer service to prevent "Pending" status in local kind
         service:
           create: false
   destination:
@@ -97,6 +91,13 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m
   dependsOn:
     - name: gateway-api-crds
 ---
@@ -123,5 +124,14 @@ spec:
     automated:
       prune: true
       selfHeal: true
+      retry:
+        limit: 10
+        backoff:
+          duration: 5s
+          factor: 2
+          maxDuration: 2m
+    syncOptions:
+      - PruneLast=true
+      - SkipDryRunOnMissingResource=true
   dependsOn:
     - name: nginx-gateway-fabric
