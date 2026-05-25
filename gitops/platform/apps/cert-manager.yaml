@@ -50,9 +50,9 @@ spec:
 
         # Prometheus metrics
         prometheus:
-          enabled: true
+          enabled: false
           servicemonitor:
-            enabled: true
+            enabled: false
 
         # Global namespace for cluster-wide resources
         global:
