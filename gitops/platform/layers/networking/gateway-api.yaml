@@ -17,8 +17,6 @@ spec:
     repoURL: https://github.com/kubernetes-sigs/gateway-api
     targetRevision: v1.1.0
     path: config/crd/standard
-    directory:
-      recurse: false
   destination:
     server: https://kubernetes.default.svc
     namespace: default
@@ -64,8 +62,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: nginx-gateway-fabric
-  dependsOn:
-    - name: gateway-api-crds
   syncPolicy:
     automated:
       prune: true
@@ -99,8 +95,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: nginx-gateway-fabric
-  dependsOn:
-    - name: nginx-gateway-fabric
   syncPolicy:
     automated:
       prune: true
