@@ -114,8 +114,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/aldoshkineg/atlas-idp
-    targetRevision: HEAD
+    repoURL: https://github.com/aldoshkineg/atlas-idp.git
+    targetRevision: main
     path: gitops/platform/configs
   destination:
     server: https://kubernetes.default.svc

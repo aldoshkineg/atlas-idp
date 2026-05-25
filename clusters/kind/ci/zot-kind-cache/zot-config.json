@@ -20,6 +20,11 @@
           "tlsVerify": false
         },
         {
+          "urls": ["https://registry.k8s.io"],
+          "onDemand": true,
+          "tlsVerify": false
+        },
+        {
           "urls": ["https://gcr.io"],
           "onDemand": true,
           "tlsVerify": false
