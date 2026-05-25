@@ -131,6 +131,7 @@ spec:
           factor: 2
           maxDuration: 2m
     syncOptions:
+      - CreateNamespace=true
       - PruneLast=true
       - SkipDryRunOnMissingResource=true
   dependsOn:
