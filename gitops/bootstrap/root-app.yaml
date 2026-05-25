@@ -15,7 +15,7 @@ spec:
     directory:
       recurse: true
       jsonnet: {}
-      exclude: 'README.md|configs/'
+      exclude: 'README.md|configs/.*'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
