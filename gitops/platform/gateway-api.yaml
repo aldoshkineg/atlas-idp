@@ -1,5 +1,4 @@
 # Gateway API CRDs (v1.1.0)
-# Installs the official Gateway API CRDs from the kubernetes-sigs/gateway-api repo
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -28,6 +27,7 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
     retry:
       limit: 5
       backoff:
@@ -55,12 +55,10 @@ spec:
     helm:
       releaseName: nginx-gateway-fabric
       values: |
-        # NGINX Gateway Fabric configuration for kind
         nginxGateway:
-          # GatewayClass name
           gatewayClassName: nginx
+          hostNetwork: true
 
-          # Pod placement (deploy on control-plane node with ingress-ready label)
           pod:
             nodeSelector:
               ingress-ready: "true"
@@ -71,8 +69,6 @@ spec:
               - key: node-role.kubernetes.io/master
                 operator: Equal
                 effect: NoSchedule
-
-            # Resource limits for kind
             resources:
               limits:
                 cpu: 500m
@@ -80,17 +76,10 @@ spec:
               requests:
                 cpu: 100m
                 memory: 128Mi
-
-          # Metrics for Prometheus
           telemetry:
             enable: true
-
-        # Service type for the gateway
         service:
-          type: NodePort
-          nodePort:
-            http: 30080
-            https: 30443
+          create: false
   destination:
     server: https://kubernetes.default.svc
     namespace: nginx-gateway-fabric

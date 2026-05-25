@@ -1,18 +1,16 @@
-# Platform Gateway resource - HTTP listener on port 80
-# This will be discovered by Argo CD root-app (directory recursion)
-# and created as a Kubernetes resource (not an Application CR)
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: platform-gateway
-  namespace: gateway-api
+  namespace: nginx-gateway-fabric
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   gatewayClassName: nginx
   listeners:
     - name: http
       port: 80
       protocol: HTTP
-      # Allow all namespaces to create HTTPRoutes
       allowedRoutes:
         namespaces:
           from: All
