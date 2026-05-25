@@ -30,6 +30,11 @@
           "tlsVerify": false
         },
         {
+          "urls": ["https://ghcr.io"],
+          "onDemand": true,
+          "tlsVerify": false
+        },
+        {
           "urls": ["https://public.ecr.aws"],
           "onDemand": true,
           "tlsVerify": false
