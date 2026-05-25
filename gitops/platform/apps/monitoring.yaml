@@ -136,7 +136,7 @@ spec:
     - group: apps
       kind: Deployment
       jsonPointers:
-        - /status/terminatingReplicas
+        - /status
 
   syncPolicy:
     automated:
