@@ -49,7 +49,7 @@ Security (minimal viable production baseline):
 - Trivy image/IaC scanning
 
 Core Kubernetes add-ons:
-- ingress-nginx
+- gateway-api
 - cert-manager
 - metrics-server
 

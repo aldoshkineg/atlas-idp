@@ -1,0 +1,110 @@
+# Gateway API CRDs (v1.1.0)
+# Installs the official Gateway API CRDs from the kubernetes-sigs/gateway-api repo
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gateway-api-crds
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: networking
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kubernetes-sigs/gateway-api
+    targetRevision: v1.1.0
+    path: config/crd
+    directory:
+      recurse: true
+      exclude: "*.md"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+---
+# NGINX Gateway Fabric - Gateway API Controller
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-gateway-fabric
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: networking
+spec:
+  project: default
+  source:
+    repoURL: https://nginx.github.io/nginx-gateway-fabric
+    targetRevision: v1.4.0
+    chart: nginx-gateway-fabric
+    helm:
+      releaseName: nginx-gateway-fabric
+      values: |
+        # NGINX Gateway Fabric configuration for kind
+        nginxGateway:
+          # GatewayClass name
+          gatewayClassName: nginx
+          
+          # Pod placement (deploy on control-plane node with ingress-ready label)
+          pod:
+            nodeSelector:
+              ingress-ready: "true"
+            tolerations:
+              - key: node-role.kubernetes.io/control-plane
+                operator: Equal
+                effect: NoSchedule
+              - key: node-role.kubernetes.io/master
+                operator: Equal
+                effect: NoSchedule
+            
+            # Resource limits for kind
+            resources:
+              limits:
+                cpu: 500m
+                memory: 512Mi
+              requests:
+                cpu: 100m
+                memory: 128Mi
+          
+          # Metrics for Prometheus
+          telemetry:
+            enable: true
+        
+        # Service type for the gateway
+        service:
+          type: NodePort
+          nodePort:
+            http: 30080
+            https: 30443
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nginx-gateway-fabric
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  dependsOn:
+    - name: gateway-api-crds

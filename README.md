@@ -24,8 +24,8 @@ Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP) 
 ┌─────────────────────────────┴───────────────────────────────────┐
 │                Kubernetes Runtime (kind)                        │
 │   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│   │ Ingress  │ │ Metrics  │ │ Prom/    │ │ Vault    │           │
-│   │  Nginx   │ │  Server  │ │ Grafana  │ │          │           │
+│   │ Gateway  │ │ Metrics  │ │ Prom/    │ │ Vault    │           │
+│   │   API    │ │  Server  │ │ Grafana  │ │          │           │
 │   └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
 │   ┌──────────┐ ┌──────────┐ ┌──────────┐                        │
 │   │  Cert    │ │  Velero  │ │  Backend │  Worker  Cron          │
@@ -60,7 +60,7 @@ Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP) 
 | **Secrets**        | HashiCorp Vault                            |
 | **Security**       | Trivy · yamllint · RBAC · pre-commit hooks |
 | **Backup / DR**    | Velero                                     |
-| **Ingress**        | ingress-nginx · cert-manager               |
+| **Ingress**        | gateway-api · cert-manager                 |
 | **Languages**      | HCL · YAML · Shell                         |
 
 ---
@@ -99,7 +99,7 @@ atlas-idp/
 │   │   ├── root-app.yaml       #     Root Application (platform layer)
 │   │   └── argocd/             #     Day-1 self-management manifests
 │   ├── platform/               #   Platform-layer Applications
-│   │   ├── ingress-nginx.yaml  #     Ingress controller
+│   │   ├── gateway-api.yaml   #     Gateway API controller
 │   │   ├── cert-manager.yaml   #     TLS certificate management
 │   │   ├── metrics-server.yaml #     Resource metrics (HPA)
 │   │   └── monitoring.yaml     #     kube-prometheus-stack

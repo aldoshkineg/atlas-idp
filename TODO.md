@@ -11,13 +11,13 @@
 - [x] Pre-commit hooks: trailing whitespace, YAML, Terraform fmt/validate, Trivy, key detection
 - [x] `Makefile` with developer workflow targets
 - [x] GitHub Actions self-hosted runner (Docker) operational
-- [ ] Fix structural inconsistencies:
-  - [ ] Remove `ci/` directory (replaced by `.github/workflows/`)
-  - [ ] Remove `assets/diagrams/` (duplicate of `docs/diagrams/`)
-  - [ ] Remove `infra/modules/cluster/` (superseded by `infra/modules/kind/`)
-  - [ ] Rename `infra/environments/local-kind/` refs in Makefile → `dev`
-  - [ ] Fix typo in `infra/modules/kind/variables.tf`: `v.1.35.0` → `v1.35.0`
-  - [ ] Create `gitops/platform/` directory layer (currently missing between root-app and workloads)
+- [x] Fix structural inconsistencies:
+  - [x] Remove `ci/` directory (replaced by `.github/workflows/`)
+  - [x] Remove `assets/diagrams/` (duplicate of `docs/diagrams/`)
+  - [x] Remove `infra/modules/cluster/` (superseded by `infra/modules/kind/`)
+  - [x] Update Makefile `local-kind` references → `dev` (ENV defaults to `local-kind` but deploys to `infra/environments/dev`)
+  - [x] Fix typo in `infra/modules/kind/variables.tf`: `v.1.35.0` → `v1.35.0`
+  - [x] Create `gitops/platform/` directory layer (with ingress-nginx, cert-manager, metrics-server, monitoring)
 
 ---
 
@@ -30,67 +30,65 @@
 - [x] `infra/environments/dev/main.tf` — active dev environment wires kind module
 - [x] `infra/environments/aws/` — stub + README (EKS planned)
 - [x] AWS module stubs scaffolded: networking, iam, storage, addons, observability
-- [ ] `infra/modules/argocd-bootstrap/` — **refactor from `infra/bootstrap/argocd/`**
-  - [ ] `main.tf`: `helm_release "argocd"` with proper values (NodePort, repo creds)
-  - [ ] `variables.tf`: kube credentials, argocd_version, repo_url, namespace
-  - [ ] `versions.tf`: helm ~> 2.14, kubernetes ~> 2.33
-- [ ] Wire `module "argocd_bootstrap"` into `infra/environments/dev/main.tf`
-- [ ] Wire `kubernetes_manifest "argocd_root_app"` into `infra/environments/dev/main.tf`
+- [x] `infra/modules/argocd-bootstrap/` — complete Terraform module (Day-0 Helm install)
+  - [x] `main.tf`: `helm_release "argocd"` with proper values (NodePort, repo creds)
+  - [x] `variables.tf`: kube credentials, argocd_version, repo_url, namespace
+  - [x] `versions.tf`: helm ~> 2.14, kubernetes ~> 2.33
+- [x] Wire `module "argocd_bootstrap"` into `infra/environments/dev/main.tf`
+- [x] Wire `null_resource "argocd_root_app"` into `infra/environments/dev/main.tf`
 - [ ] Terraform remote state (S3 backend stub for aws env)
 
 ---
 
 ## Phase 2 — Kubernetes Runtime
 
-- [x] `clusters/kind/cluster.yaml` — 1 CP + 2 workers, ingress ports 80/443
-- [x] `clusters/kind/cluster-ci.yaml` — lightweight CI variant (1 CP + 1 worker)
+- [x] Cluster creation via Terraform `kind_cluster` resource (tehcyx/kind provider)
 - [ ] `clusters/scripts/create-cluster.sh` — create cluster via kind CLI
 - [ ] `clusters/scripts/destroy-cluster.sh` — delete cluster
 - [ ] `clusters/scripts/bootstrap-gitops.sh` — post-cluster: terraform apply → root-app apply
-- [ ] Validate `kind` + `kubectl` installed on self-hosted runner
+- [x] Validate `kind` + `kubectl` installed on self-hosted runner (runner image includes tools)
 
 ---
 
 ## Phase 3 — GitOps Layer (Argo CD) ← **CURRENT PRIORITY**
 
-> **Status: 🔴 IN PROGRESS — Day-0 bootstrap under active implementation**
+> **Status: ✅ COMPLETE — Day-0/Day-1 bootstrap implemented**
 
 ### Day-0: Argo CD Install (Terraform-driven)
-- [~] `infra/bootstrap/argocd/main.tf` exists but incomplete (missing `helm_release` resource)
-- [ ] **Complete `helm_release "argocd"` in `infra/modules/argocd-bootstrap/main.tf`**
-  - [ ] Namespace pre-creation via `kubernetes_namespace`
-  - [ ] `values.yaml` override: server NodePort, insecure mode for local, admin password BCrypt hash
-  - [ ] `depends_on = [module.kind_cluster]`
-- [ ] **Add Argo CD bootstrap step to GitHub Actions workflow `terraform.yml`**
-  - [ ] `kubectl wait --for=condition=available deploy/argocd-server -n argocd --timeout=120s`
-  - [ ] Smoke test: `kubectl get applications -n argocd`
+- [x] `infra/modules/argocd-bootstrap/` — complete Terraform module with `helm_release` resource
+  - [x] Namespace pre-creation via `kubernetes_namespace`
+  - [x] `values.yaml` override: server NodePort, insecure mode for local, admin password BCrypt hash
+  - [x] `depends_on = [module.kind_cluster]`
+- [x] **Add Argo CD bootstrap step to GitHub Actions workflow `terraform.yml`**
+  - [x] `kubectl wait --for=condition=available deploy/argocd-server -n argocd --timeout=180s`
+  - [x] Smoke test: `kubectl get applications -n argocd`
 
 ### Day-1: App-of-Apps Root Application
 - [x] `gitops/bootstrap/root-app.yaml` — root Application manifest exists
-- [ ] **Fix `repoURL`**: change `gitlab.com/example/atlas-idp.git` → actual GitHub repo URL
-- [ ] Create `gitops/platform/` layer with platform Application CRs:
-  - [ ] `gitops/platform/ingress-nginx.yaml`
-  - [ ] `gitops/platform/cert-manager.yaml`
-  - [ ] `gitops/platform/metrics-server.yaml`
-  - [ ] `gitops/platform/monitoring.yaml` (kube-prometheus-stack)
-- [ ] Apply root-app from Terraform (`kubernetes_manifest`) or post-apply script
-- [ ] Verify Argo CD self-heals on git push (automated sync + prune)
+- [x] **Fix `repoURL`**: change `gitlab.com/example/atlas-idp.git` → actual GitHub repo URL
+- [x] Create `gitops/platform/` layer with platform Application CRs:
+  - [x] `gitops/platform/gateway-api.yaml`
+  - [x] `gitops/platform/cert-manager.yaml`
+  - [x] `gitops/platform/metrics-server.yaml`
+  - [x] `gitops/platform/monitoring.yaml` (kube-prometheus-stack)
+- [x] Apply root-app from Terraform (`null_resource` with kubectl)
+- [x] Verify Argo CD self-heals on git push (automated sync + prune)
 
 ### Day-1+: Argo CD Self-Management
-- [ ] `gitops/bootstrap/argocd/` — Argo CD manages its own helm release via Application CR
+- [ ] `gitops/bootstrap/argocd/` — Argo CD manages its own helm release via Application CR (only README exists)
 - [ ] ArgoCD Projects: `platform`, `workloads` (RBAC isolation)
 
 ---
 
 ## Phase 4 — Platform Services Layer
 
-- [ ] **ingress-nginx** — deployed via Argo CD (`gitops/platform/ingress-nginx.yaml`)
-- [ ] **cert-manager** — deployed via Argo CD, ClusterIssuer for local self-signed CA
-- [ ] **metrics-server** — deployed via Argo CD
-- [ ] **Prometheus + Grafana** (kube-prometheus-stack)
+- [x] **gateway-api** — deployed via Argo CD (`gitops/platform/gateway-api.yaml`)
+- [x] **cert-manager** — deployed via Argo CD, ClusterIssuer for local self-signed CA
+- [x] **metrics-server** — deployed via Argo CD
+- [x] **Prometheus + Grafana** (kube-prometheus-stack)
   - [x] `observability/alerts/custom-rule-1.yaml` — HighErrorRate (5xx > 5% for 5m)
   - [x] `observability/alerts/custom-rule-2.yaml` — HPAMaxedOut (HPA at max for 15m)
-  - [ ] Deploy via Argo CD Application
+  - [x] Deploy via Argo CD Application
   - [ ] Mount custom alert rules as ConfigMap via values override
   - [ ] `observability/dashboards/` — Grafana dashboard JSON (platform overview)
 - [ ] **Loki** — log aggregation, deployed via Argo CD
@@ -106,14 +104,14 @@
 
 ## Phase 5 — CI/CD Layer (GitHub Actions)
 
-- [x] `.github/workflows/terraform.yml` — Terraform deploy: kind lifecycle
+- [x] `.github/workflows/terraform.yml` — Terraform deploy: kind lifecycle + Argo CD verification
 - [x] `.github/workflows/tests.yml` — fmt check, validate, yamllint, trivy
 - [ ] Split workflow concerns:
   - [ ] `validate.yml` — PR gate: terraform fmt/validate, yamllint, trivy config scan
   - [ ] `deploy.yml` — push to main: terraform apply (cluster + argocd bootstrap)
   - [ ] `destroy.yml` — scheduled or manual: terraform destroy
-- [ ] Remove `terraform destroy` from deploy workflow `if: always()` — currently destroys cluster immediately after create
-- [ ] Add Argo CD bootstrap verification step to deploy workflow
+- [x] Remove `terraform destroy` from deploy workflow `if: always()` — cluster persists after apply
+- [x] Add Argo CD bootstrap verification step to deploy workflow
 - [ ] `security.yml` — Trivy image scan on `apps/**` changes
 - [ ] Add `workflow_dispatch` inputs: `action: apply|destroy`, `environment: dev|staging`
 
@@ -122,7 +120,7 @@
 ## Phase 6 — Security Baseline
 
 - [x] `security/trivy/trivy.yaml` — Trivy config (HIGH/CRITICAL, IaC scan)
-- [ ] `security/rbac/` — RBAC policies
+- [ ] `security/rbac/` — RBAC policies (only `.gitkeep` exists)
   - [ ] `platform-admin` ClusterRole (full platform namespace access)
   - [ ] `workload-deployer` Role (deploy-only to workload namespaces)
   - [ ] `readonly` ClusterRole for observability service accounts
@@ -180,14 +178,14 @@
 
 ---
 
-## Current Sprint Focus
+## Next Sprint Focus
 
 ```
-Phase 3 — Argo CD Day-0 Bootstrap
+Phase 4 — Platform Services Completion
 
-1. [IMMEDIATE] Complete infra/modules/argocd-bootstrap/main.tf (helm_release)
-2. [IMMEDIATE] Wire module into infra/environments/dev/main.tf
-3. [IMMEDIATE] Fix root-app.yaml repoURL (gitlab → github)
-4. [NEXT]      Create gitops/platform/ layer with first Applications (ingress-nginx, cert-manager)
-5. [NEXT]      Update GitHub Actions terraform.yml: add argocd readiness check, remove auto-destroy
+1. [IMMEDIATE] Mount custom Prometheus alert rules as ConfigMap via values override
+2. [IMMEDIATE] Create Grafana dashboard JSON (platform overview)
+3. [NEXT]      Deploy Loki via Argo CD for log aggregation
+4. [NEXT]      Deploy Vault via Argo CD with init/unseal bootstrap
+5. [NEXT]      Begin Phase 7: Workload services (backend-api, worker)
 ```

@@ -55,7 +55,7 @@ atlas-idp/
 │   │   ├── root-app.yaml       # Fixed: gitlab → github URL
 │   │   └── argocd/             # Day-1 self-management
 │   ├── platform/               # ✨ NEW: Platform Application CRs
-│   │   ├── ingress-nginx.yaml
+│   │   ├── gateway-api.yaml
 │   │   ├── cert-manager.yaml
 │   │   ├── metrics-server.yaml
 │   │   └── monitoring.yaml     # kube-prometheus-stack
@@ -125,7 +125,8 @@ Terraform (infra/environments/dev/main.tf)
 
 | Application | Chart | Namespace | Purpose |
 |-------------|-------|-----------|---------|
-| **ingress-nginx** | kubernetes/ingress-nginx:4.11.3 | ingress-nginx | HTTP/HTTPS routing with hostPort (kind) |
+| **gateway-api** | kubernetes-sigs/gateway-api:v1.1.0 | gateway-api | Gateway API CRDs |
+| **gateway-api-nginx** | nginx-gateway-fabric:v1.4.0 | nginx-gateway-fabric | Gateway API controller (HTTP/HTTPS routing with hostPort, kind) |
 | **cert-manager** | jetstack/cert-manager:v1.16.2 | cert-manager | TLS certificate management (CRDs included) |
 | **metrics-server** | k8s-sigs/metrics-server:3.12.2 | kube-system | Resource metrics for HPA (kubelet insecure TLS) |
 | **kube-prometheus-stack** | prometheus-community:68.2.0 | monitoring | Prometheus + Grafana (NodePort :30300) + Alertmanager |
@@ -358,7 +359,8 @@ root-app (gitops/bootstrap/root-app.yaml)
     ↓
 directory: gitops/platform/ (recurse: true)
     ↓
-├── ingress-nginx.yaml  → Application CR → Helm chart
+├── gateway-api.yaml  → Application CR → Gateway API CRDs
+├── gateway-api-nginx.yaml → Application CR → Gateway API controller
 ├── cert-manager.yaml   → Application CR → Helm chart
 ├── metrics-server.yaml → Application CR → Helm chart
 └── monitoring.yaml     → Application CR → Helm chart
@@ -423,7 +425,7 @@ infra/modules/argocd-bootstrap/outputs.tf
 infra/modules/argocd-bootstrap/versions.tf
 infra/modules/argocd-bootstrap/README.md
 gitops/platform/README.md
-gitops/platform/ingress-nginx.yaml
+gitops/platform/gateway-api.yaml
 gitops/platform/cert-manager.yaml
 gitops/platform/metrics-server.yaml
 gitops/platform/monitoring.yaml
