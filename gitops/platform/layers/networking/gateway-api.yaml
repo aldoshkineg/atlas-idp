@@ -64,6 +64,8 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: nginx-gateway-fabric
+  dependsOn:
+    - name: gateway-api-crds
   syncPolicy:
     automated:
       prune: true
@@ -77,8 +79,6 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 2m
-  dependsOn:
-    - name: gateway-api-crds
 ---
 # Step 3: Deploy custom platform configurations (Gateways, HTTPRoutes)
 apiVersion: argoproj.io/v1alpha1
@@ -99,6 +99,8 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: nginx-gateway-fabric
+  dependsOn:
+    - name: nginx-gateway-fabric
   syncPolicy:
     automated:
       prune: true
@@ -113,5 +115,3 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 2m
-  dependsOn:
-    - name: nginx-gateway-fabric
