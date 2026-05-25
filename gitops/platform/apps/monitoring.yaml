@@ -133,6 +133,10 @@ spec:
       kind: StatefulSet
       jsonPointers:
         - /status
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /status/terminatingReplicas
 
   syncPolicy:
     automated:
