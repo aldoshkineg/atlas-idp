@@ -52,12 +52,10 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://ghcr.io/nginx/charts
-    targetRevision: v1.4.0
+    repoURL: ghcr.io/nginx/charts
+    targetRevision: 1.4.0
     chart: nginx-gateway-fabric
     helm:
-      releaseName: nginx-gateway-fabric
-      enableOci: true
       values: |
         nginxGateway:
           gatewayClassName: nginx
