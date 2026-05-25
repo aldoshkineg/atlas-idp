@@ -59,7 +59,7 @@ spec:
         nginxGateway:
           # GatewayClass name
           gatewayClassName: nginx
-          
+
           # Pod placement (deploy on control-plane node with ingress-ready label)
           pod:
             nodeSelector:
@@ -71,7 +71,7 @@ spec:
               - key: node-role.kubernetes.io/master
                 operator: Equal
                 effect: NoSchedule
-            
+
             # Resource limits for kind
             resources:
               limits:
@@ -80,11 +80,11 @@ spec:
               requests:
                 cpu: 100m
                 memory: 128Mi
-          
+
           # Metrics for Prometheus
           telemetry:
             enable: true
-        
+
         # Service type for the gateway
         service:
           type: NodePort
