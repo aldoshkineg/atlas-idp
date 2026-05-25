@@ -1,0 +1,41 @@
+# Install CRDs via Helm chart
+crds:
+  enabled: true
+
+# Resource limits for kind
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+webhook:
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+cainjector:
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Prometheus metrics
+prometheus:
+  enabled: false
+  servicemonitor:
+    enabled: false
+
+# Global namespace for cluster-wide resources
+global:
+  leaderElection:
+    namespace: cert-manager

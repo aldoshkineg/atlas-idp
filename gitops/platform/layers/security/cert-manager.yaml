@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: security
+spec:
+  project: default
+  source:
+    repoURL: https://charts.jetstack.io
+    targetRevision: v1.16.2
+    chart: cert-manager
+    helm:
+      releaseName: cert-manager
+      valueFiles:
+        - $values/gitops/platform/layers/security/values/cert-manager.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  sources:
+    - repoURL: https://charts.jetstack.io
+      targetRevision: v1.16.2
+      chart: cert-manager
+      helm:
+        valueFiles:
+          - $values/gitops/platform/layers/security/values/cert-manager.yaml
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      ref: values

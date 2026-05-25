@@ -1,0 +1,24 @@
+nginxGateway:
+  gatewayClassName: nginx
+  hostNetwork: true
+  pod:
+    nodeSelector:
+      ingress-ready: "true"
+    tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Equal
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Equal
+        effect: NoSchedule
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  telemetry:
+    enable: true
+service:
+  create: false

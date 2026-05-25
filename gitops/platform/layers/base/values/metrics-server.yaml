@@ -1,0 +1,24 @@
+# kind-specific: disable TLS verification for self-signed kubelet certs
+args:
+  - --kubelet-insecure-tls
+  - --kubelet-preferred-address-types=InternalIP
+
+# Resource limits
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Enable APIService registration
+apiService:
+  create: true
+
+# Service monitor for Prometheus (optional)
+metrics:
+  enabled: true
+
+# HA mode (disabled for kind)
+replicas: 1

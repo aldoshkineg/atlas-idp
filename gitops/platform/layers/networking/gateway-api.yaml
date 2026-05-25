@@ -51,36 +51,16 @@ metadata:
     app.kubernetes.io/layer: networking
 spec:
   project: default
-  source:
-    repoURL: ghcr.io/nginx/charts
-    targetRevision: 1.4.0
-    chart: nginx-gateway-fabric
-    helm:
-      values: |
-        nginxGateway:
-          gatewayClassName: nginx
-          hostNetwork: true
-          pod:
-            nodeSelector:
-              ingress-ready: "true"
-            tolerations:
-              - key: node-role.kubernetes.io/control-plane
-                operator: Equal
-                effect: NoSchedule
-              - key: node-role.kubernetes.io/master
-                operator: Equal
-                effect: NoSchedule
-            resources:
-              limits:
-                cpu: 500m
-                memory: 512Mi
-              requests:
-                cpu: 100m
-                memory: 128Mi
-          telemetry:
-            enable: true
-        service:
-          create: false
+  sources:
+    - repoURL: ghcr.io/nginx/charts
+      targetRevision: 1.4.0
+      chart: nginx-gateway-fabric
+      helm:
+        valueFiles:
+          - $values/gitops/platform/layers/networking/values/nginx-gateway-fabric.yaml
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: nginx-gateway-fabric

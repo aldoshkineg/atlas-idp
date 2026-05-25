@@ -10,11 +10,11 @@ spec:
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform/apps
+    path: gitops/platform/layers
     directory:
       recurse: true
       jsonnet: {}
-      exclude: 'README.md'
+      exclude: '{README.md,values}'
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
