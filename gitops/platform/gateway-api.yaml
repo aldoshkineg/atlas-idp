@@ -111,7 +111,6 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: "2"
-    argocd.argoproj.io/compare-options: SkipDryRunOnMissingResource=true
 spec:
   project: default
   source:
