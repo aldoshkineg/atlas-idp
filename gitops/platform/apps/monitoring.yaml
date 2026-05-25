@@ -133,6 +133,12 @@ spec:
       kind: StatefulSet
       jsonPointers:
         - /status/terminatingReplicas
+        - /status/currentReplicas
+        - /status/currentRevision
+        - /status/nextRevision
+        - /status/readyReplicas
+        - /status/replicas
+        - /status/updateRevision
 
   syncPolicy:
     automated:
