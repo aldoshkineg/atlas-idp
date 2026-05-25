@@ -49,3 +49,5 @@ clusters/kind/ci/local-runner/.env
 
 # Zot cache images
 clusters/kind/ci/zot-kind-cache/zot-cache-data
+.aider*
+.continue

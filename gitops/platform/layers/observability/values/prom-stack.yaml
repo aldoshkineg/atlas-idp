@@ -11,8 +11,8 @@ prometheus:
         memory: 1Gi
 
     # Retention
-    retention: 7d
-    retentionSize: "5GB"
+    retention: 2d
+    retentionSize: "1GB"
 
     # Service monitors
     serviceMonitorSelectorNilUsesHelmValues: false
@@ -25,7 +25,7 @@ prometheus:
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
-              storage: 10Gi
+              storage: 2Gi
 
     # Custom alert rules (mounted from observability/alerts/)
     additionalScrapeConfigs: []
@@ -48,7 +48,12 @@ grafana:
       memory: 128Mi
 
   persistence:
-    enabled: false
+    enabled: true
+    type: pvc
+    storageClassName: standard
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
 
   dashboardProviders:
     dashboardproviders.yaml:

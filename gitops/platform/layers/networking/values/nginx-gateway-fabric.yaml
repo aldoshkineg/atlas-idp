@@ -20,5 +20,12 @@ nginxGateway:
         memory: 128Mi
   telemetry:
     enable: true
+  secrets:
+    - name: platform-tls-cert
+      namespace: nginx-gateway-fabric
+      key: tls.crt
+    - name: platform-tls-cert
+      namespace: nginx-gateway-fabric
+      key: tls.key
 service:
   create: false

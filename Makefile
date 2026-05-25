@@ -1,6 +1,7 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
-	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs
+	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
+	argocd-login
 
 CLUSTER_NAME     ?= atlas-idp
 KIND_CONFIG      ?= clusters/kind/cluster.yaml
@@ -32,6 +33,9 @@ help:
 	@echo "  ci-runner-down    Stop and remove local GitHub runner container"
 	@echo "  ci-runner-status  Check status of local GitHub runner container"
 	@echo "  ci-runner-logs    Follow logs from the local GitHub runner container"
+	@echo ""
+	@echo "ArgoCD:"
+	@echo "  argocd-login      Login to ArgoCD via CLI"
 
 # --- Infrastructure Management ---
 cluster-up:
@@ -66,6 +70,11 @@ infra-apply:
 
 gitops-bootstrap:
 	./clusters/scripts/bootstrap-gitops.sh
+
+# --- ArgoCD ---
+argocd-login:
+	@chmod +x clusters/kind/ci/argocd-login.sh
+	./clusters/kind/ci/argocd-login.sh
 
 # --- Quality Assurance & Linting ---
 validate: validate-terraform validate-yaml validate-security

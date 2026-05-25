@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+CONTAINER_NAME="atlas-idp-control-plane"
+ARGOCD_PORT="30080"
+ARGOCD_USER="admin"
+SECRET_NAME="argocd-initial-admin-secret"
+NAMESPACE="argocd"
+
+echo "==> Fetching Control Plane IP..."
+CONTROL_PLANE_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$CONTAINER_NAME" 2>/dev/null || true)
+
+if [ -z "$CONTROL_PLANE_IP" ]; then
+    echo "❌ Error: Failed to get IP for container '$CONTAINER_NAME'."
+    exit 1
+fi
+
+ARGOCD_SERVER="${CONTROL_PLANE_IP}:${ARGOCD_PORT}"
+echo "✅ Target server: $ARGOCD_SERVER"
+
+echo "==> Fetching admin password..."
+if ! ARGOCD_PASSWORD=$(kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" -o jsonpath="{.data.password}" 2>/dev/null | base64 --decode); then
+    echo "⚠️  Failed to fetch password from kubectl. Please enter it manually:"
+    read -rs ARGOCD_PASSWORD
+fi
+
+if [ -z "$ARGOCD_PASSWORD" ]; then
+    echo "❌ Error: Password cannot be empty."
+    exit 1
+fi
+
+echo "==> Logging into ArgoCD CLI..."
+if echo y | argocd login "$ARGOCD_SERVER" --username "$ARGOCD_USER" --password "$ARGOCD_PASSWORD" --insecure; then
+    echo "✅ Login successful."
+else
+    echo "❌ Error: ArgoCD login failed."
+    exit 1
+fi
