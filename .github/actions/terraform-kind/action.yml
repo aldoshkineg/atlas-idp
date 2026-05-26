@@ -56,8 +56,8 @@ runs:
       run: |
         kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
         kubectl create secret tls dev-ca-secret \
-        --cert=<(echo "${{ secrets.DEV_CA_CRT }}") \
-        --key=<(echo "${{ secrets.DEV_CA_KEY }}") \
+        --cert=<(echo "${{ inputs.dev_ca_crt }}") \
+        --key=<(echo "${{ inputs.dev_ca_key }}") \
         -n cert-manager \
         --dry-run=client -o yaml | kubectl apply -f -
 
