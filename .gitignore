@@ -51,3 +51,6 @@ clusters/kind/ci/local-runner/.env
 clusters/kind/ci/zot-kind-cache/zot-cache-data
 .aider*
 .continue
+
+# Self-signed CA
+clusters/kind/certs/ca*

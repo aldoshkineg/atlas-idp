@@ -1,7 +1,7 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
-	argocd-login
+	argocd-login github-secrets-ca
 
 CLUSTER_NAME     ?= atlas-idp
 KIND_CONFIG      ?= clusters/kind/cluster.yaml
@@ -36,6 +36,9 @@ help:
 	@echo ""
 	@echo "ArgoCD:"
 	@echo "  argocd-login      Login to ArgoCD via CLI"
+	@echo ""
+	@echo "GitHub Secrets:"
+	@echo "  github-secrets-ca  Add root CA cert and key to GitHub secrets (DEV_CA_CRT, DEV_CA_KEY)"
 
 # --- Infrastructure Management ---
 cluster-up:
@@ -75,6 +78,14 @@ gitops-bootstrap:
 argocd-login:
 	@chmod +x clusters/kind/ci/argocd-login.sh
 	./clusters/kind/ci/argocd-login.sh
+
+# --- GitHub Secrets ---
+github-secrets-ca:
+	@echo "--> Adding root CA certificate to GitHub secrets (DEV_CA_CRT)..."
+	gh secret set DEV_CA_CRT < clusters/kind/certs/ca.crt
+	@echo "--> Adding root CA key to GitHub secrets (DEV_CA_KEY)..."
+	gh secret set DEV_CA_KEY < clusters/kind/certs/ca.key
+	@echo "--> CA certificate and key added to GitHub secrets successfully"
 
 # --- Quality Assurance & Linting ---
 validate: validate-terraform validate-yaml validate-security

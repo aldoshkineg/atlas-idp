@@ -1,37 +1,11 @@
-# Self-signed Issuer for platform TLS certificates
 apiVersion: cert-manager.io/v1
-kind: Issuer
+kind: ClusterIssuer
 metadata:
-  name: platform-selfsigned-issuer
-  namespace: nginx-gateway-fabric
-spec:
-  selfSigned: {}
----
-# CA Issuer that issues from the self-signed cert
-apiVersion: cert-manager.io/v1
-kind: Issuer
-metadata:
-  name: platform-ca-issuer
-  namespace: nginx-gateway-fabric
+  name: dev-ca-issuer
 spec:
   ca:
-    secretName: platform-ca-key-pair
+    secretName: dev-ca-secret
 ---
-# CA certificate for the platform
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: platform-ca-cert
-  namespace: nginx-gateway-fabric
-spec:
-  isCA: true
-  issuerRef:
-    name: platform-selfsigned-issuer
-    kind: Issuer
-  commonName: platform-ca
-  secretName: platform-ca-key-pair
----
-# Platform TLS certificate
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
@@ -39,10 +13,22 @@ metadata:
   namespace: nginx-gateway-fabric
 spec:
   secretName: platform-tls-cert
+  duration: 2160h
+  renewBefore: 360h
+  subject:
+    organizations:
+      - Com
+    countries:
+      - RU
+    provinces:
+      - Moscow
+    localities:
+      - MSK
+  commonName: "*.atlas"
   dnsNames:
-    - "*.local.atlas"
+    - "*.atlas"
     - "localhost"
     - "*.localhost"
   issuerRef:
-    name: platform-ca-issuer
-    kind: Issuer
+    name: dev-ca-issuer
+    kind: ClusterIssuer
