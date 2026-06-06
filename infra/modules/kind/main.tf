@@ -46,15 +46,6 @@ resource "kind_cluster" "default" {
       for_each = range(var.worker_node_count)
       content {
         role = "worker"
-
-        dynamic "extra_port_mappings" {
-          for_each = var.extra_port_mappings
-          content {
-            container_port = extra_port_mappings.value.container_port
-            host_port      = extra_port_mappings.value.host_port
-            protocol       = upper(extra_port_mappings.value.protocol)
-          }
-        }
       }
     }
   }

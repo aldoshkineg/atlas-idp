@@ -35,7 +35,7 @@ variable "ingress_ready" {
 }
 
 variable "extra_port_mappings" {
-  description = "Extra port mappings for all nodes (control-plane and workers)"
+  description = "Extra port mappings for the control-plane node"
   type = list(object({
     container_port = number
     host_port      = number
