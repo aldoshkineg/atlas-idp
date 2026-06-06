@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cert-manager-webhook-ready
+  namespace: cert-manager
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    spec:
+      serviceAccountName: cert-manager-webhook-ready
+      containers:
+        - name: wait
+          image: bitnami/kubectl:1.31
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for cert-manager-webhook rollout..."
+              kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=120s
+
+              echo "Verifying webhook TLS..."
+              for i in $(seq 1 30); do
+                CA=$(kubectl get secret cert-manager-webhook-ca -n cert-manager -o jsonpath="{.data['ca\.crt']}" 2>/dev/null)
+                if [ -n "$CA" ]; then
+                  WEBHOOK_CERT=$(kubectl get validatingwebhookconfiguration cert-manager-webhook -o jsonpath="{.webhooks[0].clientConfig.caBundle}" 2>/dev/null)
+                  if [ "$CA" = "$WEBHOOK_CERT" ]; then
+                    echo "caBundle matches webhook CA - webhook is fully ready!"
+                    exit 0
+                  fi
+                fi
+                echo "Attempt $i: CA bundle mismatch, waiting..."
+                sleep 3
+              done
+
+              echo "Webhook not ready after timeout"
+              exit 1
+      restartPolicy: Never
+  backoffLimit: 3
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-manager-webhook-ready
+  namespace: cert-manager
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cert-manager-webhook-ready
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cert-manager-webhook-ready
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cert-manager-webhook-ready
+subjects:
+  - kind: ServiceAccount
+    name: cert-manager-webhook-ready
+    namespace: cert-manager
