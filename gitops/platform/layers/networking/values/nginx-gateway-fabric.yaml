@@ -1,31 +1,34 @@
 nginxGateway:
   gatewayClassName: nginx
-  hostNetwork: true
-  pod:
-    nodeSelector:
-      ingress-ready: "true"
-    tolerations:
-      - key: node-role.kubernetes.io/control-plane
-        operator: Equal
-        effect: NoSchedule
-      - key: node-role.kubernetes.io/master
-        operator: Equal
-        effect: NoSchedule
-    resources:
-      limits:
-        cpu: 500m
-        memory: 512Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
   telemetry:
     enable: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
   secrets:
-    - name: platform-tls-cert
+    - name: test-ca-cert
       namespace: nginx-gateway-fabric
       key: tls.crt
-    - name: platform-tls-cert
+    - name: test-ca-cert
       namespace: nginx-gateway-fabric
       key: tls.key
-service:
-  create: false
+
+nodeSelector:
+  ingress-ready: "true"
+
+tolerations:
+  - key: node-role.kubernetes.io/control-plane
+    operator: Equal
+    effect: NoSchedule
+
+nginx:
+  container:
+    hostPorts:
+      - port: 80
+        containerPort: 80
+      - port: 443
+        containerPort: 443

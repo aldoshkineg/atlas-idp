@@ -9,26 +9,17 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: platform-tls-cert
+  name: test-ca-cert
   namespace: nginx-gateway-fabric
 spec:
-  secretName: platform-tls-cert
+  secretName: test-ca-cert
   duration: 2160h
   renewBefore: 360h
   subject:
     organizations:
-      - Com
-    countries:
-      - RU
-    provinces:
-      - Moscow
-    localities:
-      - MSK
-  commonName: "*.atlas"
+      - atlas-idp
   dnsNames:
-    - "*.atlas"
-    - "localhost"
-    - "*.localhost"
+    - test-ca.atlas
   issuerRef:
     name: dev-ca-issuer
     kind: ClusterIssuer

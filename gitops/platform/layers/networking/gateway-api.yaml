@@ -75,37 +75,4 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 2m
----
-# Step 3: Deploy custom platform configurations (Gateways, HTTPRoutes)
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: platform-configs
-  namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/aldoshkineg/atlas-idp.git
-    targetRevision: main
-    path: gitops/platform/configs
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: nginx-gateway-fabric
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - PruneLast=true
-      - SkipDryRunOnMissingResource=true
-    retry:
-      limit: 10
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 2m
+
