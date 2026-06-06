@@ -9,14 +9,6 @@ nginxGateway:
     requests:
       cpu: 100m
       memory: 128Mi
-  secrets:
-    - name: test-ca-cert
-      namespace: nginx-gateway-fabric
-      key: tls.crt
-    - name: test-ca-cert
-      namespace: nginx-gateway-fabric
-      key: tls.key
-
 nodeSelector:
   ingress-ready: "true"
 

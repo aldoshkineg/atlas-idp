@@ -12,6 +12,16 @@ metadata:
     app.kubernetes.io/layer: security
 spec:
   project: default
+  sources:
+    - repoURL: https://charts.jetstack.io
+      targetRevision: v1.16.2
+      chart: cert-manager
+      helm:
+        valueFiles:
+          - $values/gitops/platform/layers/security/values/cert-manager.yaml
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
@@ -27,13 +37,3 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
-  sources:
-    - repoURL: https://charts.jetstack.io
-      targetRevision: v1.16.2
-      chart: cert-manager
-      helm:
-        valueFiles:
-          - $values/gitops/platform/layers/security/values/cert-manager.yaml
-    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
-      targetRevision: main
-      ref: values

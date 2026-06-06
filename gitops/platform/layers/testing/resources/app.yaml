@@ -36,11 +36,24 @@ spec:
         app: test-app
     spec:
       serviceAccountName: test-app
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: whoami
           image: docker.io/traefik/whoami:v1.10
           ports:
             - containerPort: 80
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           resources:
             limits:
               cpu: 100m
