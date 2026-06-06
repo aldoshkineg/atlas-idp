@@ -55,7 +55,7 @@ spec:
       chart: nginx-gateway-fabric
       helm:
         valueFiles:
-          - $values/gitops/platform/layers/networking/values/nginx-gateway-fabric.yaml
+          - $values/gitops/platform/layers/testing/resources/values/nginx-gateway-fabric.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       ref: values
