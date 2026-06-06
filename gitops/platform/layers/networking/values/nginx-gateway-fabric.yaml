@@ -1,19 +1,5 @@
-replicaCount: 1
-
 service:
-  type: ClusterIP
-
-nginxGateway:
-  gatewayClassName: nginx
-  telemetry:
-    enable: true
-  resources:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
+  type: NodePort
 
 nodeSelector:
   ingress-ready: "true"
@@ -23,10 +9,11 @@ tolerations:
     operator: Equal
     effect: NoSchedule
 
-nginx:
-  container:
-    hostPorts:
-      - port: 80
-        containerPort: 80
-      - port: 443
-        containerPort: 443
+metrics:
+  enable: true
+  port: 9113
+
+nginxGateway:
+  kind: deployment
+  gatewayClassName: nginx
+  replicaCount: 1

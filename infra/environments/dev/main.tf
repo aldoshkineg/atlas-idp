@@ -20,15 +20,15 @@ module "kind_cluster" {
   # Enable zot mirror repos
   enable_cache = true
 
-  # Expose ports for ingress
+  # Expose ports for NodePort ingress (nginx-gateway-fabric)
   extra_port_mappings = [
     {
-      container_port = 80
+      container_port = 30081
       host_port      = 80
       protocol       = "TCP"
     },
     {
-      container_port = 443
+      container_port = 30444
       host_port      = 443
       protocol       = "TCP"
     }
