@@ -1,5 +1,12 @@
 name: Terraform Kind
 description: "Deploy KinD cluster via Terraform"
+inputs:
+  dev_ca_crt:
+    description: "CA certificate for dev cluster"
+    required: false
+  dev_ca_key:
+    description: "CA key for dev cluster"
+    required: false
 
 runs:
   using: composite
