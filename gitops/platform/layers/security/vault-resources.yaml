@@ -1,34 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: vault-operator
+  name: vault-resources
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app.kubernetes.io/component: platform
     app.kubernetes.io/layer: security
 spec:
   project: default
   source:
-    repoURL: ghcr.io/bank-vaults/helm-charts
-    chart: vault-operator
-    targetRevision: 1.24.0
-    path: "."
-    helm:
-      values: |
-        crds:
-          install: true
-        replicas: 1
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 200m
-            memory: 256Mi
+    repoURL: https://github.com/aldoshkineg/atlas-idp.git
+    targetRevision: main
+    path: gitops/platform/layers/security/vault-resources
   destination:
     server: https://kubernetes.default.svc
     namespace: vault

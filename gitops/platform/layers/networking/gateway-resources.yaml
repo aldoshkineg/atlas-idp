@@ -24,14 +24,14 @@ spec:
       kind: Gateway
       jsonPointers:
         - /metadata/annotations
+        - /metadata/labels
+        - /status
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true
-      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:
