@@ -19,6 +19,11 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: nginx-gateway-fabric
+  ignoreDifferences:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      jsonPointers:
+        - /metadata/annotations
   syncPolicy:
     automated:
       prune: true
@@ -28,11 +33,6 @@ spec:
       - ServerSideApply=true
       - RespectIgnoreDifferences=true
     retry:
-  ignoreDifferences:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      jsonPointers:
-        - /metadata/annotations/argocd.argoproj.io~1tracking-id
       limit: 5
       backoff:
         duration: 5s
