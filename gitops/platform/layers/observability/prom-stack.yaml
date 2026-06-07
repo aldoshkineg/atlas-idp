@@ -21,6 +21,7 @@ spec:
         valueFiles:
           - $values/gitops/platform/layers/observability/values/prom-stack.yaml
           - $values/gitops/platform/layers/observability/values/alert-rules.yaml
+          - $values/gitops/platform/layers/observability/values/dashboards.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       ref: values
