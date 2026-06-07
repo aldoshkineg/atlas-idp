@@ -31,7 +31,7 @@ spec:
               memory: 256Mi
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
-      path: gitops/platform/layers/security/vault-resources
+      path: gitops/platform/layers/security/resources/vault
   destination:
     server: https://kubernetes.default.svc
     namespace: vault
