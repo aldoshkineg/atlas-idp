@@ -1,0 +1,31 @@
+additionalPrometheusRulesMap:
+  atlas-idp-availability:
+    groups:
+      - name: atlas-idp-availability
+        rules:
+          - alert: HighErrorRate
+            expr: |
+              sum(rate(http_requests_total{status=~"5.."}[5m]))
+                /
+              sum(rate(http_requests_total[5m])) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: High 5xx error rate on backend-api
+              description: More than 5% of requests returned 5xx for 5 minutes.
+  atlas-idp-capacity:
+    groups:
+      - name: atlas-idp-capacity
+        rules:
+          - alert: HPAMaxedOut
+            expr: |
+              kube_horizontalpodautoscaler_status_current_replicas
+                ==
+              kube_horizontalpodautoscaler_spec_max_replicas
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: HPA at max replicas
+              description: Workload has been at max replicas for 15 minutes; consider raising limits or optimizing load.

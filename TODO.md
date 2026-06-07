@@ -86,7 +86,7 @@
   - [x] `observability/alerts/custom-rule-1.yaml` — HighErrorRate (5xx > 5% for 5m)
   - [x] `observability/alerts/custom-rule-2.yaml` — HPAMaxedOut (HPA at max for 15m)
   - [x] Deploy via Argo CD Application
-  - [ ] Mount custom alert rules as ConfigMap via values override
+  - [x] Mount custom alert rules as ConfigMap via values override
   - [ ] `observability/dashboards/` — Grafana dashboard JSON (platform overview)
 - [ ] **Loki** — log aggregation, deployed via Argo CD
 - [ ] **HashiCorp Vault**
@@ -181,7 +181,7 @@
 ```
 Phase 4 — Platform Services Completion
 
-1. [IMMEDIATE] Mount custom Prometheus alert rules as ConfigMap via values override
+1. [DONE]    Mount custom Prometheus alert rules as ConfigMap via values override
 2. [IMMEDIATE] Create Grafana dashboard JSON (platform overview)
 3. [NEXT]      Deploy Loki via Argo CD for log aggregation
 4. [NEXT]      Deploy Vault via Argo CD with init/unseal bootstrap

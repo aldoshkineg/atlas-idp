@@ -20,6 +20,7 @@ spec:
         releaseName: kube-prometheus-stack
         valueFiles:
           - $values/gitops/platform/layers/observability/values/prom-stack.yaml
+          - $values/gitops/platform/layers/observability/values/alert-rules.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       ref: values
