@@ -35,6 +35,18 @@ spec:
   # Тип сервиса для доступа извне кластера
   serviceType: NodePort
 
+  # Сохраняем данные Vault при перезапуске пода
+  volumeClaimTemplates:
+    - metadata:
+        name: vault-file
+      spec:
+        storageClassName: standard
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+
   # Настройки ресурсов (рекомендуется для Kind)
   resources:
     vault:
