@@ -28,3 +28,14 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: grafana-cert
+    - name: https-vault
+      port: 443
+      protocol: HTTPS
+      hostname: "vault.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: vault-cert

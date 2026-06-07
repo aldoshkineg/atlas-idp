@@ -1,0 +1,53 @@
+apiVersion: vault.banzaicloud.com/v1alpha1
+kind: Vault
+metadata:
+  name: vault
+  namespace: vault
+spec:
+  # Рекомендуется 1 реплика для тестовой среды
+  size: 1
+  serviceAccount: vault
+  # Используйте актуальную стабильную версию Vault
+  image: hashicorp/vault:1.18.0
+
+  # Минимальная конфигурация Vault для Kind
+  config:
+    storage:
+      file:
+        path: /vault/file
+    listener:
+      tcp:
+        address: 0.0.0.0:8200
+        tls_disable: true
+    api_addr: http://vault.vault:8200
+    cluster_addr: https://vault.vault:8201
+    ui: true
+
+  # 🚨 ВАЖНО: Укажите актуальный образ банковского хранилища
+  bankVaultsImage: ghcr.io/bank-vaults/bank-vaults:latest
+
+  # Настройка для локального хранения ключей распечатывания
+  unsealConfig:
+    kubernetes:
+      secretNamespace: vault
+      secretName: vault-unseal-keys
+
+  # Тип сервиса для доступа извне кластера
+  serviceType: NodePort
+
+  # Настройки ресурсов (рекомендуется для Kind)
+  resources:
+    vault:
+      requests:
+        memory: 256Mi
+        cpu: 500m
+      limits:
+        memory: 512Mi
+        cpu: 1000m
+    bankVaults:
+      requests:
+        memory: 64Mi
+        cpu: 50m
+      limits:
+        memory: 128Mi
+        cpu: 100m
