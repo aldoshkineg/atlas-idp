@@ -12,7 +12,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"cert-manager|monitoring|nginx-gateway-fabric|argocd\"}[5m]))",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"argocd|monitoring|cert-manager|nginx.*\"}[5m]))",
           "legendFormat": "CPU (cores)"
         }
       ],
@@ -41,7 +41,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 },
       "targets": [
         {
-          "expr": "sum(container_memory_working_set_bytes{namespace=~\"cert-manager|monitoring|nginx-gateway-fabric|argocd\"})",
+          "expr": "sum(container_memory_working_set_bytes{namespace=~\"argocd|monitoring|cert-manager|nginx.*\"})",
           "legendFormat": "Memory (bytes)"
         }
       ],
@@ -70,7 +70,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
       "targets": [
         {
-          "expr": "count(kube_pod_status_phase{phase=\"Running\", namespace=~\"cert-manager|monitoring|nginx-gateway-fabric|argocd\"})",
+          "expr": "count(kube_pod_status_phase{phase=\"Running\", namespace=~\"argocd|monitoring|cert-manager|nginx.*\"})",
           "legendFormat": "Running pods"
         }
       ],
@@ -100,7 +100,7 @@
       "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"cert-manager|monitoring|nginx-gateway-fabric|argocd\"}[5m])) by (namespace)",
+          "expr": "sum(rate(container_cpu_usage_seconds_total[5m])) by (namespace)",
           "legendFormat": "{{ namespace }}"
         }
       ],
@@ -116,7 +116,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
-          "expr": "sum(container_memory_working_set_bytes{namespace=~\"cert-manager|monitoring|nginx-gateway-fabric|argocd\"}) by (namespace)",
+          "expr": "sum(container_memory_working_set_bytes{namespace=~\"argocd|monitoring|cert-manager|nginx.*\"}) by (namespace)",
           "legendFormat": "{{ namespace }}"
         }
       ],
@@ -132,7 +132,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
-          "expr": "count(kube_pod_status_phase{phase=\"Running\", namespace=~\"cert-manager|monitoring|nginx-gateway-fabric|argocd\"}) by (namespace)",
+          "expr": "count(kube_pod_status_phase{phase=\"Running\"}) by (namespace)",
           "legendFormat": "{{ namespace }}"
         }
       ],
