@@ -5,7 +5,7 @@ metadata:
   namespace: monitoring
 spec:
   parentRefs:
-    - name: grafana-gateway
+    - name: platform-gateway
       namespace: nginx-gateway-fabric
       sectionName: https-grafana
   hostnames:

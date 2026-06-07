@@ -17,3 +17,14 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: test-ca-cert
+    - name: https-grafana
+      port: 443
+      protocol: HTTPS
+      hostname: "grafana.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: grafana-cert
