@@ -12,23 +12,26 @@ metadata:
     app.kubernetes.io/layer: security
 spec:
   project: default
-  source:
-    repoURL: ghcr.io/bank-vaults/helm-charts
-    chart: vault-operator
-    targetRevision: 1.24.0
-    path: "."
-    helm:
-      values: |
-        crds:
-          install: true
-        replicas: 1
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 200m
-            memory: 256Mi
+  sources:
+    - repoURL: ghcr.io/bank-vaults/helm-charts
+      chart: vault-operator
+      targetRevision: 1.24.0
+      path: "."
+      helm:
+        values: |
+          crds:
+            install: true
+          replicas: 1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      path: gitops/platform/layers/security/vault-resources
   destination:
     server: https://kubernetes.default.svc
     namespace: vault
