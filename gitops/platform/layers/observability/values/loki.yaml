@@ -2,6 +2,10 @@ deploymentMode: SingleBinary
 
 singleBinary:
   replicas: 1
+  persistence:
+    enabled: true
+    storageClass: local-path
+    size: 1Gi
 
 backend:
   replicas: 0
@@ -45,9 +49,3 @@ loki:
 
   pattern_ingester:
     enabled: true
-
-singleBinary:
-  persistence:
-    enabled: true
-    storageClass: local-path
-    size: 1Gi

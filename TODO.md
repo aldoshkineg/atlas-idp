@@ -88,7 +88,10 @@
   - [x] Deploy via Argo CD Application
   - [x] Mount custom alert rules as ConfigMap via values override
   - [x] `observability/dashboards/` — Grafana dashboard JSON (platform overview)
-- [ ] **Loki** — log aggregation, deployed via Argo CD
+- [x] **Loki + Alloy** — log aggregation stack, deployed via Argo CD
+  - [x] Loki: SingleBinary mode, filesystem storage, 10d retention
+  - [x] Alloy: DaemonSet collecting pod logs → loki-gateway
+  - [x] Grafana: Loki datasource configured
 - [ ] **HashiCorp Vault**
   - [x] `vault/policies/platform-read.hcl` — read-only ACL for `secret/data/platform/*`
   - [x] `vault/kubernetes-auth/role-backend-api.yaml` — k8s auth role
@@ -183,7 +186,7 @@ Phase 4 — Platform Services Completion
 
 1. [DONE]    Mount custom Prometheus alert rules as ConfigMap via values override
 2. [DONE]    Create Grafana dashboard JSON (platform overview)
-3. [NEXT]      Deploy Loki via Argo CD for log aggregation
+3. [DONE]      Deploy Loki + Alloy via Argo CD for log aggregation
 4. [DONE]      Vault deployed via Argo CD (Bank-Vaults operator), init/unseal automatic
 5. [NEXT]      Begin Phase 7: Workload services (backend-api, worker)
 ```
