@@ -93,9 +93,9 @@
   - [x] `vault/policies/platform-read.hcl` — read-only ACL for `secret/data/platform/*`
   - [x] `vault/kubernetes-auth/role-backend-api.yaml` — k8s auth role
   - [x] `vault/bootstrap/README.md`
-  - [ ] Vault deployed via Argo CD (`gitops/platform/vault.yaml`)
-  - [ ] Vault init/unseal bootstrap script (`vault/bootstrap/init.sh`)
-  - [ ] Vault Agent Injector tested with `backend-api` service account
+   - [x] Vault deployed via Argo CD (`gitops/platform/layers/security/`)
+   - [x] Vault init/unseal by Bank-Vaults operator (auto init + Shamir unseal)
+   - [ ] Vault Agent Injector tested with `backend-api` service account (blocked: no workload yet)
 
 ---
 
@@ -184,6 +184,6 @@ Phase 4 — Platform Services Completion
 1. [DONE]    Mount custom Prometheus alert rules as ConfigMap via values override
 2. [DONE]    Create Grafana dashboard JSON (platform overview)
 3. [NEXT]      Deploy Loki via Argo CD for log aggregation
-4. [NEXT]      Deploy Vault via Argo CD with init/unseal bootstrap
+4. [DONE]      Vault deployed via Argo CD (Bank-Vaults operator), init/unseal automatic
 5. [NEXT]      Begin Phase 7: Workload services (backend-api, worker)
 ```
