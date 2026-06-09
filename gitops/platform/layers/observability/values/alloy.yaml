@@ -1,3 +1,8 @@
+configReloader:
+  enabled: true
+  image:
+    tag: v0.91.0
+
 alloy:
   configMap:
     content: |
