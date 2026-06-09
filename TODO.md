@@ -92,13 +92,19 @@
   - [x] Loki: SingleBinary mode, filesystem storage, 10d retention
   - [x] Alloy: DaemonSet collecting pod logs → loki-gateway
   - [x] Grafana: Loki datasource configured
-- [ ] **HashiCorp Vault**
+- [x] **HashiCorp Vault**
   - [x] `vault/policies/platform-read.hcl` — read-only ACL for `secret/data/platform/*`
   - [x] `vault/kubernetes-auth/role-backend-api.yaml` — k8s auth role
   - [x] `vault/bootstrap/README.md`
-   - [x] Vault deployed via Argo CD (`gitops/platform/layers/security/`)
-   - [x] Vault init/unseal by Bank-Vaults operator (auto init + Shamir unseal)
-   - [ ] Vault Agent Injector tested with `backend-api` service account (blocked: no workload yet)
+  - [x] Vault deployed via Argo CD (`gitops/platform/layers/security/`)
+  - [x] Vault init/unseal by Bank-Vaults operator (auto init + Shamir unseal)
+  - [x] **Secrets injection via Bank-Vaults secrets-webhook v0.4.1**:
+    - [x] Upgraded from old `vault-secrets-webhook` to `secrets-webhook` chart
+    - [x] Webhook env: `PROVIDER=vault`, `VAULT_ADDR=http://vault.vault.svc:8200`, `VAULT_ALLOW_PRIVATE_ADDR=true`
+    - [x] ClusterRoleBinding `vault-tokenreview` for K8s auth token validation
+    - [x] File-based injection via vault-agent template (`vault-configmap` + `vault-agent-configmap`)
+    - [x] Tested with `test-vault-inject` SA in `testing` namespace (secret read, file written)
+    - [x] `security/vault-bootstrap.sh` — bootstrap script for seeding test secrets
 
 ---
 
@@ -188,5 +194,6 @@ Phase 4 — Platform Services Completion
 2. [DONE]    Create Grafana dashboard JSON (platform overview)
 3. [DONE]      Deploy Loki + Alloy via Argo CD for log aggregation
 4. [DONE]      Vault deployed via Argo CD (Bank-Vaults operator), init/unseal automatic
-5. [NEXT]      Begin Phase 7: Workload services (backend-api, worker)
+5. [DONE]      Vault Agent injection via secrets-webhook (file-based, vault-agent template)
+6. [NEXT]      Begin Phase 7: Workload services (backend-api, worker)
 ```
