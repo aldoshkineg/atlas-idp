@@ -1,3 +1,6 @@
+configReloader:
+  enabled: false
+
 alloy:
   configMap:
     content: |
