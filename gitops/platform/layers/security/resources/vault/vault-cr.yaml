@@ -4,13 +4,13 @@ metadata:
   name: vault
   namespace: vault
 spec:
-  # Рекомендуется 1 реплика для тестовой среды
+  # Single replica for dev/test environment
   size: 1
   serviceAccount: vault
-  # Используйте актуальную стабильную версию Vault
+  # Use a stable Vault image
   image: hashicorp/vault:1.18.0
 
-  # Минимальная конфигурация Vault для Kind
+  # Minimal Vault config for Kind (no TLS, file storage)
   config:
     storage:
       file:
@@ -23,19 +23,19 @@ spec:
     cluster_addr: https://vault.vault:8201
     ui: true
 
-  # 🚨 ВАЖНО: Укажите актуальный образ банковского хранилища
+  # Bank-Vaults sidecar image
   bankVaultsImage: ghcr.io/bank-vaults/bank-vaults:latest
 
-  # Настройка для локального хранения ключей распечатывания
+  # Store unseal keys in a Kubernetes secret
   unsealConfig:
     kubernetes:
       secretNamespace: vault
       secretName: vault-unseal-keys
 
-  # Тип сервиса для доступа извне кластера
+  # NodePort for external access via vault.atlas gateway
   serviceType: NodePort
 
-  # Сохраняем данные Vault при перезапуске пода
+  # Persistent storage for Vault data across pod restarts
   volumeClaimTemplates:
     - metadata:
         name: vault-file
@@ -47,7 +47,40 @@ spec:
           requests:
             storage: 1Gi
 
-  # Настройки ресурсов (рекомендуется для Kind)
+  # Vault config: kubernetes auth, policies, roles, secrets engine
+  externalConfig:
+    auth:
+      - type: kubernetes
+        config:
+          kubernetes_host: https://kubernetes.default.svc
+        roles:
+          - name: platform-read
+            bound_service_account_names:
+              - test-vault-inject
+            bound_service_account_namespaces:
+              - testing
+            policies:
+              - platform-read
+            ttl: 1h
+
+    policies:
+      - name: platform-read
+        rules: |
+          path "secret/data/platform/*" {
+            capabilities = ["read", "list"]
+          }
+
+    secrets:
+      - path: secret
+        type: kv
+        description: KV secrets engine
+        options:
+          version: 2
+        configuration:
+          config:
+            - max_versions: 10
+
+  # Resource limits for Kind (adjust for production)
   resources:
     vault:
       requests:
