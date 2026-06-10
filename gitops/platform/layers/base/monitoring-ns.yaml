@@ -1,24 +1,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: csi-hostpath
+  name: monitoring-namespace
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
   annotations:
-    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-wave: "0"
   labels:
     app.kubernetes.io/component: platform
-    app.kubernetes.io/layer: storage
+    app.kubernetes.io/layer: base
 spec:
   project: default
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform/layers/storage/values/csi-hostpath
+    path: gitops/platform/configs
   destination:
     server: https://kubernetes.default.svc
-    namespace: storage
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true
@@ -26,8 +24,8 @@ spec:
     syncOptions:
       - CreateNamespace=true
     retry:
-      limit: 10
+      limit: 5
       backoff:
-        duration: 10s
+        duration: 5s
         factor: 2
-        maxDuration: 10m
+        maxDuration: 3m

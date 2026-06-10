@@ -38,6 +38,7 @@ spec:
     syncOptions:
       - ServerSideApply=true
       - RespectIgnoreDifferences=true
+      - CreateNamespace=true
     retry:
       limit: 5
       backoff:
