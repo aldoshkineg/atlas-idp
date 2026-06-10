@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: monitoring-namespace
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: "0"
   labels:
@@ -13,7 +15,7 @@ spec:
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform/configs
+    path: gitops/platform/layers/base/monitoring-namespace
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

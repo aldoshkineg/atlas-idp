@@ -19,6 +19,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
+  ignoreDifferences:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      jsonPointers:
+        - /status
+    - group: cert-manager.io
+      kind: Certificate
+      jsonPointers:
+        - /status
   syncPolicy:
     automated:
       prune: true

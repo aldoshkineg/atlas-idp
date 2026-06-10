@@ -117,3 +117,12 @@ prometheusOperator:
     requests:
       cpu: 100m
       memory: 128Mi
+  # Use cert-manager for admission webhook certs instead of self-signed Job (PreSync hook)
+  admissionWebhooks:
+    patch:
+      enabled: false
+    certManager:
+      enabled: true
+      issuerRef:
+        name: dev-ca-issuer
+        kind: ClusterIssuer
