@@ -6,7 +6,7 @@
 CLUSTER_NAME     ?= atlas-idp
 KIND_CONFIG      ?= clusters/kind/cluster.yaml
 CI_CLUSTER       ?= atlas-idp-ci
-ENV              ?= local-kind
+ENV              ?= dev
 
 # Auto-load .env if present (local B2 credentials etc.)
 -include .env
@@ -69,14 +69,14 @@ cluster-ci-down:
 	CLUSTER_NAME=$(CI_CLUSTER) ./clusters/scripts/ci-kind-down.sh
 
 infra-init:
-	cd infra/environments/$(ENV) && terraform init
+	cd infra/environments/$(ENV) && terraform init -backend-config=backend-s3.hcl
 
 infra-plan:
 	cd infra/environments/$(ENV) && terraform plan
 
 infra-apply:
 	@echo "--> Running initialization in dev environment..."
-	cd infra/environments/dev && terraform init
+	cd infra/environments/dev && terraform init -backend-config=backend-s3.hcl
 	@echo "--> Applying infrastructure changes..."
 	cd infra/environments/dev && terraform apply -auto-approve
 
