@@ -50,3 +50,14 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: minio-cert
+    - name: https-s3-console
+      port: 443
+      protocol: HTTPS
+      hostname: "console.s3.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: minio-cert

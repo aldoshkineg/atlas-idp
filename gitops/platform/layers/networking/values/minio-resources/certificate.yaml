@@ -12,6 +12,7 @@ spec:
       - atlas-idp
   dnsNames:
     - s3.atlas
+    - console.s3.atlas
   issuerRef:
     name: dev-ca-issuer
     kind: ClusterIssuer
