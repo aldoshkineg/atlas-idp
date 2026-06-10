@@ -119,7 +119,7 @@
 - [x] Composite action architecture — reusable steps instead of separate workflow files
 - [x] Cluster persists after apply (no auto-destroy)
 - [x] Argo CD bootstrap verification step (wait for deployment, list applications)
-- [ ] `security.yml` — Trivy image scan on `apps/**` changes (blocked: no app images yet)
+- [x] `security.yml` — Trivy image scan on `apps/**` changes
 - [ ] Add `workflow_dispatch` inputs to `ci.yaml`: `action: apply|destroy`, `environment: dev|staging`
 
 ---

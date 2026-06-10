@@ -1,0 +1,64 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'apps/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'apps/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Fast Lean Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Trivy database
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: ${{ runner.os }}-trivy
+          restore-keys: |
+            ${{ runner.os }}-trivy
+
+      - name: Install Trivy binary
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.51.0
+
+      - name: Build and scan changed apps
+        run: |
+          DIFF_TARGET="HEAD~1"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            DIFF_TARGET="origin/${{ github.base_ref }}"
+          fi
+
+          CHANGED_APPS=$(git diff --name-only $DIFF_TARGET | grep '^apps/' | cut -d'/' -f2 | sort -u)
+
+          if [ -z "$CHANGED_APPS" ]; then
+            echo "No changes in app directories detected."
+            exit 0
+          fi
+
+          for app in $CHANGED_APPS; do
+            if [ -d "apps/$app" ] && [ -f "apps/$app/Dockerfile" ]; then
+              echo "==> Building local image for: $app"
+              docker build -t "local/$app:test" "apps/$app"
+
+              echo "==> Running fast Trivy scan for: $app"
+              trivy image --severity HIGH,CRITICAL --exit-code 1 "local/$app:test"
+            fi
+          done
