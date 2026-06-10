@@ -39,3 +39,14 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: vault-cert
+    - name: https-s3
+      port: 443
+      protocol: HTTPS
+      hostname: "s3.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: minio-cert
