@@ -13,9 +13,14 @@ spec:
     targetRevision: 8.0.0
     helm:
       values: |
+        initContainers:
+          - name: velero-plugin-for-aws
+            image: velero/velero-plugin-for-aws:v1.10.0
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+              - mountPath: /target
+                name: plugins
         configuration:
-          plugins:
-            - velero-plugin-for-aws:v1.10.0
           backupStorageLocation:
             - name: default
               provider: aws
@@ -29,6 +34,7 @@ spec:
               provider: aws
               config:
                 region: minio
+        defaultVolumesToFsBackup: true
         deployNodeAgent: true
         credentials:
           useSecret: true
