@@ -20,7 +20,7 @@ runs:
         mkdir -p /opt/terraform/plugin-cache
         n=0
         until [ "$n" -ge 3 ]; do
-          terraform init && break
+          terraform init -backend-config=backend-s3.hcl && break
           n=$((n+1))
           echo "Terraform init failed. Retry $n/3"
           sleep 15
