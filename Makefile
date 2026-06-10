@@ -1,7 +1,8 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
-	argocd-login vault-seed github-secrets-ca
+	argocd-login vault-seed github-secrets-ca \
+	test test-gateway test-vault test-seed test-undeploy
 
 CLUSTER_NAME     ?= atlas-idp
 KIND_CONFIG      ?= clusters/kind/cluster.yaml
@@ -43,6 +44,13 @@ help:
 	@echo ""
 	@echo "Vault:"
 	@echo "  vault-seed        Seed test secrets into Vault (run after vault is healthy)"
+	@echo ""
+	@echo "Tests:"
+	@echo "  test             Deploy all tests + seed Vault secrets"
+	@echo "  test-gateway     Deploy gateway test (HTTPRoute + certificate)"
+	@echo "  test-vault       Deploy Vault injection test"
+	@echo "  test-seed        Seed test secrets into Vault"
+	@echo "  test-undeploy    Remove all test resources"
 	@echo ""
 	@echo "GitHub Secrets:"
 	@echo "  github-secrets-ca  Add root CA cert and key to GitHub secrets (DEV_CA_CRT, DEV_CA_KEY)"
@@ -90,7 +98,25 @@ argocd-login:
 
 # --- Vault ---
 vault-seed:
-	./security/vault-bootstrap.sh
+	./tests/vault/seed.sh
+
+# --- Tests ---
+test-gateway:
+	kubectl apply -f tests/gateway/namespace.yaml
+	kubectl apply -f tests/gateway/app.yaml
+	kubectl apply -f tests/gateway/certificate.yaml
+
+test-vault:
+	kubectl apply -f tests/vault
+
+test-seed: test-vault
+	./tests/vault/seed.sh
+
+test: test-gateway test-seed
+
+test-undeploy:
+	kubectl delete -f tests/vault --ignore-not-found
+	kubectl delete -f tests/gateway --ignore-not-found
 
 # --- GitHub Secrets ---
 github-secrets-ca:
@@ -111,7 +137,7 @@ validate-terraform:
 
 validate-yaml:
 	@echo "==> Running YAML lint..."
-	@command -v yamllint >/dev/null && yamllint -c .yamllint.yml gitops/ observability/ security/ || echo "yamllint not installed, skip"
+	@command -v yamllint >/dev/null && yamllint -c .yamllint.yml gitops/ observability/ security/ tests/ || echo "yamllint not installed, skip"
 
 validate-security:
 	@echo "==> Running security scan..."

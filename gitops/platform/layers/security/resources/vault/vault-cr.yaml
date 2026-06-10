@@ -53,15 +53,6 @@ spec:
       - type: kubernetes
         config:
           kubernetes_host: https://kubernetes.default.svc
-        roles:
-          - name: platform-read
-            bound_service_account_names:
-              - test-vault-inject
-            bound_service_account_namespaces:
-              - testing
-            policies:
-              - platform-read
-            ttl: 1h
 
     policies:
       - name: platform-read

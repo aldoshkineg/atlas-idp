@@ -1,8 +1,4 @@
-# ClusterIssuer backed by a TLS secret `dev-ca-secret`.
-# This secret must be created BEFORE this manifests is applied:
-#   kubectl create secret tls dev-ca-secret --cert=ca.crt --key=ca.key -n cert-manager
-# The secret is created automatically by Terraform in kind environment
-# (see .github/actions/terraform-kind/action.yml).
+---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:

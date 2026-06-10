@@ -27,5 +27,5 @@ data:
 
     template {
       destination = "/vault/secrets/app-secrets"
-      contents = "{{ with secret \"secret/data/platform/test\" }}{{ range $k, $v := .Data.data }}{{ $k }}={{ $v }}\n{{ end }}{{ end }}"
+      contents = "{{ with secret \"secret/data/platform/test\" }}{{ range $k, $v := .Data.data }}{{ $k }}={{ $v }}\n{{ end }}}{{ end }}"
     }

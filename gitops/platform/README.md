@@ -51,12 +51,6 @@ All Applications in this directory are automatically discovered by the root Appl
 | **loki** | grafana/loki | loki | Log aggregation (SingleBinary) |
 | **alloy** | grafana/alloy | alloy | Pod log collection DaemonSet |
 
-### Testing Layer (wave 3)
-
-| Application | Chart/Source | Namespace | Purpose |
-|-------------|---------------|-----------|---------|
-| **test-app** | gitops/platform/layers/testing/resources | testing | Test service with TLS via Gateway |
-
 ## GitOps Flow
 
 ```
@@ -78,7 +72,6 @@ Argo CD syncs Applications:
 ├── minio                 → S3 object storage (wave 3)
 ├── csi-hostpath          → CSI hostpath driver (wave 3)
 ├── velero                → Backup & DR (wave 4)
-├── test-app              → Test service + TLS (wave 3)
 ├── prom-stack            → Prometheus + Grafana (wave 5)
 ├── loki                  → Log aggregation (wave 6)
 ├── alloy                 → Log collection DaemonSet (wave 7)
@@ -95,13 +88,6 @@ Argo CD syncs Applications:
 4. Set sync policy (automated + prune + selfHeal)
 5. Commit + push → Argo CD auto-syncs
 
-## Adding Test Resources
-
-1. Create Application CR in the relevant layer: `gitops/platform/layers/<layer>/<app-name>.yaml`
-2. Place raw manifests in a `resources/` subdirectory
-3. Point the Application's `source.path` to the `resources/` directory
-4. The `resources/` path is excluded from root-app discovery to avoid double management
-
 ## Verification
 
 ```bash
@@ -114,7 +100,4 @@ kubectl get gateway -n nginx-gateway-fabric
 
 # Watch NGINX Gateway Fabric pods
 kubectl get pods -n nginx-gateway-fabric
-
-# Test TLS (requires /etc/hosts entry: 127.0.0.1 test-ca.atlas)
-curl --cacert clusters/kind/certs/ca.crt https://test-ca.atlas/
 ```
