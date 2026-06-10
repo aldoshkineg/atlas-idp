@@ -22,13 +22,26 @@ jobs:
       - name: Verify kind
         run: kind version
 
-      - name: Run Aggressive Cleanup
+      - name: Delete KinD cluster
         run: |
-          echo "Aggressive cleanup of existing resources..."
-
           echo "Deleting KinD cluster..."
           kind delete cluster --name atlas-idp || true
 
+      - name: Wipe all resources from remote state
+        run: |
+          echo "Initializing Terraform with remote backend..."
+          terraform init -backend-config=backend-s3.hcl -reconfigure
+
+          echo "Removing ALL resources from S3 state..."
+          terraform state rm $(terraform state list) 2>/dev/null || true
+
+          echo "Remote state wiped"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+
+      - name: Clean local artifacts
+        run: |
           echo "Removing Terraform local state and artifacts..."
           rm -rf \
             .terraform \
