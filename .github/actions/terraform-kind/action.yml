@@ -17,6 +17,7 @@ runs:
       env:
         TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
       run: |
+        mkdir -p /opt/terraform/plugin-cache
         n=0
         until [ "$n" -ge 3 ]; do
           terraform init && break

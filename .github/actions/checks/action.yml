@@ -11,7 +11,10 @@ runs:
     - name: Terraform Validate
       shell: bash
       working-directory: infra/environments/dev
+      env:
+        TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
       run: |
+        mkdir -p /opt/terraform/plugin-cache
         terraform init -backend=false
         terraform validate
 
