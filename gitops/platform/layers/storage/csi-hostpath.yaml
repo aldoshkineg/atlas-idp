@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform/layers/base/values/csi-hostpath
+    path: gitops/platform/layers/storage/values/csi-hostpath
   destination:
     server: https://kubernetes.default.svc
     namespace: storage
