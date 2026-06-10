@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform/layers/base/csi-hostpath-rbac
+    path: gitops/platform/layers/base/values/csi-hostpath-rbac
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
@@ -17,5 +17,4 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
