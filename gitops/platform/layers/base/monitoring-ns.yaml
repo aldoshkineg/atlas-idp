@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform/layers/base/monitoring-namespace
+    path: gitops/platform/layers/base/resources/namespace.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
