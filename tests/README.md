@@ -2,17 +2,21 @@
 
 Test manifests for platform service verification.
 
-## Test TLS
-
-Requires `/etc/hosts` entry: `127.0.0.1 test-ca.atlas`
+## Run All Tests
 
 ```bash
-curl --cacert clusters/kind/certs/ca.crt https://test-ca.atlas/
+make test
 ```
 
-## Test Vault Injection
+This runs: gateway TLS → Vault seed → Velero backup/restore → final checks.
 
-```bash
-kubectl apply -f tests/vault/
-kubectl logs -n testing vault-inject-test
-```
+## Individual Targets
+
+| Command | What it does |
+|---------|-------------|
+| `make test-gateway` | Deploy TLS test app + certificate |
+| `make test-vault` | Deploy Vault injection test pod |
+| `make test-seed` | Create Vault K8s auth role + test secret |
+| `make test-velero` | Backup pod with PVC to MinIO, disaster, restore |
+| `make test-check` | Verify TLS endpoint + Vault injection |
+| `make test-undeploy` | Remove all test resources |

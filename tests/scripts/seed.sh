@@ -8,7 +8,7 @@ kubectl wait --for=condition=Ready pod/vault-0 -n vault --timeout=60s > /dev/nul
 }
 
 echo "=== Fetching root token ==="
-ROOT_TOKEN=$(kubectl get secret vault-unseal-keys -n vault -o json | jq -r '.data["vault-root"]' | base64 -d)
+ROOT_TOKEN=$(kubectl get secret vault-unseal-keys -n vault -o jsonpath='{.data.vault-root}' | base64 -d)
 
 kubectl exec -n vault vault-0 -c vault -- sh -c "
 VAULT_ADDR=http://127.0.0.1:8200

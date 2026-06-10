@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: backup-test-pod
+  namespace: testing
+  labels:
+    app: backup-test
+spec:
+  terminationGracePeriodSeconds: 5
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    runAsGroup: 65534
+    fsGroup: 65534
+  containers:
+    - name: app
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "=== Generating test file ==="
+          for i in $(seq 1 1000); do
+            printf 'Line %04d: Hello from Velero backup test\n' $i
+          done > /data/test.txt
+          echo "=== Ready ==="
+          sleep 3600
+      volumeMounts:
+        - name: data
+          mountPath: /data
+      resources:
+        limits:
+          cpu: 200m
+          memory: 128Mi
+        requests:
+          cpu: 100m
+          memory: 64Mi
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: backup-test-pvc
