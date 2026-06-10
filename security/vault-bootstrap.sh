@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "==> Waiting for vault-0 to be Ready..."
+kubectl wait --for=condition=Ready pod/vault-0 -n vault --timeout=60s > /dev/null 2>&1 || {
+	echo "ERROR: vault-0 not ready. Run 'make infra-apply' first."
+	exit 1
+}
+
 # Vault Secret Bootstrap
 # =======================
 # Seeds test secrets into Vault for the testing namespace.

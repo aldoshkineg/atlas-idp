@@ -1,16 +1,20 @@
+# Step 1: Install VolumeSnapshot CRDs from upstream
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: snapshot-controller
+  name: snapshot-crds
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: base
 spec:
   project: default
   source:
     repoURL: https://github.com/kubernetes-csi/external-snapshotter.git
     targetRevision: v8.6.0
-    path: deploy/kubernetes/snapshot-controller
+    path: client/config/crd
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
@@ -18,3 +22,11 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

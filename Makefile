@@ -1,7 +1,7 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
-	argocd-login github-secrets-ca
+	argocd-login vault-seed github-secrets-ca
 
 CLUSTER_NAME     ?= atlas-idp
 KIND_CONFIG      ?= clusters/kind/cluster.yaml
@@ -36,6 +36,9 @@ help:
 	@echo ""
 	@echo "ArgoCD:"
 	@echo "  argocd-login      Login to ArgoCD via CLI"
+	@echo ""
+	@echo "Vault:"
+	@echo "  vault-seed        Seed test secrets into Vault (run after vault is healthy)"
 	@echo ""
 	@echo "GitHub Secrets:"
 	@echo "  github-secrets-ca  Add root CA cert and key to GitHub secrets (DEV_CA_CRT, DEV_CA_KEY)"
@@ -78,6 +81,10 @@ gitops-bootstrap:
 argocd-login:
 	@chmod +x clusters/kind/ci/argocd-login.sh
 	./clusters/kind/ci/argocd-login.sh
+
+# --- Vault ---
+vault-seed:
+	./security/vault-bootstrap.sh
 
 # --- GitHub Secrets ---
 github-secrets-ca:
