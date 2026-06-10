@@ -81,11 +81,11 @@ resource "helm_release" "argocd" {
         controller = {
           resources = {
             limits = {
-              cpu    = "1000m"
+              cpu    = "1500m"
               memory = "1Gi"
             }
             requests = {
-              cpu    = "500m"
+              cpu    = "750m"
               memory = "512Mi"
             }
           }
