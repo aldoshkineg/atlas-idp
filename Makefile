@@ -94,7 +94,7 @@ validate-terraform:
 	@echo "==> Running Terraform format check..."
 	terraform fmt -check -recursive infra/
 	@echo "==> Running Terraform validate..."
-	cd infra/environments/dev && terraform init && terraform validate
+	cd infra/environments/dev && terraform init -backend=false && terraform validate
 
 validate-yaml:
 	@echo "==> Running YAML lint..."

@@ -8,6 +8,12 @@ ARGOCD_USER="admin"
 SECRET_NAME="argocd-initial-admin-secret"
 NAMESPACE="argocd"
 
+echo "==> Checking kubectl connectivity..."
+if ! kubectl cluster-info --request-timeout=3s &>/dev/null; then
+    echo "⚠️  kubectl cannot connect. Running: kind export kubeconfig --name atlas-idp"
+    kind export kubeconfig --name atlas-idp
+fi
+
 echo "==> Fetching Control Plane IP..."
 CONTROL_PLANE_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$CONTAINER_NAME" 2>/dev/null || true)
 
