@@ -16,7 +16,7 @@ help:
 	@echo "Available Targets:"
 	@echo "  cluster-up        Create main kind cluster"
 	@echo "  cluster-down      Delete main kind cluster"
-	@echo "  cluster-nuke      Force/Hard delete kind cluster via CLI and wipe dev tfstate"
+	@echo "  cluster-nuke      Force/Hard delete kind cluster via CLI and wipe local+remote tfstate"
 	@echo "  cluster-ci-up     Provision local CI-specific kind cluster"
 	@echo "  cluster-ci-down   Tear down local CI-specific kind cluster"
 	@echo "  infra-init        Terraform init (ENV=$(ENV))"
@@ -53,6 +53,8 @@ cluster-down:
 cluster-nuke:
 	@echo "--> Force deleting Kind cluster '$(CLUSTER_NAME)'..."
 	kind delete cluster --name $(CLUSTER_NAME)
+	@echo "--> Wiping ALL resources from remote S3 state..."
+	cd infra/environments/dev && terraform init -backend-config=backend-s3.hcl -reconfigure 2>/dev/null && terraform state rm $$(terraform state list 2>/dev/null) 2>/dev/null || true
 	@echo "--> Wiping local Terraform state files for dev environment..."
 	rm -f infra/environments/dev/terraform.tfstate*
 
