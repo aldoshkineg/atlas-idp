@@ -1,9 +1,9 @@
 # Development environment configuration for kind cluster (using tehcyx/kind provider)
 terraform {
   backend "s3" {
-    bucket                      = "atlas-tf-7612"
-    key                         = "terraform/atlas-idp/terraform.tfstate"
-    region                      = "eu-central-003"
+    bucket = "atlas-tf-7612"
+    key    = "terraform/atlas-idp/terraform.tfstate"
+    region = "eu-central-003"
     endpoints = {
       s3 = "https://s3.eu-central-003.backblazeb2.com"
     }
