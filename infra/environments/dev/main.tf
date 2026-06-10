@@ -1,4 +1,7 @@
 # Development environment configuration for kind cluster (using tehcyx/kind provider)
+terraform {
+  backend "s3" {}
+}
 module "kind_cluster" {
   source = "../../modules/kind"
 
