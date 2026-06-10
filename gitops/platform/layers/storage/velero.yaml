@@ -13,6 +13,7 @@ spec:
     targetRevision: 8.0.0
     helm:
       values: |
+        snapshotsEnabled: true
         initContainers:
           - name: velero-plugin-for-aws
             image: velero/velero-plugin-for-aws:v1.10.0
@@ -30,11 +31,11 @@ spec:
                 region: minio
                 s3ForcePathStyle: true
                 s3Url: http://minio.minio.svc.cluster.local:9000
-        volumeSnapshotLocation:
-          - name: default
-            provider: aws
-            config:
-              region: minio
+          volumeSnapshotLocation:
+            - name: default
+              provider: aws
+              config:
+                region: minio
         credentials:
           useSecret: true
           secretContents:
