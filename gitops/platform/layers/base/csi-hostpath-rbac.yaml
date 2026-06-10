@@ -6,8 +6,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/anomalyco/atlas-idp.git
-    targetRevision: master
+    repoURL: https://github.com/aldoshkineg/atlas-idp.git
+    targetRevision: main
     path: gitops/platform/layers/base/csi-hostpath-rbac
   destination:
     server: https://kubernetes.default.svc

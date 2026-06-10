@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/kubernetes-csi/csi-driver-host-path.git
     targetRevision: master
-    path: deploy/kubernetes-latest/hostpath
+    path: deploy/kubernetes-1.30/hostpath
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
