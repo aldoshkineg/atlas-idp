@@ -17,6 +17,7 @@ spec:
       targetRevision: v1.16.2
       chart: cert-manager
       helm:
+        releaseName: cert-manager
         valueFiles:
           - $values/gitops/platform/layers/security/values/cert-manager.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git

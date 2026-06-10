@@ -17,6 +17,7 @@ spec:
       chart: vault-operator
       targetRevision: 1.24.0
       helm:
+        releaseName: vault-operator
         valueFiles:
           - $values/gitops/platform/layers/security/values/vault-operator.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git

@@ -17,6 +17,7 @@ spec:
     chart: velero
     targetRevision: 8.0.0
     helm:
+      releaseName: velero
       values: |
         snapshotsEnabled: true
         initContainers:

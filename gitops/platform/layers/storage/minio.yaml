@@ -17,6 +17,7 @@ spec:
     chart: minio
     targetRevision: 5.4.0
     helm:
+      releaseName: minio
       values: |
         # DEV-ONLY: hardcoded credentials for kind cluster.
         # Use Vault or external-secrets for production.
