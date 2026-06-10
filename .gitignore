@@ -46,6 +46,7 @@ node_modules/
 # GitHub Actions Runner
 clusters/kind/ci/local-runner/runner-data
 clusters/kind/ci/local-runner/.env
+clusters/kind/ci/local-runner/terraform-cache
 
 # Zot cache images
 clusters/kind/ci/zot-kind-cache/zot-cache-data

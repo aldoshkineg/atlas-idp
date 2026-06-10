@@ -21,11 +21,17 @@ jobs:
       - uses: ./.github/actions/tools
 
       - uses: ./.github/actions/checks
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
 
       - uses: ./.github/actions/terraform-kind
         with:
           dev_ca_crt: ${{ secrets.DEV_CA_CRT }}
           dev_ca_key: ${{ secrets.DEV_CA_KEY }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
 
       - uses: ./.github/actions/terraform-eks
         if: false

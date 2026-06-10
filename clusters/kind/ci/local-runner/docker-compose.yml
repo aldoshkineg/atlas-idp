@@ -12,3 +12,4 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./runner-data:/_work
+      - ./terraform-cache:/opt/terraform/plugin-cache
