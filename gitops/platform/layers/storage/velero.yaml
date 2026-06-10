@@ -5,6 +5,11 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: storage
 spec:
   project: default
   source:
@@ -37,6 +42,8 @@ spec:
               config:
                 region: minio
         credentials:
+          # DEV-ONLY: hardcoded credentials for kind cluster.
+          # Use Vault or external-secrets for production.
           useSecret: true
           secretContents:
             cloud: |
@@ -53,3 +60,9 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

@@ -3,8 +3,13 @@ kind: Application
 metadata:
   name: snapshot-controller
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: storage
 spec:
   project: default
   source:
@@ -18,3 +23,12 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

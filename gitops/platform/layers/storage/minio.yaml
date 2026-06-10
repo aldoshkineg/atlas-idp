@@ -5,6 +5,11 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: storage
 spec:
   project: default
   source:
@@ -13,6 +18,8 @@ spec:
     targetRevision: 5.4.0
     helm:
       values: |
+        # DEV-ONLY: hardcoded credentials for kind cluster.
+        # Use Vault or external-secrets for production.
         mode: standalone
         replicas: 1
         drivesPerNode: 1
@@ -45,3 +52,9 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
