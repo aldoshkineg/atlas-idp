@@ -13,7 +13,7 @@ kubectl wait --for=condition=Ready pod/vault-0 -n vault --timeout=60s > /dev/nul
 # Run once after vault-operator is healthy.
 #
 # Prerequisites:
-#   - kubectl, vault CLI, jq
+#   - kubectl, jq
 #   - kind cluster with Atlas IDP deployed
 #   - vault-0 pod running (3/3 Ready)
 #
@@ -27,19 +27,17 @@ kubectl wait --for=condition=Ready pod/vault-0 -n vault --timeout=60s > /dev/nul
 #   - vault-test pod (via vault-agent template -> /vault/secrets/app-secrets)
 #   - vault-agent-cm ConfigMap (template block in gitops/testing/)
 
-VAULT_ADDR=${VAULT_ADDR:-https://vault.atlas:443}
-VAULT_SKIP_VERIFY=true
-export VAULT_ADDR VAULT_SKIP_VERIFY
-
 echo "=== Fetching root token ==="
 ROOT_TOKEN=$(kubectl get secret vault-unseal-keys -n vault -o json | jq -r '.data["vault-root"]' | base64 -d)
-vault login "$ROOT_TOKEN" > /dev/null
 
-echo "=== Creating secret 'secret/platform/test' ==="
-vault kv put secret/platform/test value=hello-from-vault
-
-echo "=== Verifying ==="
-vault kv get secret/platform/test
+kubectl exec -n vault vault-0 -- sh -c "
+VAULT_ADDR=http://127.0.0.1:8200
+vault login -address=\$VAULT_ADDR $ROOT_TOKEN > /dev/null
+echo '=== Creating secret secret/platform/test ==='
+vault kv put -address=\$VAULT_ADDR secret/platform/test value=hello-from-vault
+echo '=== Verifying ==='
+vault kv get -address=\$VAULT_ADDR secret/platform/test
+"
 
 echo ""
 echo "Done. Secret 'secret/platform/test' created with value='hello-from-vault'"
