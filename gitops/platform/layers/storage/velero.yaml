@@ -30,6 +30,11 @@ spec:
                 region: minio
                 s3ForcePathStyle: true
                 s3Url: http://minio.minio.svc.cluster.local:9000
+        volumeSnapshotLocation:
+          - name: default
+            provider: aws
+            config:
+              region: minio
         credentials:
           useSecret: true
           secretContents:
@@ -43,7 +48,7 @@ spec:
     namespace: velero
   syncPolicy:
     automated:
-      prune: false
-      selfHeal: false
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
