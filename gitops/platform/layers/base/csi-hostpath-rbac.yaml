@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: csi-hostpath-driver
+  name: csi-hostpath-rbac
   namespace: argocd
 spec:
   project: default
   source:
-    repoURL: https://github.com/kubernetes-csi/csi-driver-host-path.git
+    repoURL: https://github.com/anomalyco/atlas-idp.git
     targetRevision: master
-    path: deploy/kubernetes-latest/hostpath
+    path: gitops/platform/layers/base/csi-hostpath-rbac
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system

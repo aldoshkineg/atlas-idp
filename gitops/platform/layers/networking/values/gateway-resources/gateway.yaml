@@ -50,4 +50,3 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: minio-cert
-

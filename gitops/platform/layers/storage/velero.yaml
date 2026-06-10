@@ -20,12 +20,6 @@ spec:
             volumeMounts:
               - mountPath: /target
                 name: plugins
-          - name: velero-plugin-for-csi
-            image: velero/velero-plugin-for-csi:v1.10.0
-            imagePullPolicy: IfNotPresent
-            volumeMounts:
-              - mountPath: /target
-                name: plugins
         configuration:
           features: EnableCSI
           backupStorageLocation:
@@ -36,12 +30,6 @@ spec:
                 region: minio
                 s3ForcePathStyle: true
                 s3Url: http://minio.minio.svc.cluster.local:9000
-          volumeSnapshotLocation:
-            - name: default
-              provider: aws
-              config:
-                region: minio
-        deployNodeAgent: false
         credentials:
           useSecret: true
           secretContents:
@@ -49,21 +37,13 @@ spec:
               [default]
               aws_access_key_id = minioadmin
               aws_secret_access_key = minioadminpassword
-        schedules:
-          daily-pvc-backup:
-            disabled: false
-            schedule: "0 2 * * *"
-            template:
-              includedNamespaces:
-                - my-app-namespace
-              ttl: 720h0m0s
-              includeClusterResources: false
+        deployNodeAgent: false
   destination:
     server: https://kubernetes.default.svc
     namespace: velero
   syncPolicy:
     automated:
-      prune: true
-      selfHeal: true
+      prune: false
+      selfHeal: false
     syncOptions:
       - CreateNamespace=true
