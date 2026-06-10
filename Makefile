@@ -8,6 +8,10 @@ KIND_CONFIG      ?= clusters/kind/cluster.yaml
 CI_CLUSTER       ?= atlas-idp-ci
 ENV              ?= local-kind
 
+# Auto-load .env if present (local B2 credentials etc.)
+-include .env
+export
+
 # Local CI / Automation Directories
 LOCAL_RUNNER_DIR ?= clusters/kind/ci/local-runner
 ZOT_DIR          ?= clusters/kind/ci/zot-kind-cache
