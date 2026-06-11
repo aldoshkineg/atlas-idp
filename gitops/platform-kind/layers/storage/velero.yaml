@@ -1,0 +1,70 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: velero
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+    argocd.argoproj.io/depends-on: minio
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: storage
+spec:
+  project: platform-kind
+  source:
+    repoURL: https://vmware-tanzu.github.io/helm-charts
+    chart: velero
+    targetRevision: 8.0.0
+    helm:
+      releaseName: velero
+      values: |
+        snapshotsEnabled: true
+        initContainers:
+          - name: velero-plugin-for-aws
+            image: velero/velero-plugin-for-aws:v1.10.0
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+              - mountPath: /target
+                name: plugins
+        configuration:
+          features: EnableCSI
+          backupStorageLocation:
+            - name: default
+              provider: aws
+              bucket: k8s-velero-backups
+              config:
+                region: minio
+                s3ForcePathStyle: true
+                s3Url: http://minio.minio.svc.cluster.local:9000
+          volumeSnapshotLocation:
+            - name: default
+              provider: aws
+              config:
+                region: minio
+        credentials:
+          # DEV-ONLY: hardcoded credentials for kind cluster.
+          # Use Vault or external-secrets for production.
+          useSecret: true
+          secretContents:
+            cloud: |
+              [default]
+              aws_access_key_id = minioadmin
+              aws_secret_access_key = minioadminpassword
+        deployNodeAgent: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: velero
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 10m

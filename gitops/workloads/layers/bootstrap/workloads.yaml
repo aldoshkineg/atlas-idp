@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: workloads
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: "Workload services: backend-api, worker, cronjob"
+
+  destinations:
+    - namespace: backend-api
+      server: https://kubernetes.default.svc
+    - namespace: worker
+      server: https://kubernetes.default.svc
+    - namespace: cronjob
+      server: https://kubernetes.default.svc
+
+  sourceRepos:
+    - https://github.com/aldoshkineg/atlas-idp.git
+
+  clusterResourceWhitelist: []
