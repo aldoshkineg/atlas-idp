@@ -19,7 +19,7 @@ spec:
       helm:
         releaseName: metrics-server
         valueFiles:
-          - $values/gitops/platform/layers/base/values/metrics-server.yaml
+          - $values/gitops/platform-kind/layers/base/values/metrics-server.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       ref: values

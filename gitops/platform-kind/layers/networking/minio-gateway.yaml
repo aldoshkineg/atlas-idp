@@ -16,7 +16,7 @@ spec:
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform/layers/networking/values/minio-resources
+    path: gitops/platform-kind/layers/networking/values/minio-resources
   destination:
     server: https://kubernetes.default.svc
     namespace: minio

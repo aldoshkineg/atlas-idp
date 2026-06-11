@@ -16,7 +16,7 @@ spec:
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform/layers/security/resources/cert-manager
+    path: gitops/platform-kind/layers/security/resources/cert-manager
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager

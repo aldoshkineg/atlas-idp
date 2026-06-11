@@ -20,7 +20,7 @@ spec:
       helm:
         releaseName: nginx-gateway-fabric
         valueFiles:
-          - $values/gitops/platform/layers/networking/values/nginx-gateway-fabric.yaml
+          - $values/gitops/platform-kind/layers/networking/values/nginx-gateway-fabric.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       ref: values

@@ -19,13 +19,13 @@ spec:
       helm:
         releaseName: vault-operator
         valueFiles:
-          - $values/gitops/platform/layers/security/values/vault-operator.yaml
+          - $values/gitops/platform-kind/layers/security/values/vault-operator.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       ref: values
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
-      path: gitops/platform/layers/security/resources/vault
+      path: gitops/platform-kind/layers/security/resources/vault
   destination:
     server: https://kubernetes.default.svc
     namespace: vault

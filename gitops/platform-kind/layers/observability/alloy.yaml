@@ -19,7 +19,7 @@ spec:
       helm:
         releaseName: alloy
         valueFiles:
-          - $values/gitops/platform/layers/observability/values/alloy.yaml
+          - $values/gitops/platform-kind/layers/observability/values/alloy.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       ref: values

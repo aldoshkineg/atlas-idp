@@ -19,7 +19,7 @@ spec:
       helm:
         releaseName: loki
         valueFiles:
-          - $values/gitops/platform/layers/observability/values/loki.yaml
+          - $values/gitops/platform-kind/layers/observability/values/loki.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       ref: values

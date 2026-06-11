@@ -36,7 +36,7 @@ spec:
     - https://grafana.github.io/helm-charts
     - https://prometheus-community.github.io/helm-charts
     - https://kubernetes-sigs.github.io/metrics-server/
-    - https://charts.min.io
+    - https://charts.min.io/
     - https://vmware-tanzu.github.io/helm-charts
     - https://github.com/kubernetes-sigs/gateway-api
     - https://github.com/kubernetes-csi/external-snapshotter.git
@@ -56,5 +56,9 @@ spec:
       kind: ClusterRoleBinding
     - group: snapshot.storage.k8s.io
       kind: VolumeSnapshotClass
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
     - group: ""
       kind: Namespace
