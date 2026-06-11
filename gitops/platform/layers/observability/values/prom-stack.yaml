@@ -119,6 +119,7 @@ prometheusOperator:
       memory: 128Mi
   # Use cert-manager for admission webhook certs instead of self-signed Job (PreSync hook)
   admissionWebhooks:
+    failurePolicy: Ignore
     patch:
       enabled: false
     certManager:
