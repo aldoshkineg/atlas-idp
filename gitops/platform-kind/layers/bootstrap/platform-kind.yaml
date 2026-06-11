@@ -60,5 +60,9 @@ spec:
       kind: MutatingWebhookConfiguration
     - group: admissionregistration.k8s.io
       kind: ValidatingWebhookConfiguration
+    - group: apiregistration.k8s.io
+      kind: APIService
+    - group: storage.k8s.io
+      kind: CSIDriver
     - group: ""
       kind: Namespace
