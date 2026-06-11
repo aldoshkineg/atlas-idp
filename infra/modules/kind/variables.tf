@@ -79,3 +79,9 @@ variable "cache_host_capabilities" {
   type        = list(string)
   default     = ["pull", "resolve"]
 }
+
+variable "disable_default_cni" {
+  description = "Отключает kindnet (дефолтный CNI) и kube-proxy — для установки Cilium"
+  type        = bool
+  default     = false
+}

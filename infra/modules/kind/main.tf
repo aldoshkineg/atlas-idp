@@ -18,6 +18,11 @@ resource "kind_cluster" "default" {
       TOML
     ] : null
 
+    networking {
+      disable_default_cni = var.disable_default_cni
+      kube_proxy_mode     = var.disable_default_cni ? "none" : "iptables"
+    }
+
     # --- Control-plane нода ---
     node {
       role = "control-plane"

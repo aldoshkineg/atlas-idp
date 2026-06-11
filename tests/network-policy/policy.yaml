@@ -1,0 +1,38 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-alpha-to-beta
+  namespace: netpol-test
+spec:
+  podSelector:
+    matchLabels:
+      app: beta
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: alpha
+      ports:
+        - port: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-beta-to-gamma
+  namespace: netpol-test
+spec:
+  podSelector:
+    matchLabels:
+      app: gamma
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: beta
+      ports:
+        - port: 80

@@ -2,6 +2,7 @@
 terraform {
   backend "s3" {}
 }
+
 module "kind_cluster" {
   source = "../../modules/kind"
 
@@ -15,6 +16,9 @@ module "kind_cluster" {
 
   # Enable zot mirror repos
   enable_cache = true
+
+  # Disable kindnet + kube-proxy for Cilium eBPF
+  disable_default_cni = true
 
   # Expose ports for NodePort ingress (nginx-gateway-fabric)
   extra_port_mappings = [
@@ -48,6 +52,16 @@ provider "helm" {
   }
 }
 
+# Cilium CNI (eBPF, replaces kindnet + kube-proxy)
+module "cilium" {
+  source = "../../modules/cilium"
+
+  cilium_chart_version = "1.19.4"
+  cluster_name         = module.kind_cluster.cluster_name
+
+  depends_on = [module.kind_cluster]
+}
+
 # Day-0: Argo CD bootstrap via Helm
 module "argocd_bootstrap" {
   source = "../../modules/argocd-bootstrap"
@@ -61,7 +75,7 @@ module "argocd_bootstrap" {
   repo_url  = "https://github.com/aldoshkineg/atlas-idp"
   repo_type = "git"
 
-  depends_on = [module.kind_cluster]
+  depends_on = [module.kind_cluster, module.cilium]
 }
 
 # Day-1: Apply root Application CR to kickstart GitOps

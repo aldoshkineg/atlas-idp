@@ -18,5 +18,6 @@ This runs: gateway TLS → Vault seed → Velero backup/restore → final checks
 | `make test-vault` | Deploy Vault injection test pod |
 | `make test-seed` | Create Vault K8s auth role + test secret |
 | `make test-velero` | Backup pod with PVC to MinIO, disaster, restore |
+| `make test-network-policy` | Test NetworkPolicy isolation between 3 pods |
 | `make test-check` | Verify TLS endpoint + Vault injection |
 | `make test-undeploy` | Remove all test resources |

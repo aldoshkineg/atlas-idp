@@ -128,9 +128,10 @@ resource "helm_release" "argocd" {
         configs = var.repo_url != "" ? {
           repositories = {
             "atlas-idp-repo" = {
-              url  = var.repo_url
-              type = var.repo_type
-              name = "atlas-idp"
+              url   = var.repo_url
+              type  = var.repo_type
+              name  = "atlas-idp"
+              depth = "1"
             }
           }
         } : {}

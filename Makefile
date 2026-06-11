@@ -1,8 +1,8 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
-	argocd-login vault-seed github-secrets-ca \
-	test test-gateway test-vault test-seed test-velero test-undeploy
+	argocd-login vault-seed github-secrets-ca seed-ca \
+	test test-gateway test-vault test-seed test-velero test-network-policy test-undeploy
 
 CLUSTER_NAME     ?= atlas-idp
 KIND_CONFIG      ?= clusters/kind/cluster.yaml
@@ -51,6 +51,7 @@ help:
 	@echo "  test-vault       Deploy Vault injection test"
 	@echo "  test-seed        Seed test secrets into Vault"
 	@echo "  test-velero      Test Velero backup/restore to S3"
+	@echo "  test-network-policy  Test NetworkPolicy isolation between pods"
 	@echo "  test-undeploy    Remove all test resources"
 	@echo ""
 	@echo "RBAC:"
@@ -59,6 +60,9 @@ help:
 	@echo ""
 	@echo "GitHub Secrets:"
 	@echo "  github-secrets-ca  Add root CA cert and key to GitHub secrets (DEV_CA_CRT, DEV_CA_KEY)"
+	@echo ""
+	@echo "CA Certificates:"
+	@echo "  seed-ca           Create dev-ca-secret for cert-manager from clusters/kind/certs/"
 
 # --- Infrastructure Management ---
 cluster-up:
@@ -92,6 +96,8 @@ infra-apply:
 	cd infra/environments/dev && terraform init -backend-config=backend-s3.hcl
 	@echo "--> Applying infrastructure changes..."
 	cd infra/environments/dev && terraform apply -auto-approve
+	@echo "--> Seeding CA certificate into cluster..."
+	$(MAKE) seed-ca
 
 gitops-bootstrap:
 	./clusters/scripts/bootstrap-gitops.sh
@@ -125,9 +131,14 @@ test-check:
 test-velero:
 	./tests/scripts/velero-test.sh
 
+test-network-policy:
+	kubectl apply -f tests/network-policy
+	./tests/scripts/network-policy-test.sh
+
 test-undeploy:
 	kubectl delete -f tests/vault --ignore-not-found
 	kubectl delete -f tests/gateway --ignore-not-found
+	kubectl delete -f tests/network-policy --ignore-not-found
 	kubectl delete pod -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
 	kubectl delete pvc -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
 	kubectl delete sc csi-hostpath-sc --ignore-not-found 2>/dev/null || true
@@ -146,6 +157,16 @@ github-secrets-ca:
 	@echo "--> Adding root CA key to GitHub secrets (DEV_CA_KEY)..."
 	gh secret set DEV_CA_KEY < clusters/kind/certs/ca.key
 	@echo "--> CA certificate and key added to GitHub secrets successfully"
+
+seed-ca:
+	@echo "--> Ensuring cert-manager namespace exists..."
+	kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+	@echo "--> Creating dev-ca-secret in cert-manager namespace..."
+	kubectl create secret tls dev-ca-secret -n cert-manager \
+		--cert=clusters/kind/certs/ca.crt \
+		--key=clusters/kind/certs/ca.key \
+		--dry-run=client -o yaml | kubectl apply -f -
+	@echo "--> CA secret seeded successfully. ClusterIssuer dev-ca-issuer should become Healthy."
 
 # --- Quality Assurance & Linting ---
 validate: validate-terraform validate-yaml validate-security

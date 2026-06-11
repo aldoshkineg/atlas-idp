@@ -1,0 +1,111 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-alpha
+  namespace: netpol-test
+spec:
+  selector:
+    app: alpha
+  ports:
+    - port: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: alpha
+  namespace: netpol-test
+  labels:
+    app: alpha
+spec:
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: app
+      image: busybox:1.36
+      command:
+        - /bin/sh
+        - -c
+        - "echo 'alpha' > /tmp/index.html && httpd -p 80 -h /tmp && sleep infinity"
+      ports:
+        - containerPort: 80
+      resources:
+        limits:
+          cpu: 50m
+          memory: 32Mi
+        requests:
+          cpu: 25m
+          memory: 16Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-beta
+  namespace: netpol-test
+spec:
+  selector:
+    app: beta
+  ports:
+    - port: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: beta
+  namespace: netpol-test
+  labels:
+    app: beta
+spec:
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: app
+      image: busybox:1.36
+      command:
+        - /bin/sh
+        - -c
+        - "echo 'beta' > /tmp/index.html && httpd -p 80 -h /tmp && sleep infinity"
+      ports:
+        - containerPort: 80
+      resources:
+        limits:
+          cpu: 50m
+          memory: 32Mi
+        requests:
+          cpu: 25m
+          memory: 16Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc-gamma
+  namespace: netpol-test
+spec:
+  selector:
+    app: gamma
+  ports:
+    - port: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gamma
+  namespace: netpol-test
+  labels:
+    app: gamma
+spec:
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: app
+      image: busybox:1.36
+      command:
+        - /bin/sh
+        - -c
+        - "echo 'gamma' > /tmp/index.html && httpd -p 80 -h /tmp && sleep infinity"
+      ports:
+        - containerPort: 80
+      resources:
+        limits:
+          cpu: 50m
+          memory: 32Mi
+        requests:
+          cpu: 25m
+          memory: 16Mi

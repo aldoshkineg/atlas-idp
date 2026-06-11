@@ -12,39 +12,7 @@
   },
   "extensions": {
     "sync": {
-      "enable": true,
-      "registries": [
-        {
-          "urls": ["https://registry-1.docker.io"],
-          "onDemand": true,
-          "tlsVerify": false
-        },
-        {
-          "urls": ["https://registry.k8s.io"],
-          "onDemand": true,
-          "tlsVerify": false
-        },
-        {
-          "urls": ["https://gcr.io"],
-          "onDemand": true,
-          "tlsVerify": false
-        },
-        {
-          "urls": ["https://ghcr.io"],
-          "onDemand": true,
-          "tlsVerify": false
-        },
-        {
-          "urls": ["https://public.ecr.aws"],
-          "onDemand": true,
-          "tlsVerify": false
-        },
-        {
-          "urls": ["https://quay.io"],
-          "onDemand": true,
-          "tlsVerify": false
-        }
-      ]
+      "enable": false
     }
   }
 }

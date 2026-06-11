@@ -44,6 +44,7 @@
 
 - [x] Cluster creation via Terraform `kind_cluster` resource (tehcyx/kind provider)
 - [x] Validate `kind` + `kubectl` installed on self-hosted runner
+- [x] Install Cilium CNI (replace kindnet)
 
 ---
 
