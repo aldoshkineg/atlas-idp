@@ -2,6 +2,10 @@ deploymentMode: SingleBinary
 
 singleBinary:
   replicas: 1
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
   persistence:
     enabled: true
     storageClass: standard

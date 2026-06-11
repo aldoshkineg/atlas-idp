@@ -53,6 +53,10 @@ help:
 	@echo "  test-velero      Test Velero backup/restore to S3"
 	@echo "  test-undeploy    Remove all test resources"
 	@echo ""
+	@echo "RBAC:"
+	@echo "  rbac-apply        Apply RBAC policies (ClusterRoles, bindings)"
+	@echo "  rbac-delete       Remove RBAC policies"
+	@echo ""
 	@echo "GitHub Secrets:"
 	@echo "  github-secrets-ca  Add root CA cert and key to GitHub secrets (DEV_CA_CRT, DEV_CA_KEY)"
 
@@ -127,6 +131,13 @@ test-undeploy:
 	kubectl delete pod -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
 	kubectl delete pvc -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
 	kubectl delete sc csi-hostpath-sc --ignore-not-found 2>/dev/null || true
+
+# --- RBAC ---
+rbac-apply:
+	kubectl apply -f security/rbac/
+
+rbac-delete:
+	kubectl delete -f security/rbac/ --ignore-not-found
 
 # --- GitHub Secrets ---
 github-secrets-ca:

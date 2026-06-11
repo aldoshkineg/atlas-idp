@@ -97,7 +97,7 @@
   - [x] File-based injection via vault-agent template
   - [x] Tested with `test-vault-inject` SA in `testing` namespace
   - [x] `security/vault-bootstrap.sh` — bootstrap script
-  - [ ] **HPA broken**: missing `resources.requests.cpu` in container `secrets-webhook`
+  - [x] **HPA fixed**: added `resources.requests.cpu: 100m` + autoscaling config
 
 ### Storage
 - [x] **snapshot-crds** — VolumeSnapshot CRDs (sync-wave 1)
@@ -140,33 +140,45 @@
 
 ---
 
-## Phase 6 — Security Baseline
+## Phase 6 — Security Baseline & Cluster Governance
 
 - [x] `security/trivy/trivy.yaml` — Trivy config (HIGH/CRITICAL, IaC scan)
-- [ ] `security/rbac/` — RBAC policies
-  - [ ] `platform-admin` ClusterRole (full platform namespace access)
-  - [ ] `workload-deployer` Role (deploy-only to workload namespaces)
-  - [ ] `readonly` ClusterRole for observability service accounts
-- [ ] Network Policies — namespace isolation (deny-all default, allow ingress/monitoring)
-- [ ] Pod Security Standards — `restricted` profile for workload namespaces
-- [ ] Trivy Operator deployed in-cluster (continuous scanning)
+- [x] `security/rbac/` — RBAC policies
+  - [x] `platform-admin` ClusterRole (full platform namespace access)
+  - [x] `workload-deployer` Role (deploy-only to workload namespaces)
+  - [x] `readonly` ClusterRole for observability service accounts
+- [ ] Network Policies — namespace isolation (deny-all default, allow ingress/monitoring to workloads)
+- [ ] Pod Security Standards — `restricted` profile and `readOnlyRootFilesystem` configurations
+- [ ] Trivy Operator deployed in-cluster (continuous runtime scanning)
+- [ ] Enforce namespace standards — `ResourceQuota` and `LimitRange` rules for workloads pool
+- [ ] Standardize `topologySpreadConstraints` (by `kubernetes.io/hostname`) to guarantee balanced pod scheduling
 
 ---
 
-## Phase 7 — Workloads Layer
+## Phase 7 — Workloads Layer (text2pdf Platform)
 
 - [~] App scaffolds exist (`apps/`, `gitops/workloads/layers/`)
-- [ ] **backend-api**
-  - [ ] Dockerfile (multi-stage, non-root user)
-  - [ ] Helm chart (`apps/charts/backend-api/`)
-  - [ ] Kubernetes manifests: Deployment, Service, HPA, PodDisruptionBudget
-  - [ ] Liveness / Readiness / Startup probes
-  - [ ] Resource limits/requests defined
-  - [ ] Vault Agent sidecar for secret injection
-- [ ] **worker** service — same checklist as backend-api
-- [ ] **cronjob** — CronJob manifest with concurrencyPolicy, backoffLimit
-- [ ] Argo CD `Application` CRs for each workload in `gitops/workloads/`
-- [ ] Image build pipeline: GitHub Actions → push to registry (ghcr.io or local zot)
+- [ ] **Shared Stateful Backends**
+  - [ ] **PostgreSQL 16 (Bitnami):** Configure PVC storage, probes, `postgres-exporter`, and dynamic Vault secret injection
+  - [ ] **Redis (Bitnami):** Enable AOF persistence for queue stability and deploy `redis-exporter`
+  - [ ] **MinIO:** Create S3 buckets (`text2pdf-inputs`/`outputs`) and setup a 7-day auto-purge lifecycle policy
+- [ ] **backend-api (Go 1.24)**
+  - [ ] Multi-stage non-root Dockerfile, Helm chart, Deployment, Service, HPA, PDB
+  - [ ] REST endpoints (accept `.txt`, upload to MinIO, write metadata to PG, push task ID to Redis)
+  - [ ] Liveness / Readiness / Startup probes, custom `/metrics` and `/healthz` endpoints
+- [ ] **worker (Go 1.24)**
+  - [ ] Queue consumer loop (`BLPOP`), PDF generation (`gofpdf`), state updates in Postgres
+  - [ ] Implement robust Graceful Shutdown to prevent raw process termination during generation
+  - [ ] Apply `topologySpreadConstraints` and expose `/metrics` endpoint
+- [ ] **frontend (React 19 / Vite 7 / Nginx)**
+  - [ ] Upload interface, polling status checks, and PDF viewing pane
+  - [ ] Route traffic using Gateway API `HTTPRoute` resources (bind frontend to `/`, API to `/api`)
+- [ ] **Autoscaling (KEDA)**
+  - [ ] Deploy KEDA `ScaledObject` pointing to the worker deployment triggered by Redis queue length
+  - [ ] Configure **scale-to-zero** (shrink worker pool to 0 replicas when idle) and test scaling thresholds
+- [ ] **GitOps Delivery Pipeline**
+  - [ ] GHA workflows to build all three images, run `helm lint` validation, scan via Trivy, and push to Zot
+  - [ ] Implement automatic image tag updates in the GitOps repo triggering automated ArgoCD sync
 
 ---
 
@@ -175,44 +187,80 @@
 - [x] Velero deployed via Argo CD (`gitops/platform-kind/layers/storage/velero.yaml`)
 - [x] Backup storage: MinIO (`http://minio.minio.svc.cluster.local:9000`)
 - [x] Velero pod running (sync-wave 4)
-- [ ] `velero/schedules/` — BackupSchedule CRs (daily platform namespaces)
+- [ ] `velero/schedules/` — BackupSchedule CRs (daily platform and workloads namespaces + volume snapshots)
 - [ ] `velero/restore/` — Restore procedure + tested runbook
 - [ ] DR runbook: `docs/runbooks/disaster-recovery.md`
-  - [ ] Scenario: cluster total loss → restore from backup
-  - [ ] RTO/RPO targets documented
+  - [ ] Document precise RTO/RPO metrics
+  - [ ] **Live Validation Drill:** Upload data → take Velero backup → destroy cluster via `kind delete cluster` → bootstrap fresh environment with Terraform → execute Velero restore → verify total application state and file recoverability
 
 ---
 
-## Phase 9 — Documentation & AWS Readiness
+## Phase 9 — Advanced Application Observability & Tracing
 
-- [ ] `docs/architecture.md` — layered system overview + decision log
-- [ ] `docs/diagrams/` — draw.io / Mermaid architecture diagrams
-  - [ ] Platform overview (layers)
-  - [ ] GitOps flow (git push → Argo CD sync → k8s)
-  - [ ] Secrets flow (Vault → workload)
-- [ ] `docs/runbooks/argocd-bootstrap.md`
-- [ ] `docs/runbooks/vault-init.md`
-- [ ] `docs/runbooks/disaster-recovery.md`
-- [ ] AWS environment plan:
-  - [ ] EKS module (`infra/modules/eks/`)
-  - [ ] IRSA roles module (`infra/modules/iam/`)
-  - [ ] S3 Terraform state backend
-  - [ ] Migration path: local-kind → EKS (same gitops/ layer, only infra changes)
+- [ ] **Distributed Tracing Stack**
+  - [ ] Deploy **Grafana Tempo** inside the cluster via ArgoCD
+  - [ ] Instrument Go 1.24 applications with **OpenTelemetry SDK**
+  - [ ] Trace the request lifecycle end-to-end: Frontend UI → Backend API → Redis Queue serialization → Worker execution
+- [ ] **Dashboards & Logging**
+  - [ ] Refactor app logs to structured JSON and inject correlation variables (`task_id`) into Alloy -> Loki
+  - [ ] Build custom Grafana dashboards: App Performance (latency, error rates) and Queue Processing (KEDA replicas vs backlog)
+- [ ] **SLOs & Advanced Alerting**
+  - [ ] Define API Latency SLO (95% < 200ms) and Worker Success Rate SLO
+  - [ ] Configure critical alert rules in Prometheus: `QueueBacklog` (KEDA at max but backlog growing), `WorkerFailures`, `PostgreSQLUnavailable`
+
+---
+
+## Phase 10 — Progressive Delivery & Service Mesh
+
+- [ ] **Service Mesh (Linkerd)**
+  - [ ] Deploy Linkerd and inject sidecar proxies across the `workloads` namespace
+  - [ ] Verify zero-config mutual TLS (mTLS) for all internal communication and visualize service topologies
+- [ ] **Progressive Delivery (Argo Rollouts)**
+  - [ ] Install Argo Rollouts controller and refactor the `backend-api` deployment into a `Rollout` CRD
+  - [ ] Configure a Canary deployment strategy (route 10% traffic to new version, validate via Prometheus metrics, auto-rollback on error spikes)
+- [ ] **Final Showcase Presentation**
+  - [ ] Script and record a final end-to-end platform showcase demo (GitOps push → Canary check → KEDA auto-scale 0 to max under load → Grafana trace navigation → Cluster destruction and Velero recovery)
+
+---
+
+## Phase 11 — Developer Experience, Golden Paths & AWS Readiness
+
+- [ ] **Developer Tooling & Golden Path**
+  - [ ] Create standardized Go app service and Helm chart templates
+  - [ ] Write a developer onboarding guide and workload onboarding documentation
+- [ ] **Architecture & Documentation**
+  - [ ] `docs/architecture.md` — layered system overview + decision log
+  - [ ] `docs/diagrams/` — draw.io / Mermaid architecture diagrams
+    - [ ] Platform overview (layers)
+    - [ ] GitOps flow (git push → Argo CD sync → k8s)
+    - [ ] Secrets flow (Vault → workload)
+  - [ ] `docs/runbooks/argocd-bootstrap.md`
+  - [ ] `docs/runbooks/vault-init.md`
+  - [ ] `docs/runbooks/disaster-recovery.md`
+- [ ] **Architecture Decisions Logs**
+  - [ ] Create `docs/adr/ADR-001-gitops-strategy.md`
+  - [ ] Create `docs/adr/ADR-002-vault-integration.md`
+  - [ ] Create `docs/adr/ADR-003-keda-adoption.md`
+  - [ ] Create `docs/adr/ADR-004-object-storage-design.md`
+- [ ] **AWS / EKS Readiness Plan**
+  - [ ] EKS module (`infra/modules/eks/`) and IRSA roles module (`infra/modules/iam/`)
+  - [ ] S3 Terraform remote state backend
+  - [ ] Document the local-kind to AWS migration path (maintaining identical GitOps layers)
 
 ---
 
 ## Known Issues
 
-- `vault-secrets-webhook` HPA broken — missing `resources.requests.cpu` in container `secrets-webhook`
-- Pod distribution imbalance — 25 pods on worker vs 8 on worker2, no nodeSelector/affinity
+- [x] `vault-secrets-webhook` HPA broken — Fixed: added missing `resources.requests.cpu` in container
+- [x] Pod distribution — Fixed: added topologySpreadConstraints to prometheus, grafana, alertmanager, loki
 
 
 ## Next Sprint Focus
 
 ```
-1. [NEXT]  Fix vault-secrets-webhook HPA (add CPU request)
-2. [NEXT]  Pod distribution affinity rules for heavy workloads
-3. [PLAN]  Phase 7: Workload services (backend-api, worker, cronjob)
-4. [PLAN]  Phase 8: Velero schedules + DR runbook
-5. [PLAN]  Phase 6: RBAC policies + Network Policies
+1. [DONE]  Fix vault-secrets-webhook HPA (add CPU request)
+2. [DONE]  Pod distribution affinity rules for heavy workloads
+3. [NEXT]  Phase 6 & 7: Network/Scheduling Policies and Stateful Services Deployment (Postgres, Redis, MinIO)
+4. [PLAN]  Phase 7: Application layer development & KEDA scale-to-zero implementation
+5. [PLAN]  Phase 8: Velero schedules validation and live disaster recovery cluster destruction drill
 ```

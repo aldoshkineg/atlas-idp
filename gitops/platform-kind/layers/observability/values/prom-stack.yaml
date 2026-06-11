@@ -10,6 +10,15 @@ prometheus:
         cpu: 500m
         memory: 1Gi
 
+    # Topology spread for balanced node distribution
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: prometheus
+
     # Retention
     retention: 2d
     retentionSize: "1GB"
@@ -38,6 +47,11 @@ grafana:
   service:
     type: NodePort
     nodePort: 30300
+
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
 
   resources:
     limits:
@@ -91,6 +105,11 @@ alertmanager:
       requests:
         cpu: 50m
         memory: 64Mi
+
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
 
     storage:
       volumeClaimTemplate:
