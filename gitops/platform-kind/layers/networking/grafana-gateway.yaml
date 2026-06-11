@@ -6,7 +6,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
-    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/sync-wave: "7"
     argocd.argoproj.io/depends-on: cert-manager-issuers, gateway-resources
   labels:
     app.kubernetes.io/component: platform
