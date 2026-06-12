@@ -2,7 +2,7 @@
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
 	argocd-login vault-seed github-secrets-ca seed-ca \
-	test test-gateway test-vault test-seed test-velero test-network-policy test-undeploy \
+	test test-ca-gateway test-vault test-velero test-network-policy test-undeploy \
 	act-build act-ci
 
 CLUSTER_NAME     ?= atlas-idp
@@ -52,10 +52,9 @@ help:
 	@echo "  vault-seed        Seed test secrets into Vault (run after vault is healthy)"
 	@echo ""
 	@echo "Tests:"
-	@echo "  test             Deploy all tests + seed Vault secrets"
-	@echo "  test-gateway     Deploy gateway test (HTTPRoute + certificate)"
-	@echo "  test-vault       Deploy Vault injection test"
-	@echo "  test-seed        Seed test secrets into Vault"
+	@echo "  test             Deploy and verify all platform tests"
+	@echo "  test-ca-gateway  Deploy CA gateway test and verify TLS endpoint"
+	@echo "  test-vault       Seed Vault, deploy injection pod, verify secrets"
 	@echo "  test-velero      Test Velero backup/restore to S3"
 	@echo "  test-network-policy  Test NetworkPolicy isolation between pods"
 	@echo "  test-undeploy    Remove all test resources"
@@ -118,27 +117,18 @@ vault-seed:
 	./tests/vault/seed.sh
 
 # --- Tests ---
-test-gateway:
-	kubectl apply -f tests/gateway/namespace.yaml
-	kubectl apply -f tests/gateway/app.yaml
-	kubectl apply -f tests/gateway/certificate.yaml
+test-ca-gateway:
+	./tests/scripts/gateway-test.sh
 
 test-vault:
-	kubectl apply -f tests/vault
+	./tests/scripts/vault-test.sh
 
-test-seed: test-vault
-	./tests/scripts/seed.sh
-
-test: test-gateway test-seed test-velero test-check
-
-test-check:
-	./tests/scripts/check.sh
+test: test-ca-gateway test-vault test-network-policy test-velero
 
 test-velero:
 	./tests/scripts/velero-test.sh
 
 test-network-policy:
-	kubectl apply -f tests/network-policy
 	./tests/scripts/network-policy-test.sh
 
 test-undeploy:

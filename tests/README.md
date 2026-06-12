@@ -8,16 +8,14 @@ Test manifests for platform service verification.
 make test
 ```
 
-This runs: gateway TLS → Vault seed → Velero backup/restore → final checks.
+Each target deploys and verifies itself.
 
 ## Individual Targets
 
 | Command | What it does |
 |---------|-------------|
-| `make test-gateway` | Deploy TLS test app + certificate |
-| `make test-vault` | Deploy Vault injection test pod |
-| `make test-seed` | Create Vault K8s auth role + test secret |
+| `make test-ca-gateway` | Deploy CA TLS test app and verify endpoint |
+| `make test-vault` | Seed Vault, deploy injection pod, verify secrets |
 | `make test-velero` | Backup pod with PVC to MinIO, disaster, restore |
 | `make test-network-policy` | Test NetworkPolicy isolation between 3 pods |
-| `make test-check` | Verify TLS endpoint + Vault injection |
 | `make test-undeploy` | Remove all test resources |

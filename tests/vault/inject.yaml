@@ -14,8 +14,6 @@ metadata:
     vault.security.banzaicloud.io/vault-role: "platform-read"
     vault.security.banzaicloud.io/vault-skip-verify: "true"
     vault.security.banzaicloud.io/vault-agent: "true"
-    vault.security.banzaicloud.io/vault-agent-once: "true"
-    vault.security.banzaicloud.io/vault-configmap: "vault-agent-cm"
     vault.security.banzaicloud.io/vault-agent-configmap: "vault-agent-cm"
     vault.security.banzaicloud.io/vault-ignore-missing-secrets: "true"
 spec:

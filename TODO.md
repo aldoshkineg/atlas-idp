@@ -137,6 +137,7 @@
 - [x] Cluster persists after apply (no auto-destroy)
 - [x] Argo CD bootstrap verification step
 - [x] `security.yml` — Trivy image scan on `apps/**` changes
+- [x] `clusters/kind/ci/act-runner/Dockerfile` + `.actrc` + Makefile targets for local CI execution via act
 - [ ] Add `workflow_dispatch` inputs to `ci.yaml`: `action: apply|destroy`, `environment: dev|staging`
 
 ---
@@ -148,11 +149,11 @@
   - [x] `platform-admin` ClusterRole (full platform namespace access)
   - [x] `workload-deployer` Role (deploy-only to workload namespaces)
   - [x] `readonly` ClusterRole for observability service accounts
+- [x] `topologySpreadConstraints` applied to prometheus, grafana, alertmanager, loki
 - [ ] Network Policies — namespace isolation (deny-all default, allow ingress/monitoring to workloads)
 - [ ] Pod Security Standards — `restricted` profile and `readOnlyRootFilesystem` configurations
 - [ ] Trivy Operator deployed in-cluster (continuous runtime scanning)
 - [ ] Enforce namespace standards — `ResourceQuota` and `LimitRange` rules for workloads pool
-- [ ] Standardize `topologySpreadConstraints` (by `kubernetes.io/hostname`) to guarantee balanced pod scheduling
 
 ---
 
@@ -254,14 +255,20 @@
 
 - [x] `vault-secrets-webhook` HPA broken — Fixed: added missing `resources.requests.cpu` in container
 - [x] Pod distribution — Fixed: added topologySpreadConstraints to prometheus, grafana, alertmanager, loki
+- [x] `vault-secrets-webhook` MWC CA bundle drift — Fixed: restored ignoreDifferences
 
+## Cluster Health
+
+- 3 nodes, all Ready
+- 20 ArgoCD apps, all Synced/Healthy
+- ⚠️ Orphaned `VolumeSnapshotContent` objects (~10) after snapshot cleanup — no functional impact but noisy `SnapshotDeleteError` events
 
 ## Next Sprint Focus
 
 ```
-1. [DONE]  Fix vault-secrets-webhook HPA (add CPU request)
-2. [DONE]  Pod distribution affinity rules for heavy workloads
-3. [NEXT]  Phase 6 & 7: Network/Scheduling Policies and Stateful Services Deployment (Postgres, Redis, MinIO)
-4. [PLAN]  Phase 7: Application layer development & KEDA scale-to-zero implementation
-5. [PLAN]  Phase 8: Velero schedules validation and live disaster recovery cluster destruction drill
+1. Clean up orphaned VolumeSnapshotContent: kubectl delete volumesnapshotcontent --all
+2. Phase 6 — Network Policies: deny-all default per namespace, allow ingress + monitoring
+3. Phase 6 — ResourceQuota + LimitRange for workloads pool
+4. Phase 7 — Deploy KEDA (Helm via ArgoCD), prerequisite for worker autoscaling
+5. Phase 7 — Stateful Services: PostgreSQL 16 + Redis (Bitnami charts via ArgoCD)
 ```

@@ -5,6 +5,8 @@ NS="netpol-test"
 PASS=0
 FAIL=0
 
+kubectl apply -f tests/network-policy
+
 ok()   { PASS=$((PASS+1)); echo "  PASS: $1"; }
 fail() { FAIL=$((FAIL+1)); echo "  FAIL: $1"; }
 

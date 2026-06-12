@@ -67,7 +67,6 @@ MC_OUTPUT=$(kubectl exec -n minio deploy/minio -- sh -c "
   mc alias set local http://127.0.0.1:9000 minioadmin minioadminpassword > /dev/null 2>&1
   mc ls local/k8s-velero-backups/ --recursive
 " 2>&1)
-echo "$MC_OUTPUT"
 echo "$MC_OUTPUT" | grep -q "$BACKUP_NAME" && {
   ok "Backup data found in MinIO bucket"
 } || {
