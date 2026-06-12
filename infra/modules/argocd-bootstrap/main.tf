@@ -68,11 +68,11 @@ resource "helm_release" "argocd" {
           resources = {
             limits = {
               cpu    = "500m"
-              memory = "2Gi"
+              memory = "512Mi"
             }
             requests = {
               cpu    = "250m"
-              memory = "1Gi"
+              memory = "256Mi"
             }
           }
         }
@@ -124,7 +124,7 @@ resource "helm_release" "argocd" {
           enabled = false
         }
 
-        # Configure repository credentials if repo_url provided
+        # Configure repository credentials and repo-server parallelism
         configs = var.repo_url != "" ? {
           repositories = {
             "atlas-idp-repo" = {
@@ -133,6 +133,9 @@ resource "helm_release" "argocd" {
               name  = "atlas-idp"
               depth = "1"
             }
+          }
+          params = {
+            "reposerver.parallelism.limit" = "2"
           }
         } : {}
       })
