@@ -2,7 +2,8 @@
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
 	argocd-login vault-seed github-secrets-ca seed-ca \
-	test test-gateway test-vault test-seed test-velero test-network-policy test-undeploy
+	test test-gateway test-vault test-seed test-velero test-network-policy test-undeploy \
+	act-build act-ci
 
 CLUSTER_NAME     ?= atlas-idp
 KIND_CONFIG      ?= clusters/kind/cluster.yaml
@@ -16,6 +17,7 @@ export
 # Local CI / Automation Directories
 LOCAL_RUNNER_DIR ?= clusters/kind/ci/local-runner
 ZOT_DIR          ?= clusters/kind/ci/zot-kind-cache
+ACT_RUNNER_DIR   ?= clusters/kind/ci/act-runner
 
 help:
 	@echo "Available Targets:"
@@ -38,6 +40,10 @@ help:
 	@echo "  ci-runner-down    Stop and remove local GitHub runner container"
 	@echo "  ci-runner-status  Check status of local GitHub runner container"
 	@echo "  ci-runner-logs    Follow logs from the local GitHub runner container"
+	@echo ""
+	@echo "Act (Local CI Runner):"
+	@echo "  act-build         Build custom act runner Docker image"
+	@echo "  act-ci            Run CI workflow via act"
 	@echo ""
 	@echo "ArgoCD:"
 	@echo "  argocd-login      Login to ArgoCD via CLI"
@@ -159,6 +165,8 @@ github-secrets-ca:
 	@echo "--> CA certificate and key added to GitHub secrets successfully"
 
 seed-ca:
+	@echo "--> Setting kubeconfig from kind cluster..."
+	@kind export kubeconfig --name $(CLUSTER_NAME) 2>/dev/null || true
 	@echo "--> Ensuring cert-manager namespace exists..."
 	kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
 	@echo "--> Creating dev-ca-secret in cert-manager namespace..."
@@ -209,3 +217,14 @@ ci-runner-status:
 
 ci-runner-logs:
 	docker compose -f $(LOCAL_RUNNER_DIR)/docker-compose.yml logs -f
+
+# --- Act (Local CI Runner) ---
+act-build:
+	docker build -t act-runner:latest $(ACT_RUNNER_DIR)
+
+act-ci:
+	act -W .github/workflows/ci.yaml \
+		--container-options "-v $(PWD)/clusters/kind/ci/act-runner/cache/tf:/opt/terraform/plugin-cache" \
+		--container-options "-v $(PWD)/clusters/kind/ci/act-runner/cache/home:/root/.cache" \
+		-s DEV_CA_CRT="$$(cat clusters/kind/certs/ca.crt)" \
+		-s DEV_CA_KEY="$$(cat clusters/kind/certs/ca.key)"

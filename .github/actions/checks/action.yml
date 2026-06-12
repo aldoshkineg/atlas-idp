@@ -20,7 +20,7 @@ runs:
 
     - name: Install yamllint
       shell: bash
-      run: pip install yamllint
+      run: command -v yamllint || pip install yamllint
 
     - name: YAML Lint
       shell: bash
