@@ -33,6 +33,9 @@ spec:
           - name: k8s-velero-backups
             policy: none
             purge: false
+          - name: cnpg-backups
+            policy: none
+            purge: false
         tls:
           enabled: false
         service:

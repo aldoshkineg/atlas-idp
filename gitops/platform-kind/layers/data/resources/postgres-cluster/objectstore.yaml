@@ -1,0 +1,22 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: production-db-backup
+  namespace: database
+  labels:
+    app.kubernetes.io/component: database
+spec:
+  configuration:
+    destinationPath: s3://cnpg-backups/
+    endpointURL: http://minio.minio.svc.cluster.local:9000
+    s3Credentials:
+      accessKeyId:
+        key: ACCESS_KEY_ID
+        name: production-db-backup
+      secretAccessKey:
+        key: ACCESS_SECRET_KEY
+        name: production-db-backup
+    wal:
+      compression: gzip
+      maxParallel: 2
+  retentionPolicy: 7d

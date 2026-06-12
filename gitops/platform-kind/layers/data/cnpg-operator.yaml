@@ -31,6 +31,10 @@ spec:
       kind: CustomResourceDefinition
       jsonPointers:
         - /metadata/annotations
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /status
   syncPolicy:
     automated:
       prune: true

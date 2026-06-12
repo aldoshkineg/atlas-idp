@@ -14,3 +14,5 @@ monitoring:
 config:
   # Disable webhook validation for kind (self-signed certs)
   disableWebhooks: false
+  data:
+    INCLUDE_PLUGINS: barman-cloud.cloudnative-pg.io
