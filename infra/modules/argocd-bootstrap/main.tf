@@ -125,19 +125,19 @@ resource "helm_release" "argocd" {
         }
 
         # Configure repository credentials and repo-server parallelism
-        configs = var.repo_url != "" ? {
-          repositories = {
+        configs = {
+          params = {
+            "reposerver.parallelism.limit" = "2"
+          }
+          repositories = var.repo_url != "" ? {
             "atlas-idp-repo" = {
               url   = var.repo_url
               type  = var.repo_type
               name  = "atlas-idp"
               depth = "1"
             }
-          }
-          params = {
-            "reposerver.parallelism.limit" = "2"
-          }
-        } : {}
+          } : {}
+        }
       })
     ],
     var.argocd_values_override != "" ? [var.argocd_values_override] : []
