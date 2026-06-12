@@ -266,9 +266,8 @@
 ## Next Sprint Focus
 
 ```
-1. Clean up orphaned VolumeSnapshotContent: kubectl delete volumesnapshotcontent --all
-2. Phase 6 — Network Policies: deny-all default per namespace, allow ingress + monitoring
-3. Phase 6 — ResourceQuota + LimitRange for workloads pool
-4. Phase 7 — Deploy KEDA (Helm via ArgoCD), prerequisite for worker autoscaling
-5. Phase 7 — Stateful Services: PostgreSQL 16 + Redis (Bitnami charts via ArgoCD)
+1. Phase 6 — Network Policies: deny-all default per namespace, allow ingress + monitoring
+2. Phase 6 — ResourceQuota + LimitRange for workloads pool
+3. Phase 7 — Stateful Services: PostgreSQL 16 + Redis (Bitnami charts via ArgoCD)
+4. Phase 7 — Deploy KEDA ScaledObject for worker autoscaling (KEDA already installed)
 ```

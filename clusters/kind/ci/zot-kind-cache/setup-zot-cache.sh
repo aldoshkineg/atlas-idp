@@ -82,6 +82,7 @@ docker run -d \
   --name "$reg_name" \
   --network "$kind_network" \
   -p "127.0.0.1:$reg_port:5000" \
+  --ulimit nofile=65535:65535 \
   -v "$(pwd)/$config_file:/etc/zot/config.json:ro" \
   -v "$(pwd)/$cache_dir:/var/lib/registry:rw" \
   ghcr.io/project-zot/zot:latest

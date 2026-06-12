@@ -8,11 +8,18 @@
     "port": "5000"
   },
   "log": {
-    "level": "info"
+    "level": "debug"
   },
   "extensions": {
     "sync": {
-      "enable": false
+      "enable": true,
+      "registries": [
+        { "urls": ["https://registry.k8s.io"], "onDemand": true, "tlsVerify": true },
+        { "urls": ["https://quay.io"], "onDemand": true, "tlsVerify": true },
+        { "urls": ["https://ghcr.io"], "onDemand": true, "tlsVerify": true },
+        { "urls": ["https://registry-1.docker.io"], "onDemand": true, "tlsVerify": true },
+        { "urls": ["https://public.ecr.aws"], "onDemand": true, "tlsVerify": true }
+      ]
     }
   }
 }
