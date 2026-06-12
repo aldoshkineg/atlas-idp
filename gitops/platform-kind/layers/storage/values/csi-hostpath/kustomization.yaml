@@ -12,5 +12,6 @@ resources:
   - 04-snapshotter.yaml
   - 05-snapshot-metadata.yaml
   - 06-health-monitor.yaml
+  - sc.yaml
 
 namespace: storage
