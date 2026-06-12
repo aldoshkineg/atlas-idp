@@ -1,0 +1,17 @@
+# Apply backup config to cluster:
+#   kubectl apply -k examples/cnpg-backup/
+#
+# Then add spec.plugins to your CNPG Cluster:
+#   plugins:
+#     - name: barman-cloud.cloudnative-pg.io
+#       enabled: true
+#       isWALArchiver: true
+#       parameters:
+#         barmanObjectName: production-db-backup
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - backup-secret.yaml
+  - objectstore.yaml
+  - scheduled-backup.yaml

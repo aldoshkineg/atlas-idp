@@ -1,0 +1,13 @@
+# ScheduledBackup defines a recurring backup schedule for a CNPG cluster.
+# Requires ObjectStore and Secret to be present in the same namespace.
+# The backup cluster must have spec.plugins configured with barmanObjectName.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: production-db-weekly
+  namespace: database
+spec:
+  schedule: "0 0 3 * * 0"
+  backupOwnerReference: self
+  cluster:
+    name: production-db

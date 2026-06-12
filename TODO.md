@@ -108,7 +108,8 @@
 - [x] **velero** — backup/restore, backed by MinIO (sync-wave 4)
 
 ### Data
-- [x] **postgresql** — PostgreSQL 16 (Bitnami), Velero pre-hook pg_dump, probes, postgres-exporter + ServiceMonitor (sync-wave 7)
+- [x] **CloudNativePG** — replaces Bitnami PostgreSQL. Operator 1.29.1, cluster `production-db` (1 instance, PG 17.6, csi-hostpath-sc). MinIO bucket `cnpg-backups`. Backup config (ObjectStore, Secret, ScheduledBackup) moved to `examples/cnpg-backup/`.
+  - [ ] Switch backup secrets to Vault (`vault/` policies + external-secrets operator to sync k8s Secret)
 
 ### Base
 - [x] **metrics-server** — deployed (sync-wave 1)

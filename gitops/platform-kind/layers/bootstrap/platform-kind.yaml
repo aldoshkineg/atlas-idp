@@ -73,5 +73,7 @@ spec:
       kind: APIService
     - group: storage.k8s.io
       kind: CSIDriver
+    - group: storage.k8s.io
+      kind: StorageClass
     - group: ""
       kind: Namespace

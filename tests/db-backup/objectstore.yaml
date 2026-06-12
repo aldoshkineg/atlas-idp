@@ -1,10 +1,8 @@
 apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
 metadata:
-  name: production-db-backup
-  namespace: database
-  labels:
-    app.kubernetes.io/component: database
+  name: test-backup-store
+  namespace: db-backup-test
 spec:
   configuration:
     destinationPath: s3://cnpg-backups/
@@ -12,10 +10,10 @@ spec:
     s3Credentials:
       accessKeyId:
         key: ACCESS_KEY_ID
-        name: production-db-backup
+        name: backup-creds
       secretAccessKey:
         key: ACCESS_SECRET_KEY
-        name: production-db-backup
+        name: backup-creds
     wal:
       compression: gzip
       maxParallel: 2

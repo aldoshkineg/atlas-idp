@@ -112,3 +112,24 @@ Pre-commit runs on every commit:
 - Terraform fmt/validate/docs
 - yamllint
 - Trivy (HIGH/CRITICAL only)
+
+## Session Context
+
+### CNPG / PostgreSQL Cluster State (June 2026)
+- **Cluster:** `production-db` in `database` namespace, 1 instance, PG 17.6, csi-hostpath-sc
+- **Operator:** cloudnative-pg 0.28.3 (app 1.29.1) in `cnpg-system`, `INCLUDE_PLUGINS: barman-cloud.cloudnative-pg.io`
+- **Backup config moved to** `examples/cnpg-backup/` (ObjectStore + Secret + ScheduledBackup)
+- **Current running cluster** (`kubectl get cluster -n database production-db -o json`):
+  ```json
+  "spec": {
+    "plugins": [{
+      "enabled": true,
+      "isWALArchiver": true,
+      "name": "barman-cloud.cloudnative-pg.io",
+      "parameters": {"barmanObjectName": "production-db-backup"}
+    }]
+  }
+  ```
+  ObjectStore `production-db-backup`, Secret `production-db-backup`, ScheduledBackup `production-db-weekly` — recreated by ArgoCD from git HEAD, pending cleanup commit.
+- **MinIO:** bucket `cnpg-backups`, endpoint `http://minio.minio.svc.cluster.local:9000`, creds `minioadmin`/`minioadminpassword`
+- **Next commit removes** all backup CRs from gitops; infra cluster will run as plain PostgreSQL without plugins.

@@ -1,10 +1,11 @@
+# CNPG Cluster with barman-cloud plugin for S3 backup.
+# Apply with: kubectl apply -f examples/cnpg-backup/cluster-with-backup.yaml
+# Requires ObjectStore and Secret from this directory to be present.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
   name: production-db
   namespace: database
-  labels:
-    app.kubernetes.io/component: database
 spec:
   instances: 1
 
@@ -32,3 +33,11 @@ spec:
       max_connections: "100"
       shared_buffers: "128MB"
 
+  # Enables WAL archiving to S3 via the barman-cloud plugin.
+  # References the ObjectStore CR "production-db-backup" for S3 config and credentials.
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      enabled: true
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: production-db-backup
