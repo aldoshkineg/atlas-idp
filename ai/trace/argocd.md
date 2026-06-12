@@ -27,13 +27,6 @@ kubectl get/describe <res> <name> -n <ns>
 
 ```
 
-## OOM: argocd-repo-server
-
-**Симптом:** `OOMKilled` (Exit 137), рестарты при `helm template` тяжёлых чартов.
-**Причина:** 20+ приложений (kube-prometheus-stack, Cilium CRDs, PostgreSQL, KEDA) генерируют манифесты параллельно. Каждый `helm template --include-crds` ест ~300-500 MiB. Default 512Mi не хватает при массовом sync/reconciliation.
-**Фикс:** `infra/modules/argocd-bootstrap/main.tf` — repoServer.limits.memory = `2Gi`, requests = `1Gi`.
-**Опция:** `ARGOCD_REPO_SERVER_PARALLELISM=3` (ограничить одновременную генерацию).
-
 ## Fixes Cheat Sheet
 
 1. **CRD Not Found:** Delay dependent resources via `metadata.annotations: argocd.argoproj.io/sync-wave: "1"`.
