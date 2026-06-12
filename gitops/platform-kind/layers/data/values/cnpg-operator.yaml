@@ -1,0 +1,16 @@
+replicaCount: 1
+
+resources:
+  limits:
+    memory: 256Mi
+    cpu: 200m
+  requests:
+    memory: 128Mi
+    cpu: 100m
+
+monitoring:
+  podMonitorEnabled: true
+
+config:
+  # Disable webhook validation for kind (self-signed certs)
+  disableWebhooks: false
