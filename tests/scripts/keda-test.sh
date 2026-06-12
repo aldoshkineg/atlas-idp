@@ -22,7 +22,7 @@ else
   fail "External Metrics API not available — KEDA metrics-server may be broken"
 fi
 
-# --- Step 1: Проверка что KEDA работает ---
+# --- Step 1: Check KEDA is running ---
 echo ""
 echo "--- Step 1: Checking KEDA deployment ---"
 for deploy in keda-operator keda-operator-metrics-apiserver keda-admission-webhooks; do
@@ -35,7 +35,7 @@ for deploy in keda-operator keda-operator-metrics-apiserver keda-admission-webho
   fi
 done
 
-# --- Step 2: Проверка CRD ---
+# --- Step 2: Check CRDs ---
 echo ""
 echo "--- Step 2: Checking KEDA CRDs ---"
 for crd in scaledobjects.keda.sh scaledjobs.keda.sh triggerauthentications.keda.sh; do
@@ -46,7 +46,7 @@ for crd in scaledobjects.keda.sh scaledjobs.keda.sh triggerauthentications.keda.
   fi
 done
 
-# --- Step 3: Применяем тестовые манифесты ---
+# --- Step 3: Apply test manifests ---
 echo ""
 echo "--- Step 3: Applying test manifests ---"
 kubectl apply -f tests/keda/namespace.yaml
@@ -60,7 +60,7 @@ else
   fail "ScaledObject $SCALER not ready"
 fi
 
-# --- Step 4: Проверка что HPA создан ---
+# --- Step 4: Check HPA was created ---
 echo ""
 echo "--- Step 4: Checking HPA was created ---"
 if kubectl get hpa "$HPA" -n "$NS" > /dev/null 2>&1; then
@@ -91,12 +91,14 @@ if [ "${REPLICAS:-0}" -lt 3 ]; then
 fi
 
 # --- Step 6: Scale down (desiredReplicas → 0) ---
-# HPA имеет built-in downscale stabilization (~5 min), поэтому реальное удаление подов
-# может быть отложено. Основная проверка — что KEDA изменил metric на HPA.
-# Дополнительно пробуем дождаться фактического scale-down, но без блокировки.
+# HPA has built-in downscale stabilization (~5 min default), so
+# patch stabilizationWindowSeconds=0 before setting the metric.
 echo ""
 echo "--- Step 6: Scaling down (3 → 0) ---"
 START=$SECONDS
+echo "  Patching HPA downscale stabilization to 0s..."
+kubectl patch hpa "$HPA" -n "$NS" --type='merge' \
+  -p='{"spec":{"behavior":{"scaleDown":{"stabilizationWindowSeconds":0}}}}' > /dev/null 2>&1 || true
 kubectl patch scaledobject $SCALER -n "$NS" --type='json' \
   -p='[{"op": "replace", "path": "/spec/triggers/0/metadata/desiredReplicas", "value": "0"}]'
 echo "  desiredReplicas=0, checking HPA metric..."
@@ -117,18 +119,18 @@ if [ "$METRIC_OK" -eq 0 ]; then
   fail "HPA metric did not change to 0 within 30s (got: ${AVG_CHECK})"
 fi
 
-echo "  Checking actual replica count (non-blocking, 10s)..."
-for i in $(seq 1 10); do
+echo "  Checking actual replica count (non-blocking, 30s)..."
+for i in $(seq 1 30); do
   REPLICAS=$(kubectl get deployment $DEPLOY -n "$NS" -o jsonpath='{.status.replicas}' 2>/dev/null || echo "0")
-  if [ "${REPLICAS}" = "0" ]; then
+  if [ "${REPLICAS}" -le 1 ]; then
     DURATION=$((SECONDS - START))
-    echo "  INFO: Deployment actually scaled down to 0 in ${DURATION}s"
+    echo "  INFO: Deployment scaled down to ${REPLICAS} in ${DURATION}s"
     break
   fi
   sleep 1
 done
 
-# --- Итог ---
+# --- Results ---
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
 exit $FAIL
