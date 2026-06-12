@@ -318,3 +318,6 @@ grafana:
               }
             ]
           }
+      cnpg-cluster:
+        gnetId: 20417
+        datasource: Prometheus

@@ -12,16 +12,11 @@ FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  PASS: $1"; }
 fail() { FAIL=$((FAIL+1)); echo "  FAIL: $1"; }
 
-cleanup() {
-  echo "=== Cleanup ==="
-  kubectl delete cluster -n "$NS" "$CLUSTER_RECOVERY" --ignore-not-found --wait=false 2>/dev/null || true
-  kubectl delete cluster -n "$NS" "$CLUSTER_SRC" --ignore-not-found --wait=false 2>/dev/null || true
-  kubectl delete -f tests/db-backup/ --ignore-not-found 2>/dev/null || true
-}
+cleanup() { :; }
 trap cleanup EXIT
 
 echo "=== Clean MinIO bucket (remove stale data from previous runs) ==="
-MINIO_POD=$(kubectl get pod -n minio -l app.kubernetes.io/name=minio -o name 2>/dev/null | head -1)
+MINIO_POD=$(kubectl get pod -n minio -l app=minio -o name 2>/dev/null | head -1)
 if [ -n "$MINIO_POD" ]; then
   kubectl exec -n minio "$MINIO_POD" -- mc alias set myminio http://localhost:9000 minioadmin minioadminpassword > /dev/null 2>&1
   kubectl exec -n minio "$MINIO_POD" -- sh -c 'mc rb --force myminio/cnpg-backups 2>/dev/null; mc mb myminio/cnpg-backups' > /dev/null 2>&1

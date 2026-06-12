@@ -27,6 +27,13 @@ spec:
       isWALArchiver: false
       parameters:
         barmanObjectName: test-backup-store
+  externalClusters:
+    - name: test-db-source
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: test-backup-store
+          serverName: test-db-source
   bootstrap:
     recovery:
       source: test-db-source

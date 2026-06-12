@@ -145,6 +145,7 @@ test-undeploy:
 	kubectl delete -f tests/gateway --ignore-not-found
 	kubectl delete -f tests/network-policy --ignore-not-found
 	kubectl delete -f tests/db-backup --ignore-not-found
+	kubectl delete ns db-backup-test --ignore-not-found
 	kubectl delete pod -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
 	kubectl delete pvc -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
 	kubectl delete sc csi-hostpath-sc --ignore-not-found 2>/dev/null || true

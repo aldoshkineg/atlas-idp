@@ -109,6 +109,11 @@
 
 ### Data
 - [x] **CloudNativePG** — replaces Bitnami PostgreSQL. Operator 1.29.1, cluster `production-db` (1 instance, PG 17.6, csi-hostpath-sc). MinIO bucket `cnpg-backups`. Backup config (ObjectStore, Secret, ScheduledBackup) moved to `examples/cnpg-backup/`.
+  - [x] Plugin-based recovery (no deprecated `externalClusters.barmanObjectStore`)
+  - [x] `shared_buffers` reduced to 64MB (OOM risk fix)
+  - [x] PodMonitor for Prometheus scrapes metrics (9187), verified `health=up`
+  - [x] CNPG Grafana dashboard added via `gnetId: 20417`
+  - [x] Backup/restore test: 7/7 PASS (source → backup → recovery → verify 100 rows)
   - [ ] Switch backup secrets to Vault (`vault/` policies + external-secrets operator to sync k8s Secret)
 
 ### Base
@@ -117,7 +122,7 @@
 ### Observability
 - [x] **kube-prometheus-stack** — Prometheus + Grafana + Alertmanager (sync-wave 5)
   - [x] Custom alert rules: HighErrorRate, HPAMaxedOut — mounted as ConfigMap
-  - [x] Grafana dashboard JSON (platform overview) in `observability/dashboards/`
+  - [x] Grafana dashboards: platform overview (inline JSON), CNPG Cluster (gnetId 20417)
 - [x] **loki** — SingleBinary mode, filesystem storage, 10d retention (sync-wave 6)
 - [x] **alloy** — DaemonSet collecting pod logs → loki-gateway (sync-wave 7)
 - [x] Grafana Loki datasource configured
@@ -260,19 +265,24 @@
 - [x] `vault-secrets-webhook` HPA broken — Fixed: added missing `resources.requests.cpu` in container
 - [x] Pod distribution — Fixed: added topologySpreadConstraints to prometheus, grafana, alertmanager, loki
 - [x] `vault-secrets-webhook` MWC CA bundle drift — Fixed: restored ignoreDifferences
+- [x] Bitnami PostgreSQL → CloudNativePG migration — tested backup/restore 7/7 PASS
+- [x] CNPG recovery deprecated `barmanObjectStore` → plugin-based recovery
 
 ## Cluster Health
 
 - 3 nodes, all Ready
 - 20 ArgoCD apps, all Synced/Healthy
+- ✅ CNPG backup/restore test: 7/7 PASS (source → backup → recovery → 100 rows verified)
+- ✅ Prometheus scrapes CNPG metrics (`database/production-db` health=up)
 - ⚠️ Orphaned `VolumeSnapshotContent` objects (~10) after snapshot cleanup — no functional impact but noisy `SnapshotDeleteError` events
 
 ## Next Sprint Focus
 
 ```
-1. Phase 6 — Network Policies: deny-all default per namespace, allow ingress + monitoring
-2. Phase 6 — ResourceQuota + LimitRange for workloads pool
-3. Phase 7 — Stateful Services: Redis (Bitnami charts via ArgoCD) + MinIO buckets
-4. Phase 7 — Deploy KEDA ScaledObject for worker autoscaling (KEDA already installed)
-5. Phase 4/Data — Vault secret injection for PostgreSQL
+1. Phase 4/Data — separate project database with scheduled backup via CNPG plugin
+2. Phase 6 — Network Policies: deny-all default per namespace, allow ingress + monitoring
+3. Phase 6 — ResourceQuota + LimitRange for workloads pool
+4. Phase 7 — Stateful Services: Redis (Bitnami charts via ArgoCD) + MinIO buckets
+5. Phase 7 — Deploy KEDA ScaledObject for worker autoscaling (KEDA already installed)
+6. Phase 4/Data — Vault secret injection for PostgreSQL
 ```
