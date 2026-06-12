@@ -107,6 +107,9 @@
 - [x] **minio** — S3-compatible object storage (sync-wave 3)
 - [x] **velero** — backup/restore, backed by MinIO (sync-wave 4)
 
+### Data
+- [x] **postgresql** — PostgreSQL 16 (Bitnami), Velero pre-hook pg_dump, probes, postgres-exporter + ServiceMonitor (sync-wave 7)
+
 ### Base
 - [x] **metrics-server** — deployed (sync-wave 1)
 
@@ -161,7 +164,7 @@
 
 - [~] App scaffolds exist (`apps/`, `gitops/workloads/layers/`)
 - [ ] **Shared Stateful Backends**
-  - [ ] **PostgreSQL 16 (Bitnami):** Configure PVC storage, probes, `postgres-exporter`, and dynamic Vault secret injection
+  - [x] **PostgreSQL 16 (Bitnami):** Deployed via ArgoCD (sync-wave 7). PVC 8Gi, probes, postgres-exporter + ServiceMonitor, Velero pre-hook pg_dump. Vault secret injection pending.
   - [ ] **Redis (Bitnami):** Enable AOF persistence for queue stability and deploy `redis-exporter`
   - [ ] **MinIO:** Create S3 buckets (`text2pdf-inputs`/`outputs`) and setup a 7-day auto-purge lifecycle policy
 - [ ] **backend-api (Go 1.24)**
@@ -268,6 +271,7 @@
 ```
 1. Phase 6 — Network Policies: deny-all default per namespace, allow ingress + monitoring
 2. Phase 6 — ResourceQuota + LimitRange for workloads pool
-3. Phase 7 — Stateful Services: PostgreSQL 16 + Redis (Bitnami charts via ArgoCD)
+3. Phase 7 — Stateful Services: Redis (Bitnami charts via ArgoCD) + MinIO buckets
 4. Phase 7 — Deploy KEDA ScaledObject for worker autoscaling (KEDA already installed)
+5. Phase 4/Data — Vault secret injection for PostgreSQL
 ```
