@@ -2,7 +2,7 @@
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
 	argocd-login vault-seed github-secrets-ca seed-ca \
-	test test-ca-gateway test-vault test-velero test-network-policy test-undeploy \
+	test test-ca-gateway test-vault test-velero test-network-policy test-keda test-undeploy \
 	act-build act-ci
 
 CLUSTER_NAME     ?= atlas-idp
@@ -56,6 +56,7 @@ help:
 	@echo "  test-ca-gateway  Deploy CA gateway test and verify TLS endpoint"
 	@echo "  test-vault       Seed Vault, deploy injection pod, verify secrets"
 	@echo "  test-velero      Test Velero backup/restore to S3"
+	@echo "  test-keda        Test KEDA autoscaling via ConfigMap trigger"
 	@echo "  test-network-policy  Test NetworkPolicy isolation between pods"
 	@echo "  test-undeploy    Remove all test resources"
 	@echo ""
@@ -123,15 +124,19 @@ test-ca-gateway:
 test-vault:
 	./tests/scripts/vault-test.sh
 
-test: test-ca-gateway test-vault test-network-policy test-velero
+test: test-ca-gateway test-vault test-network-policy test-velero test-keda
 
 test-velero:
 	./tests/scripts/velero-test.sh
+
+test-keda:
+	./tests/scripts/keda-test.sh
 
 test-network-policy:
 	./tests/scripts/network-policy-test.sh
 
 test-undeploy:
+	kubectl delete -f tests/keda --ignore-not-found
 	kubectl delete -f tests/vault --ignore-not-found
 	kubectl delete -f tests/gateway --ignore-not-found
 	kubectl delete -f tests/network-policy --ignore-not-found

@@ -1,0 +1,21 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: keda-fast-scaler
+  namespace: keda-test
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: keda-fast-test
+  minReplicaCount: 0
+  maxReplicaCount: 5
+  pollingInterval: 2
+  cooldownPeriod: 2
+  triggers:
+    - type: cron
+      metadata:
+        timezone: UTC
+        start: "0 0 * * *"
+        end: "59 23 * * *"
+        desiredReplicas: "0"

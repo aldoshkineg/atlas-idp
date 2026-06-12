@@ -18,4 +18,5 @@ Each target deploys and verifies itself.
 | `make test-vault` | Seed Vault, deploy injection pod, verify secrets |
 | `make test-velero` | Backup pod with PVC to MinIO, disaster, restore |
 | `make test-network-policy` | Test NetworkPolicy isolation between 3 pods |
+| `make test-keda` | Test KEDA autoscaling via ConfigMap trigger |
 | `make test-undeploy` | Remove all test resources |
