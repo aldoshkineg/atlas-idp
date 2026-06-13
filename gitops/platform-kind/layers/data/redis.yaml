@@ -27,7 +27,9 @@ spec:
   ignoreDifferences:
     - group: apps
       kind: StatefulSet
-      managedFieldsMetadata: true
+      jqPathExpressions:
+        - .spec.persistentVolumeClaimRetentionPolicy
+        - .spec.podManagementPolicy
       jsonPointers:
         - /status
   destination:
