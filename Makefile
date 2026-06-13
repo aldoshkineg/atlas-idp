@@ -192,7 +192,7 @@ validate-yaml:
 
 validate-security:
 	@echo "==> Running security scan..."
-	@command -v trivy >/dev/null && (trivy config --severity HIGH,CRITICAL infra/; trivy config --severity HIGH,CRITICAL gitops/) || echo "trivy not installed, skip"
+	@command -v trivy >/dev/null && (trivy config --config security/trivy/trivy.yaml --severity HIGH,CRITICAL infra/; trivy config --config security/trivy/trivy.yaml --severity HIGH,CRITICAL gitops/) || echo "trivy not installed, skip"
 
 pre-commit:
 	pre-commit run --all-files

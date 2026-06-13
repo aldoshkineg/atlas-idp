@@ -25,4 +25,9 @@ spec:
     parameters:
       max_connections: "100"
       shared_buffers: "64MB"
-  plugins: []
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      enabled: true
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: production-db-backup
