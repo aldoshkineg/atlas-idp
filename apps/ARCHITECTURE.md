@@ -464,7 +464,7 @@ spec:
 
 Helm `values.yaml` contains **zero secrets**:
 
-````yaml
+```yaml
 # values.yaml — safe to commit to Git
 config:
   postgres:
@@ -476,6 +476,7 @@ config:
   minio:
     endpoint: minio:9000
   logLevel: info
+  ```
 
 ---
 
@@ -589,7 +590,115 @@ Security: Trivy scan → Cosign sign → Syft SBOM → push.
 
 ---
 
-## Database Schema
+## Production Considerations
+
+### 1. Queue Reliability (Redis)
+
+**Problem:** `BLPOP` removes a task from the queue before execution. Worker crash = data loss.
+
+**Solution:** Use `BLMOVE` to atomically move tasks from `text2pdf:jobs` (pending) to `text2pdf:processing`. On completion, remove from `processing`. If worker crashes, a TTL/recovery mechanism returns items to the main queue.
+
+Better alternative — **Redis Streams** with Consumer Groups:
+- `XREADGROUP` with auto-claim for failed consumers
+- `XPENDING` to inspect unacknowledged messages
+- Built-in ACK mechanism (`XACK`)
+- No manual re-queue logic needed
+
+**Implementation:** Phase 2 Worker.
+
+### 2. Safe Database Migrations
+
+**Problem:** Auto-migration on API startup causes race conditions when HPA runs multiple replicas (table locks, duplicate migrations).
+
+**Solution:** Remove migration from `cmd/main.go`. Create a separate **Kubernetes Job** for migrations, executed via **ArgoCD PreSync hook**:
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  template:
+    spec:
+      containers:
+        - name: migrate
+          image: ghcr.io/atlas-idp/backend-api:sha-xxx
+          command: ["/app", "migrate"]
+      restartPolicy: Never
+```
+
+Migration binary embedded via `//go:embed`, triggered by `go run ./cmd migrate` subcommand (cobra or `os.Args[1]`).
+
+**Implementation:** Phase 1 (binary supports `migrate` subcommand) + Phase 3 (Helm hook).
+
+### 3. Connection Pool Management (PostgreSQL)
+
+**Problem:** KEDA scaling to 20 workers + API pods can exhaust PostgreSQL connections.
+
+**Solution (application level):**
+```go
+// pgxpool with hard limit
+config, _ := pgxpool.ParseConfig(connString)
+config.MaxConns = 5  // per pod
+pool, _ := pgxpool.NewWithConfig(ctx, config)
+```
+
+**Solution (infrastructure level):** Enable **PgBouncer** in CNPG cluster:
+```yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+spec:
+  instances: 1
+  # ...
+  monitoring:
+    enablePodMonitor: true
+  # PgBouncer connection pooler
+  pooler:
+    mode: transaction
+    instances: 2
+    template:
+      spec:
+        containers:
+          - name: pgbouncer
+            image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbouncer:latest
+```
+
+**Implementation:** Phase 1 (MaxConns in code) + Phase 8 (PgBouncer in CNPG cluster).
+
+### 4. Object Storage Resilience (MinIO)
+
+**Problem:** Sudden worker scaling creates request storms, causing MinIO throttling or timeouts.
+
+**Solution:** Exponential backoff in `minio-go` client:
+```go
+// minio-go v7 retry config
+client, err := minio.New(endpoint, &minio.Options{
+    Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+    Secure: false,
+    // Built-in retry with exponential backoff
+    Transport: &http.Transport{
+        MaxIdleConns:    10,
+        IdleConnTimeout: 30 * time.Second,
+    },
+})
+```
+
+On top of transport config, wrap uploads with retry logic:
+```go
+const maxRetries = 3
+backoff := time.Second
+for i := range maxRetries {
+    _, err := client.PutObject(ctx, bucket, key, reader, size, opts)
+    if err == nil {
+        break
+    }
+    time.Sleep(backoff * (1 << i)) // 1s, 2s, 4s
+}
+```
+
+**Implementation:** Phase 2 Worker.
 
 ```sql
 CREATE TABLE documents (

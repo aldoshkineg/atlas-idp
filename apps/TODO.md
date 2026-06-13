@@ -50,8 +50,9 @@ apps/backend-api/
 
 - [ ] `go mod init`, Config with go-envconfig
 - [ ] `cmd/main.go` — startup, graceful shutdown, /healthz /readyz
-- [ ] `migrate.go` — `//go:embed migrations/*.sql`, auto-migrate on start
-- [ ] `repository.go` — pgx: CreateDocument, GetDocument, UpdateStatus
+- [ ] `cmd/main.go` — `os.Args[1] == "migrate"` subcommand for standalone migration Job
+- [ ] `migrate.go` — `//go:embed migrations/*.sql`, run on `migrate` subcommand (NOT on startup)
+- [ ] `repository.go` — pgx: CreateDocument, GetDocument, UpdateStatus, pgxpool with `MaxConns=5`
 - [ ] `queue.go` — Redis: PushTask (RPUSH `text2pdf:jobs`)
 - [ ] `handler.go` — chi:
   - `POST /api/v1/documents` → repo.Create + queue.PushTask, return {id}
@@ -102,14 +103,13 @@ apps/worker/
 - [ ] `repository.go` — pgx: UpdateDocumentStatus
 - [ ] `worker.go` — main loop:
   ```go
-  for {
-      job := queue.Receive()    // BLPOP text2pdf:jobs
-      pdf := pdf.Generate(job)  // text → PDF
-      storage.Upload(job, pdf)  // MinIO
-      repo.UpdateStatus(job)    // completed
-  }
+  // BLMOVE: atomic move from pending → processing, survives crashes
+  job, _ := client.BLMove(ctx, "text2pdf:jobs", "text2pdf:processing", "LEFT", "RIGHT", 0)
   ```
+  On success: process → `LREM text2pdf:processing` → next iteration
+  On failure: re-queue or DLQ after N attempts
 - [ ] Retry logic: 3 attempts, then push to `text2pdf:dlq`
+- [ ] **Exponential backoff** on MinIO upload: retry 3 times with 1s/2s/4s delay
 - [ ] Metrics: `jobs_processed_total{status="ok|fail"}`, `job_duration_seconds`
 - [ ] Dockerfile (same multi-stage pattern: chainguard, cache mounts, `-ldflags="-s -w"`)
 - [ ] **Test:** `go test ./...` — unit tests pass
@@ -125,6 +125,7 @@ apps/worker/
   - `templates/service.yaml`
   - `templates/servicemonitor.yaml`
   - `templates/vault-role.yaml`
+  - `templates/migration-job.yaml` — ArgoCD PreSync hook, runs `./app migrate`, deletes on success
 - [ ] `apps/charts/worker/` — same structure
 - [ ] `apps/charts/frontend/` — same (minimal)
 - [ ] **Test:** `helm lint apps/charts/*` — no errors
@@ -191,6 +192,7 @@ apps/worker/
 
 ## Phase 8 — Platform Hardening
 
+- [ ] **PgBouncer**: enable CNPG connection pooler — `pooler.mode: transaction`, 2 instances
 - [ ] NetworkPolicies:
   ```
   frontend → api
