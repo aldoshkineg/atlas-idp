@@ -25,16 +25,77 @@ spec:
       targetRevision: main
       ref: values
   ignoreDifferences:
-    # 1. Игнорируем все поля в StatefulSet, которые мешают работе ArgoCD
+
+    # -----------------------------
+    # GLOBAL SAFE IGNORES
+    # -----------------------------
+    - group: "*"
+      kind: "*"
+      jsonPointers:
+        - /status
+        - /metadata/resourceVersion
+        - /metadata/generation
+        - /metadata/managedFields
+
+    # -----------------------------
+    # STATEFULSET (Redis master/replica)
+    # -----------------------------
     - group: apps
       kind: StatefulSet
       jsonPointers:
-        - /spec/replicas
-        - /spec/template/metadata/annotations
+        # Bitnami checksum annotations
+        - /spec/template/metadata/annotations/checksum~1config
+        - /spec/template/metadata/annotations/checksum~1scripts
+
+        # Common SSA noise fields
+        - /status
+
+    # -----------------------------
+    # SECRET (Bitnami Redis auth)
+    # -----------------------------
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        # Redis password & replication auth are often generated
+        - /data/redis-password
+        - /data/replication-password
+        - /metadata/annotations
+
+    # -----------------------------
+    # CONFIGMAP (scripts / config templates)
+    # -----------------------------
+    - group: ""
+      kind: ConfigMap
       jqPathExpressions:
-        - .spec.updateStrategy
-      managedFieldsManagers:
-        - "*"
+        # Ignore ordering / checksum-style metadata drift
+        - '.metadata.annotations["checksum/config"]'
+        - '.metadata.annotations["checksum/scripts"]'
+
+    # -----------------------------
+    # HPA (metric ordering problem)
+    # -----------------------------
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jqPathExpressions:
+        - '.spec.metrics'
+
+    # -----------------------------
+    # SERVICE (annotations + LB controller noise)
+    # -----------------------------
+    - group: ""
+      kind: Service
+      jsonPointers:
+        - /metadata/annotations
+        - /status
+
+    # -----------------------------
+    # PDB (minor controller drift)
+    # -----------------------------
+    - group: policy
+      kind: PodDisruptionBudget
+      jsonPointers:
+        - /status
+        - /metadata/annotations
   destination:
     server: https://kubernetes.default.svc
     namespace: redis
