@@ -168,10 +168,10 @@
 
 ## Phase 7 — Workloads Layer (text2pdf Platform)
 
-- [~] App scaffolds exist (`apps/`, `gitops/workloads/layers/`)
+- [x] App scaffolds exist (`apps/`, `gitops/workloads/layers/`)
 - [ ] **Shared Stateful Backends**
-  - [x] **PostgreSQL 16 (Bitnami):** Deployed via ArgoCD (sync-wave 7). PVC 8Gi, probes, postgres-exporter + ServiceMonitor, Velero pre-hook pg_dump. Vault secret injection pending.
-  - [ ] **Redis (Bitnami):** Enable AOF persistence for queue stability and deploy `redis-exporter`
+  - [x] **CloudNativePG 17.6:** Operator 1.29.1, cluster `production-db` (1 instance, csi-hostpath-sc). ScheduledBackup (weekly, WAL archiving via barman-cloud plugin, MinIO `cnpg-backups`). PodMonitor for Prometheus. PG credentials in Vault pending.
+  - [x] **Redis (Bitnami 24.0.8):** Deployed (standalone, persistence 256Mi csi-hostpath-sc, probes, PDB, ServiceMonitor, `redis-exporter` built-in). `[ ]` Enable AOF persistence for queue stability.
   - [ ] **MinIO:** Create S3 buckets (`text2pdf-inputs`/`outputs`) and setup a 7-day auto-purge lifecycle policy
 - [ ] **backend-api (Go 1.24)**
   - [ ] Multi-stage non-root Dockerfile, Helm chart, Deployment, Service, HPA, PDB
@@ -279,10 +279,10 @@
 ## Next Sprint Focus
 
 ```
-1. Phase 4/Data — separate project database with scheduled backup via CNPG plugin
-2. Phase 6 — Network Policies: deny-all default per namespace, allow ingress + monitoring
-3. Phase 6 — ResourceQuota + LimitRange for workloads pool
-4. Phase 7 — Stateful Services: Redis (Bitnami charts via ArgoCD) + MinIO buckets
-5. Phase 7 — Deploy KEDA ScaledObject for worker autoscaling (KEDA already installed)
-6. Phase 4/Data — Vault secret injection for PostgreSQL
+1. [x] Phase 4/Data — separate project database with scheduled backup via CNPG plugin
+2. [ ] Phase 6 — Network Policies: deny-all default per namespace, allow ingress + monitoring
+3. [ ] Phase 6 — ResourceQuota + LimitRange for workloads pool
+4. [x] Phase 7 — Redis deployed (Bitnami, standalone, metrics); [ ] MinIO buckets + lifecycle
+5. [ ] Phase 7 — Deploy KEDA ScaledObject for worker autoscaling (KEDA already installed)
+6. [ ] Phase 4/Data — Vault secret injection for PostgreSQL
 ```
