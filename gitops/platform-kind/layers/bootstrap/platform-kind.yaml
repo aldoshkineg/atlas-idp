@@ -51,7 +51,7 @@ spec:
     - ghcr.io/nginx/charts
     - ghcr.io/bank-vaults/helm-charts
     - https://kedacore.github.io/charts
-    - https://charts.bitnami.com/bitnami
+    - registry-1.docker.io/bitnamicharts
     - https://cloudnative-pg.github.io/charts
 
   clusterResourceWhitelist:
