@@ -29,6 +29,7 @@ spec:
       kind: StatefulSet
       jsonPointers:
         - /status
+        - /spec/template/metadata/labels/controller-revision-hash
   destination:
     server: https://kubernetes.default.svc
     namespace: redis
