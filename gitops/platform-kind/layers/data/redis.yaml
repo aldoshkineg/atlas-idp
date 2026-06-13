@@ -14,7 +14,7 @@ metadata:
 spec:
   project: platform-kind
   sources:
-    - repoURL: registry-1.docker.io/bitnamicharts
+    - repoURL: oci://registry-1.docker.io/bitnamicharts
       chart: redis
       targetRevision: 24.0.8
       helm:
