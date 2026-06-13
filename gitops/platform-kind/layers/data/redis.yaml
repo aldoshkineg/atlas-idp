@@ -49,6 +49,33 @@ spec:
 
         # Common SSA noise fields
         - /status
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        # Helm may emit explicit null for empty affinities, K8s strips them
+        - '.spec.template.spec.affinity'
+        # Empty arrays vs absent
+        - '.spec.template.spec.securityContext.supplementalGroups'
+        - '.spec.template.spec.securityContext.sysctls'
+        # Kubernetes defaults on containers
+        - '.spec.template.spec.containers[].ports[].protocol'
+        - '.spec.template.spec.containers[].terminationMessagePath'
+        - '.spec.template.spec.containers[].terminationMessagePolicy'
+        - '.spec.template.spec.containers[].readinessProbe.httpGet.scheme'
+        # Kubernetes defaults on pod spec
+        - '.spec.template.spec.dnsPolicy'
+        - '.spec.template.spec.restartPolicy'
+        - '.spec.template.spec.schedulerName'
+        - '.spec.template.spec.serviceAccount'
+        # Kubernetes defaults on volumes
+        - '.spec.template.spec.volumes[].secret.defaultMode'
+        - '.spec.template.spec.volumes[].configMap.defaultMode'
+        # Kubernetes defaults on StatefulSet spec
+        - '.spec.podManagementPolicy'
+        - '.spec.persistentVolumeClaimRetentionPolicy'
+        - '.spec.volumeClaimTemplates[].spec.volumeMode'
+        # PVC lifecyle status
+        - '.spec.volumeClaimTemplates[].status'
 
     # -----------------------------
     # SECRET (Bitnami Redis auth)
