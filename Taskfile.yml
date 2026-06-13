@@ -1,0 +1,124 @@
+# https://taskfile.dev
+version: "3"
+
+silent: true
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  # ---- Docker Compose ----
+
+  dc-up:
+    desc: Start local dev dependencies (postgres, redis, minio)
+    cmds:
+      - docker compose up -d
+
+  dc-down:
+    desc: Stop local dev dependencies
+    cmds:
+      - docker compose down
+
+  dc-logs:
+    desc: Tail logs of local dev dependencies
+    cmds:
+      - docker compose logs -f
+
+  # ---- Run locally (requires dc-up) ----
+
+  run-api:
+    desc: Run backend-api locally with hot reload
+    cmds:
+      - go run ./apps/backend-api/cmd
+
+  run-worker:
+    desc: Run worker locally
+    cmds:
+      - go run ./apps/worker/cmd
+
+  # ---- Build (Docker BuildKit) ----
+
+  build-api:
+    desc: Build backend-api image with BuildKit
+    cmds:
+      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/backend-api:dev apps/backend-api
+
+  build-worker:
+    desc: Build worker image with BuildKit
+    cmds:
+      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/worker:dev apps/worker
+
+  build-all:
+    desc: Build all workload images
+    cmds:
+      - task: build-api
+      - task: build-worker
+
+  # ---- Kind load ----
+
+  kind-load-api:
+    desc: Load backend-api image into kind cluster
+    cmds:
+      - kind load docker-image ghcr.io/atlas-idp/backend-api:dev
+
+  kind-load-worker:
+    desc: Load worker image into kind cluster
+    cmds:
+      - kind load docker-image ghcr.io/atlas-idp/worker:dev
+
+  kind-load-all:
+    desc: Load all workload images into kind cluster
+    cmds:
+      - task: kind-load-api
+      - task: kind-load-worker
+
+  # ---- Test ----
+
+  test:
+    desc: Run all unit tests
+    cmds:
+      - go test ./apps/... -race -shuffle=on -count=1
+
+  test-integration:
+    desc: Run integration tests (requires dc-up: postgres, redis, minio)
+    cmds:
+      - go test -tags=integration ./apps/... -count=1
+
+  test-all:
+    desc: Run unit + integration tests
+    cmds:
+      - task: test
+      - task: test-integration
+
+  # ---- Lint ----
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./apps/...
+
+  helm-lint:
+    desc: Lint all Helm charts
+    cmds:
+      - helm lint apps/charts/*
+
+  yamllint:
+    desc: Lint all YAML files in gitops
+    cmds:
+      - yamllint -c .yamllint.yml gitops/workloads/
+
+  # ---- Observability ----
+
+  grafana-dashboards:
+    desc: Validate Grafana dashboard JSONs
+    cmds:
+      - echo "Placeholder: validate apps/grafana/*.json"
+
+  # ---- Vault ----
+
+  vault-bootstrap:
+    desc: Bootstrap Vault policies and roles for workloads
+    cmds:
+      - bash security/vault-bootstrap-workloads.sh
