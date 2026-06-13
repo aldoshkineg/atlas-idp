@@ -25,12 +25,16 @@ spec:
       targetRevision: main
       ref: values
   ignoreDifferences:
+    # 1. Игнорируем все поля в StatefulSet, которые мешают работе ArgoCD
     - group: apps
       kind: StatefulSet
+      jsonPointers:
+        - /spec/replicas
+        - /spec/template/metadata/annotations
+      jqPathExpressions:
+        - .spec.updateStrategy
       managedFieldsManagers:
         - "*"
-      jsonPointers:
-        - /status
   destination:
     server: https://kubernetes.default.svc
     namespace: redis
