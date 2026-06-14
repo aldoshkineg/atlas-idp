@@ -1,124 +1,88 @@
-# https://taskfile.dev
 version: "3"
-
-silent: true
 
 tasks:
   default:
-    desc: Show available tasks
-    cmds:
-      - task --list
+    cmd: go-task --list
 
-  # ---- Docker Compose ----
-
+  # --- Docker Compose ---
   dc-up:
-    desc: Start local dev dependencies (postgres, redis, minio)
+    desc: Start postgres, redis, minio containers
     cmds:
       - docker compose up -d
+    silent: false
 
   dc-down:
-    desc: Stop local dev dependencies
+    desc: Stop and remove all containers
     cmds:
       - docker compose down
+    silent: false
 
   dc-logs:
-    desc: Tail logs of local dev dependencies
+    desc: Follow container logs
     cmds:
       - docker compose logs -f
+    silent: false
 
-  # ---- Run locally (requires dc-up) ----
+  dc-ps:
+    desc: List running containers
+    cmds:
+      - docker compose ps
+    silent: false
 
+  dc-restart:
+    desc: Restart all containers
+    cmds:
+      - docker compose restart
+    silent: false
+
+  # --- Run Services ---
   run-api:
-    desc: Run backend-api locally with hot reload
+    desc: Start backend API (requires dc-up)
     cmds:
       - go run ./apps/backend-api/cmd
+    silent: false
 
   run-worker:
-    desc: Run worker locally
+    desc: Start worker (requires dc-up)
     cmds:
       - go run ./apps/worker/cmd
+    silent: false
 
-  # ---- Build (Docker BuildKit) ----
-
-  build-api:
-    desc: Build backend-api image with BuildKit
-    cmds:
-      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/backend-api:dev apps/backend-api
-
-  build-worker:
-    desc: Build worker image with BuildKit
-    cmds:
-      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/worker:dev apps/worker
-
-  build-all:
-    desc: Build all workload images
-    cmds:
-      - task: build-api
-      - task: build-worker
-
-  # ---- Kind load ----
-
-  kind-load-api:
-    desc: Load backend-api image into kind cluster
-    cmds:
-      - kind load docker-image ghcr.io/atlas-idp/backend-api:dev
-
-  kind-load-worker:
-    desc: Load worker image into kind cluster
-    cmds:
-      - kind load docker-image ghcr.io/atlas-idp/worker:dev
-
-  kind-load-all:
-    desc: Load all workload images into kind cluster
-    cmds:
-      - task: kind-load-api
-      - task: kind-load-worker
-
-  # ---- Test ----
-
+  # --- Testing ---
   test:
     desc: Run all unit tests
     cmds:
-      - go test ./apps/... -race -shuffle=on -count=1
+      - go test ./... -race -shuffle=on -count=1
+    silent: false
 
   test-integration:
-    desc: Run integration tests (requires dc-up: postgres, redis, minio)
+    desc: Run integration tests (requires dc-up)
     cmds:
-      - go test -tags=integration ./apps/... -count=1
+      - go test ./... -tags=integration -race -shuffle=on -count=1
+    silent: false
 
-  test-all:
-    desc: Run unit + integration tests
+  # --- Build ---
+  build-api:
+    desc: Build backend-api Docker image
     cmds:
-      - task: test
-      - task: test-integration
+      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/backend-api:dev apps/backend-api
+    silent: false
 
-  # ---- Lint ----
+  build-worker:
+    desc: Build worker Docker image
+    cmds:
+      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/worker:dev apps/worker
+    silent: false
+
+  kind-load:
+    desc: Load dev images into kind cluster
+    cmds:
+      - kind load docker-image ghcr.io/atlas-idp/backend-api:dev
+      - kind load docker-image ghcr.io/atlas-idp/worker:dev
+    silent: false
 
   lint:
     desc: Run golangci-lint
     cmds:
-      - golangci-lint run ./apps/...
-
-  helm-lint:
-    desc: Lint all Helm charts
-    cmds:
-      - helm lint apps/charts/*
-
-  yamllint:
-    desc: Lint all YAML files in gitops
-    cmds:
-      - yamllint -c .yamllint.yml gitops/workloads/
-
-  # ---- Observability ----
-
-  grafana-dashboards:
-    desc: Validate Grafana dashboard JSONs
-    cmds:
-      - echo "Placeholder: validate apps/grafana/*.json"
-
-  # ---- Vault ----
-
-  vault-bootstrap:
-    desc: Bootstrap Vault policies and roles for workloads
-    cmds:
-      - bash security/vault-bootstrap-workloads.sh
+      - golangci-lint run ./...
+    silent: false

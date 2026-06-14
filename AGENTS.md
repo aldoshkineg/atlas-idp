@@ -133,3 +133,8 @@ Pre-commit runs on every commit:
   ObjectStore `production-db-backup`, Secret `production-db-backup`, ScheduledBackup `production-db-weekly` — recreated by ArgoCD from git HEAD, pending cleanup commit.
 - **MinIO:** bucket `cnpg-backups`, endpoint `http://minio.minio.svc.cluster.local:9000`, creds `minioadmin`/`minioadminpassword`
 - **Next commit removes** all backup CRs from gitops; infra cluster will run as plain PostgreSQL without plugins.
+
+### Task Runner
+- `task` on this system is **taskwarrior** (task manager), NOT go-task.
+- Use **`go-task`** (binary at `~/.local/bin/go-task`) for `Taskfile.yml` commands.
+- Example: `go-task dc-ps`, `go-task dc-up`, `go-task test`.
