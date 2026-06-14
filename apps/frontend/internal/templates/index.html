@@ -1,0 +1,18 @@
+{{define "content"}}
+<div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-medium text-gray-900 mb-4">Generate PDF</h2>
+    <form hx-post="/documents" hx-target="#result" hx-swap="innerHTML" class="space-y-4">
+        <div>
+            <label for="text" class="block text-sm font-medium text-gray-700">Enter text to convert to PDF</label>
+            <textarea id="text" name="text" rows="10" required
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm font-mono"
+                placeholder="Type or paste your text here..."></textarea>
+        </div>
+        <button type="submit"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Generate PDF
+        </button>
+    </form>
+    <div id="result" class="mt-6"></div>
+</div>
+{{end}}

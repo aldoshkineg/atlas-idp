@@ -79,15 +79,24 @@ tasks:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadminpassword
 
+  run-frontend:
+    desc: Start frontend on host (requires dc-up + run-api)
+    dir: frontend
+    cmds:
+      - go run ./cmd
+    env:
+      BACKEND_API_URL: http://localhost:8080
+
   # ────────────────────────────────────────────
-  # Testing (both Go modules)
+  # Testing (all Go modules)
   # ────────────────────────────────────────────
 
   test:
-    desc: Run all unit tests in both modules
+    desc: Run all unit tests in all modules
     cmds:
       - cd backend-api && go test ./... -race -shuffle=on -count=1
       - cd worker && go test ./... -race -shuffle=on -count=1
+      - cd frontend && go test ./... -race -shuffle=on -count=1
 
   test-integration:
     desc: Run Go integration tests in both modules (requires dc-up)
@@ -106,16 +115,18 @@ tasks:
   # ────────────────────────────────────────────
 
   lint:
-    desc: Run golangci-lint in both modules
+    desc: Run golangci-lint in all modules
     cmds:
       - cd backend-api && golangci-lint run ./...
       - cd worker && golangci-lint run ./...
+      - cd frontend && golangci-lint run ./...
 
   vet:
-    desc: Run go vet in both modules
+    desc: Run go vet in all modules
     cmds:
       - cd backend-api && go vet ./...
       - cd worker && go vet ./...
+      - cd frontend && go vet ./...
 
   validate:
     desc: Run lint, vet, and unit tests
@@ -138,11 +149,17 @@ tasks:
     cmds:
       - docker buildx build --load -t ghcr.io/atlas-idp/worker:dev ./worker
 
+  build-frontend:
+    desc: Build frontend Docker image
+    cmds:
+      - docker buildx build --load -t ghcr.io/atlas-idp/frontend:dev ./frontend
+
   build-all:
     desc: Build all Docker images
     cmds:
       - task: build-api
       - task: build-worker
+      - task: build-frontend
 
   kind-load:
     desc: Load dev images into kind cluster
@@ -151,6 +168,7 @@ tasks:
     cmds:
       - kind load docker-image ghcr.io/atlas-idp/backend-api:dev
       - kind load docker-image ghcr.io/atlas-idp/worker:dev
+      - kind load docker-image ghcr.io/atlas-idp/frontend:dev
 
   # ────────────────────────────────────────────
   # Cleanup

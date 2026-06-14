@@ -135,7 +135,53 @@ apps/worker/
 
 ---
 
-## Phase 3 — Helm Charts
+## Phase 3 — Frontend (Go + HTMX)
+
+**Stack:** Go 1.26, chi, html/template, HTMX, Tailwind CSS (CDN).
+
+```
+apps/frontend/
+├── cmd/
+│   └── main.go
+├── internal/
+│   ├── config.go
+│   ├── server.go
+│   ├── handlers/
+│   │   ├── page.go              # GET / — главная форма
+│   │   └── document.go          # POST /documents, GET /documents/{id}/status (HTMX)
+│   ├── templates/
+│   │   ├── base.html            # общий layout (DOCTYPE, head, htmx.min.js CDN, Tailwind CDN)
+│   │   ├── index.html           # форма textarea + кнопка Submit
+│   │   ├── status.html          # фрагмент: спиннер → hx-get polling
+│   │   ├── status_pending.html  # фрагмент: продолжаем poll
+│   │   └── download.html        # фрагмент: ссылка на скачивание + verify
+│   └── client/
+│       └── api.go               # HTTP-клиент к backend-api (retry с экспоненциальным backoff, timeouts)
+├── Dockerfile                   # golang:1.26 → chainguard/static
+├── go.mod
+├── .env.example                 # BACKEND_API_URL=http://localhost:8080
+```
+
+- [x] `go mod init`, Config (`BACKEND_API_URL`, `PORT`)
+- [x] `cmd/main.go` — chi router, graceful shutdown, /healthz /readyz
+- [x] `internal/client/api.go` — `CreateDocument(text)`, `GetDocument(id)`, `GetDownloadURL(id)`, `VerifyDocument(id)` через HTTP к backend-api
+- [x] `internal/templates/base.html` — DOCTYPE, `<script src="https://unpkg.com/htmx.org@2.0.4">`, `<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">`
+- [x] `internal/templates/index.html` — `<form hx-post="/documents" hx-target="#result" hx-swap="innerHTML">` с textarea + submit
+- [x] `internal/templates/status.html` — `<div hx-get="/documents/{id}/status" hx-trigger="load delay:1s" hx-swap="outerHTML">Processing...</div>`
+- [x] `internal/templates/status_pending.html` — фрагмент, продолжающий poll с HX-Retarget
+- [x] `internal/templates/download.html` — ссылка скачивания + кнопка verify (hx-get)
+- [x] `internal/handlers/page.go` — `GET /` → рендер index.html
+- [x] `internal/handlers/document.go` — `POST /documents` → вызов api.CreateDocument → фрагмент status.html; `GET /documents/{id}/status` → вызов api.GetDocument → download.html или status_pending.html; `GET /documents/{id}/download` → вызов api.GetDownloadURL, 303 redirect на полученный MinIO URL
+- [x] `internal/server.go` — сборка роутера, middleware (slog, request_id, duration)
+- [x] Dockerfile — multi-stage (golang:1.26 → chainguard/static, `-ldflags="-s -w"`, non-root)
+- [x] `.env.example` — `BACKEND_API_URL=http://localhost:8080`
+- [x] Metriки: `http_requests_total`, `http_request_duration_seconds`, `http_requests_in_flight`, `frontend_backend_requests_total`
+- [x] **Test:** `go test ./...` — unit-тесты обработчиков с mock client
+- [x] **Test:** `go vet ./...` — без ошибок
+
+---
+
+## Phase 4 — Helm Charts
 
 - [ ] `apps/charts/backend-api/`:
   - `Chart.yaml`, `values.yaml` (zero secrets — host/port/logLevel only)
@@ -151,7 +197,7 @@ apps/worker/
 
 ---
 
-## Phase 4 — GitOps (ArgoCD)
+## Phase 5 — GitOps (ArgoCD)
 
 - [ ] ArgoCD Application manifests in `gitops/workloads/layers/`:
   - `backend-api.yaml`, `worker.yaml`, `frontend.yaml`
@@ -174,7 +220,7 @@ apps/worker/
 
 ---
 
-## Phase 5 — Vault Integration
+## Phase 6 — Vault Integration
 
 - [ ] Vault policy: `workloads-text2pdf` — read `kv/data/text2pdf/*`
 - [ ] K8s auth role: `text2pdf` — bound to SA in `backend-api`, `worker` namespaces
@@ -186,7 +232,7 @@ apps/worker/
 
 ---
 
-## Phase 6 — MinIO Buckets
+## Phase 7 — MinIO Buckets
 
 - [ ] Create `text2pdf-inputs` (7-day auto-purge)
 - [ ] Create `text2pdf-outputs` (30-day retention)
@@ -195,7 +241,7 @@ apps/worker/
 
 ---
 
-## Phase 7 — Observability
+## Phase 8 — Observability
 
 - [ ] Grafana dashboards:
   - Application: RPS, latency p50/p95/p99, error rate, queue depth
@@ -208,7 +254,7 @@ apps/worker/
 
 ---
 
-## Phase 8 — Platform Hardening
+## Phase 9 — Platform Hardening
 
 - [ ] **PgBouncer**: enable CNPG connection pooler — `pooler.mode: transaction`, 2 instances
 - [ ] NetworkPolicies:
@@ -229,7 +275,7 @@ apps/worker/
 
 ---
 
-## Phase 9 — CI/CD
+## Phase 10 — CI/CD
 
 **Goal:** Modern container build pipeline — BuildKit, GHA cache, Trivy, Cosign, GHCR.
 
@@ -294,11 +340,12 @@ apps/worker/
 
 | Area                                | %   |
 | ----------------------------------- | --- |
-| Go code (API + Worker)              | 15% |
+| Go code (API + Worker)              | 10% |
 | PDF signing (signer.go, verify)     |  5% |
+| Frontend (Go + HTMX)              | 10% |
 | Helm charts                         | 15% |
 | ArgoCD manifests + GitOps           | 20% |
 | Vault policies + injection          | 15% |
 | Monitoring/Logging/Tracing          | 15% |
-| KEDA ScaledObject                   | 10% |
-| NetworkPolicies + Velero + Security | 10% |
+| KEDA ScaledObject                   |  5% |
+| NetworkPolicies + Velero + Security |  5% |

@@ -75,9 +75,9 @@ services:
     ports:
       - "9090:9090"
     depends_on:
+      minio-setup:
+        condition: service_completed_successfully
       redis:
-        condition: service_healthy
-      minio:
         condition: service_healthy
     environment:
       REDIS_HOST: redis
@@ -114,7 +114,36 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      DOWNLOAD_URL_PREFIX: http://minio:9000
+      DOWNLOAD_URL_PREFIX: http://localhost:9000
+
+  minio-setup:
+    image: minio/mc:latest
+    container_name: text2pdf-minio-setup
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadminpassword} &&
+      mc mb --ignore-existing myminio/text2pdf-outputs &&
+      mc anonymous set download myminio/text2pdf-outputs &&
+      echo 'MinIO setup complete'
+      "
+
+  frontend:
+    image: ghcr.io/atlas-idp/frontend:dev
+    container_name: text2pdf-frontend
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    depends_on:
+      backend-api:
+        condition: service_started
+    environment:
+      HTTP_PORT: 8081
+      LOG_LEVEL: info
+      BACKEND_API_URL: http://backend-api:8080
 
 volumes:
   pgdata:

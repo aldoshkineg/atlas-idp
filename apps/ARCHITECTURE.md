@@ -27,7 +27,7 @@ Business logic — minimal, just enough to exercise the platform:
          ┌──────────────┴──────────────┐
          │                             │
       Frontend                     Backend API
-      (React 19)                    (Go 1.25)
+      (Go + HTMX)                    (Go 1.25)
                                         │
                       ┌────────────────┼──────────────┐
                       │                │              │
@@ -68,9 +68,10 @@ User ──POST /documents──▶ Backend API
                                           │
                                           └── UPDATE PostgreSQL (status: completed | failed)
 
-User ──GET /documents/{id}       ──▶ Backend API ──▶ PostgreSQL
-User ──GET /documents/{id}/download ──▶ Backend API ──▶ DOWNLOAD_URL_PREFIX + s3_path
-User ──GET /documents/{id}/verify ────▶ Backend API
+User ──GET /documents/{id}                  ──▶ Frontend ──▶ Backend API ──▶ PostgreSQL
+User ──GET /documents/{id}/download         ──▶ Frontend ──▶ Backend API ──▶ {"url"} ──▶ 303 redirect
+                                                                                    ──▶ Gateway ──▶ MinIO
+User ──GET /documents/{id}/verify           ──▶ Frontend ──▶ Backend API
                             │
                             └── Check PG document status
                                 └── completed → {valid: true}
@@ -81,7 +82,7 @@ User ──GET /documents/{id}/verify ────▶ Backend API
 
 | Component   | Stack                                                | Responsibility                                   |
 | ----------- | ---------------------------------------------------- | ------------------------------------------------ |
-| Frontend    | React 19 + Vite 7 + TypeScript 5.9 + Nginx           | Web UI: text input, status polling, PDF download |
+| Frontend    | Go 1.26 + chi + html/template + HTMX | Web UI: text input, status polling, PDF download |
 | Backend API | Go 1.26                                              | REST API, metadata in PG, task queue to Redis    |
 | Worker      | Go 1.26 + gofpdf + digitorus/pdfsign                 | Redis consumer, PDF generation, signing, MinIO upload (no PG access) |
 | Signer      | digitorus/pdfsign, X.509 (RSA 2048, SHA-256)         | CMS/PAdES digital signature appended to PDF      |
@@ -100,7 +101,7 @@ User ──GET /documents/{id}/verify ────▶ Backend API
 | ----------- | -------------------------------- | --------------------- |
 | Backend API | Go 1.26                          | distroless/chainguard |
 | Worker      | Go 1.26                          | distroless/chainguard |
-| Frontend    | TypeScript 5.9, React 19, Vite 7 | nginx:alpine          |
+| Frontend    | Go 1.26                          | chainguard/static     |
 
 ### Backend Libraries (Go 1.26)
 
@@ -130,6 +131,15 @@ User ──GET /documents/{id}/verify ────▶ Backend API
 | `sethvargo/go-envconfig`    | Configuration                  |
 | `prometheus/client_golang`  | Metrics (+ signing metrics)    |
 | `go.opentelemetry.io/otel`  | Tracing                        |
+| `log/slog`                  | Structured logging             |
+
+### Frontend Libraries (Go 1.26)
+
+| Library                     | Purpose                        |
+| --------------------------- | ------------------------------ |
+| `go-chi/chi/v5`             | HTTP router                    |
+| `sethvargo/go-envconfig`    | Configuration                  |
+| `prometheus/client_golang`  | Metrics                        |
 | `log/slog`                  | Structured logging             |
 
 ---
@@ -814,8 +824,14 @@ atlas-idp/
 │   │   │   ├── pdf.go
 │   │   │   └── signer.go         # PDF signing (digitorus/pdfsign)
 │   │   └── Dockerfile
-│   ├── frontend/          # React 19 + Vite 7
-│   │   ├── src/
+│   ├── frontend/          # Go + HTMX
+│   │   ├── cmd/
+│   │   ├── internal/
+│   │   │   ├── config.go
+│   │   │   ├── server.go
+│   │   │   ├── handlers/
+│   │   │   ├── templates/
+│   │   │   └── client/
 │   │   └── Dockerfile
 │   ├── cronjob/           # S3 cleanup / maintenance
 │   ├── charts/            # Helm charts

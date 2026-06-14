@@ -181,8 +181,8 @@
   - [ ] Queue consumer loop (`BLPOP`), PDF generation (`gofpdf`), state updates in Postgres
   - [ ] Implement robust Graceful Shutdown to prevent raw process termination during generation
   - [ ] Apply `topologySpreadConstraints` and expose `/metrics` endpoint
-- [ ] **frontend (React 19 / Vite 7 / Nginx)**
-  - [ ] Upload interface, polling status checks, and PDF viewing pane
+- [ ] **frontend (Go + HTMX)**
+  - [ ] HTML form with HTMX polling, status updates, PDF download link
   - [ ] Route traffic using Gateway API `HTTPRoute` resources (bind frontend to `/`, API to `/api`)
 - [ ] **Autoscaling (KEDA)**
   - [ ] Deploy KEDA `ScaledObject` pointing to the worker deployment triggered by Redis queue length
