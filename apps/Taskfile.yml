@@ -1,116 +1,158 @@
 version: "3"
 
 tasks:
+
+  # ────────────────────────────────────────────
+  # Default
+  # ────────────────────────────────────────────
+
   default:
     cmd: go-task --list
 
-  # --- Docker Compose ---
+  # ────────────────────────────────────────────
+  # Docker Compose (tests/integration)
+  # ────────────────────────────────────────────
+
   dc-up:
     desc: Start full stack (postgres, redis, minio, backend-api, worker)
     dir: tests/integration
     cmds:
       - docker compose up -d
-    silent: false
 
   dc-down:
     desc: Stop and remove all containers
     dir: tests/integration
     cmds:
       - docker compose down
-    silent: false
 
   dc-logs:
     desc: Follow container logs
     dir: tests/integration
     cmds:
       - docker compose logs -f
-    silent: false
 
   dc-ps:
     desc: List running containers
     dir: tests/integration
     cmds:
       - docker compose ps
-    silent: false
 
   dc-restart:
     desc: Restart all containers
     dir: tests/integration
     cmds:
       - docker compose restart
-    silent: false
 
-  # --- Certificates ---
+  # ────────────────────────────────────────────
+  # Certificates
+  # ────────────────────────────────────────────
+
   gen-certs:
-    desc: Generate local self-signed certificates for development
+    desc: Generate self-signed certs for local dev signing (needed by run-worker)
     cmds:
       - mkdir -p .certs
       - openssl req -x509 -newkey rsa:2048 -keyout .certs/tls.key -out .certs/tls.crt -days 365 -nodes -subj "/CN=text2pdf-worker-dev/O=Atlas IDP Local"
 
-  # --- Run Services (host, outside containers) ---
+  # ────────────────────────────────────────────
+  # Run Services on Host (requires dc-up)
+  # ────────────────────────────────────────────
+
   run-api:
     desc: Start backend API on host (requires dc-up)
     cmds:
       - go run ./backend-api/cmd
-    silent: false
+    env:
+      POSTGRES_PASSWORD: text2pdf
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadminpassword
+      DOWNLOAD_URL_PREFIX: http://localhost:9000
 
   run-worker:
     desc: Start worker on host (requires dc-up, gen-certs)
     cmds:
       - go run ./worker/cmd
     env:
-      SIGN_CERT_PATH: '.certs/tls.crt'
-      SIGN_KEY_PATH: '.certs/tls.key'
+      SIGN_CERT_PATH: .certs/tls.crt
+      SIGN_KEY_PATH: .certs/tls.key
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadminpassword
 
-  # --- Testing ---
+  # ────────────────────────────────────────────
+  # Testing
+  # ────────────────────────────────────────────
+
   test:
     desc: Run all unit tests
     cmds:
       - go test ./... -race -shuffle=on -count=1
-    silent: false
 
   test-integration:
     desc: Run Go integration tests (requires dc-up)
     cmds:
       - go test ./... -tags=integration -race -shuffle=on -count=1
-    silent: false
 
   test-infra:
-    desc: Run infrastructure smoke tests (curl, dc)
+    desc: Run infrastructure smoke tests (curl against docker compose)
     dir: tests/integration
     cmds:
       - ./test-infra.sh
-    silent: false
 
-  # --- Build ---
+  # ────────────────────────────────────────────
+  # Lint / Vet / Validate
+  # ────────────────────────────────────────────
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  validate:
+    desc: Run lint, vet, and unit tests
+    cmds:
+      - task: lint
+      - task: vet
+      - task: test
+
+  # ────────────────────────────────────────────
+  # Build (Docker images)
+  # ────────────────────────────────────────────
+
   build-api:
     desc: Build backend-api Docker image
     cmds:
       - docker buildx build --load -t ghcr.io/atlas-idp/backend-api:dev ./backend-api
-    silent: false
 
   build-worker:
     desc: Build worker Docker image
     cmds:
       - docker buildx build --load -t ghcr.io/atlas-idp/worker:dev ./worker
-    silent: false
 
   build-all:
     desc: Build all Docker images
     cmds:
       - task: build-api
       - task: build-worker
-    silent: false
 
   kind-load:
     desc: Load dev images into kind cluster
+    deps:
+      - build-all
     cmds:
       - kind load docker-image ghcr.io/atlas-idp/backend-api:dev
       - kind load docker-image ghcr.io/atlas-idp/worker:dev
-    silent: false
 
-  lint:
-    desc: Run golangci-lint
+  # ────────────────────────────────────────────
+  # Cleanup
+  # ────────────────────────────────────────────
+
+  clean:
+    desc: Stop compose, remove .certs, and clean go build cache
     cmds:
-      - golangci-lint run ./...
-    silent: false
+      - task: dc-down
+      - rm -rf .certs
+      - go clean -cache
