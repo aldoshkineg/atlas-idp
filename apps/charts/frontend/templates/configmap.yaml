@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "frontend.labels" . | nindent 4 }}
+data:
+  BACKEND_API_URL: {{ .Values.config.backendApiUrl | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  HTTP_PORT: {{ .Values.service.port | quote }}

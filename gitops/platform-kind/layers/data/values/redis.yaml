@@ -53,5 +53,4 @@ metrics:
     interval: 30s
 
 networkPolicy:
-  enabled: true
-  allowExternal: false
+  enabled: false

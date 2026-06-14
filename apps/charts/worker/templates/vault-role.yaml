@@ -1,0 +1,14 @@
+{{- if .Values.vault.enabled }}
+apiVersion: vault.banzaicloud.io/v1alpha1
+kind: VaultRole
+metadata:
+  name: {{ .Values.vault.role }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "worker.labels" . | nindent 4 }}
+spec:
+  policies:
+    - workloads-text2pdf
+  serviceAccountNames:
+    - {{ .Release.Name }}
+{{- end }}

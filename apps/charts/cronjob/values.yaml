@@ -1,0 +1,14 @@
+image: redis:7-alpine
+imagePullPolicy: IfNotPresent
+
+schedule: "*/5 * * * *"
+successfulJobsHistoryLimit: 3
+failedJobsHistoryLimit: 1
+
+config:
+  redis:
+    host: redis-master.redis.svc.cluster.local
+    port: 6379
+
+secrets:
+  redisPassword: ""
