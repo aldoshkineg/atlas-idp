@@ -136,5 +136,13 @@ Pre-commit runs on every commit:
 
 ### Task Runner
 - `task` on this system is **taskwarrior** (task manager), NOT go-task.
-- Use **`go-task`** (binary at `~/.local/bin/go-task`) for `Taskfile.yml` commands.
+- Use **`go-task`** (binary at `~/.local/bin/task`) for `Taskfile.yml` commands.
+- If `go-task` is not on PATH, invoke via full path: `~/.local/bin/task`.
 - Example: `go-task dc-ps`, `go-task dc-up`, `go-task test`.
+- Taskfile.yml is at `apps/Taskfile.yml`. Run from repo root with `go-task -f apps/Taskfile.yml <target>` or `cd apps && go-task <target>`.
+
+### Infra Tests (June 2026)
+- Full stack smoke tests: `cd apps/tests/integration && ./test-infra.sh`
+- Tests: postgres, redis, minio, API healthz/readyz, document CRUD, worker processing, MinIO PDF existence, worker metrics
+- Docker Compose stack: `apps/tests/integration/docker-compose.yml`
+- Secrets: `apps/tests/integration/.env` (not committed)

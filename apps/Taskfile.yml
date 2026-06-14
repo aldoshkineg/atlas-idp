@@ -6,46 +6,51 @@ tasks:
 
   # --- Docker Compose ---
   dc-up:
-    desc: Start postgres, redis, minio containers
+    desc: Start full stack (postgres, redis, minio, backend-api, worker)
+    dir: tests/integration
     cmds:
       - docker compose up -d
     silent: false
 
   dc-down:
     desc: Stop and remove all containers
+    dir: tests/integration
     cmds:
       - docker compose down
     silent: false
 
   dc-logs:
     desc: Follow container logs
+    dir: tests/integration
     cmds:
       - docker compose logs -f
     silent: false
 
   dc-ps:
     desc: List running containers
+    dir: tests/integration
     cmds:
       - docker compose ps
     silent: false
 
   dc-restart:
     desc: Restart all containers
+    dir: tests/integration
     cmds:
       - docker compose restart
     silent: false
 
-  # --- Run Services ---
+  # --- Run Services (host, outside containers) ---
   run-api:
-    desc: Start backend API (requires dc-up)
+    desc: Start backend API on host (requires dc-up)
     cmds:
-      - go run ./apps/backend-api/cmd
+      - go run ./backend-api/cmd
     silent: false
 
   run-worker:
-    desc: Start worker (requires dc-up)
+    desc: Start worker on host (requires dc-up)
     cmds:
-      - go run ./apps/worker/cmd
+      - go run ./worker/cmd
     silent: false
 
   # --- Testing ---
@@ -56,22 +61,36 @@ tasks:
     silent: false
 
   test-integration:
-    desc: Run integration tests (requires dc-up)
+    desc: Run Go integration tests (requires dc-up)
     cmds:
       - go test ./... -tags=integration -race -shuffle=on -count=1
+    silent: false
+
+  test-infra:
+    desc: Run infrastructure smoke tests (curl, dc)
+    dir: tests/integration
+    cmds:
+      - ./test-infra.sh
     silent: false
 
   # --- Build ---
   build-api:
     desc: Build backend-api Docker image
     cmds:
-      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/backend-api:dev apps/backend-api
+      - docker buildx build --load -t ghcr.io/atlas-idp/backend-api:dev ./backend-api
     silent: false
 
   build-worker:
     desc: Build worker Docker image
     cmds:
-      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/worker:dev apps/worker
+      - docker buildx build --load -t ghcr.io/atlas-idp/worker:dev ./worker
+    silent: false
+
+  build-all:
+    desc: Build all Docker images
+    cmds:
+      - task: build-api
+      - task: build-worker
     silent: false
 
   kind-load:
