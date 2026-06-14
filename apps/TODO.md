@@ -20,7 +20,7 @@
 
 ---
 
-## Phase 1 — Backend API (Go 1.25)
+## Phase 1 — Backend API (Go 1.26)
 
 **Stack:** chi, pgx, go-redis, go-envconfig, slog, prometheus, otel.
 
@@ -63,13 +63,13 @@ apps/backend-api/
   - Metrics middleware (http_requests_total, http_request_duration_seconds)
   - Tracing middleware (OpenTelemetry)
   - CORS middleware
-- [x] Dockerfile (multi-stage: `golang:1.25` → `scratch`, non-root, `-ldflags="-s -w"`, `--mount=type=cache` for go mod + build cache)
+- [x] Dockerfile (multi-stage: `golang:1.26` → `chainguard/static`, non-root, `-ldflags="-s -w"`, `--mount=type=cache` for go mod + build cache)
 - [x] **Test:** `go test ./...` — unit tests pass
 - [x] **Test:** `go test -tags=integration ./...` — testcontainers: real postgres + redis, full POST/GET flow
 
 ---
 
-## Phase 2 — Worker (Go 1.25)
+## Phase 2 — Worker (Go 1.26)
 
 **Stack:** go-redis, minio-go, gofpdf, digitorus/pdfsign, slog, prometheus, otel.
 
@@ -302,7 +302,7 @@ apps/frontend/
         - uses: actions/checkout@v4
         - uses: actions/setup-go@v5
           with:
-            go-version: "1.25"
+            go-version: "1.26"
         - run: go test ./... -race -shuffle=on -count=1
         - run: go test ./... -tags=integration
     build:

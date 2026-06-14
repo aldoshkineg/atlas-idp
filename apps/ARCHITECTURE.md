@@ -26,8 +26,8 @@ Business logic — minimal, just enough to exercise the platform:
                         │
          ┌──────────────┴──────────────┐
          │                             │
-      Frontend                     Backend API
-      (Go + HTMX)                    (Go 1.25)
+Frontend                     Backend API
+       (Go + HTMX)                    (Go 1.26)
                                         │
                       ┌────────────────┼──────────────┐
                       │                │              │
@@ -37,7 +37,7 @@ Business logic — minimal, just enough to exercise the platform:
                       │                              │ PDF sign cert
                       ▼                              ▼
                  KEDA Worker ────── Cert Manager / Static
-               (Go 1.25 + gofpdf          (apps/.certs/)
+               (Go 1.26 + gofpdf          (apps/.certs/)
                 + digitorus/pdfsign)
                       │
                       ▼
@@ -99,8 +99,8 @@ User ──GET /documents/{id}/verify           ──▶ Frontend ──▶ Bac
 
 | Service     | Language                         | Runtime               |
 | ----------- | -------------------------------- | --------------------- |
-| Backend API | Go 1.26                          | distroless/chainguard |
-| Worker      | Go 1.26                          | distroless/chainguard |
+| Backend API | Go 1.26                          | chainguard/static     |
+| Worker      | Go 1.26                          | chainguard/static     |
 | Frontend    | Go 1.26                          | chainguard/static     |
 
 ### Backend Libraries (Go 1.26)
@@ -574,7 +574,7 @@ tasks:
 
 ```dockerfile
 # Dockerfile (multi-stage with BuildKit cache)
-FROM golang:1.25 AS builder
+FROM golang:1.26 AS builder
 WORKDIR /src
 
 COPY go.mod go.sum ./
