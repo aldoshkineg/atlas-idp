@@ -92,7 +92,7 @@ func (w *Worker) process(ctx context.Context, jobStr string) {
 
 	if msg.InputText == "" {
 		slog.Error("empty input text in job", "document_id", id)
-		w.pushResult(ctx, ResultMessage{
+		_ = w.pushResult(ctx, ResultMessage{
 			DocumentID: id.String(),
 			Status:     "failed",
 			Error:      "empty input text",
@@ -106,7 +106,7 @@ func (w *Worker) process(ctx context.Context, jobStr string) {
 	data, err := GeneratePDF(msg.InputText)
 	if err != nil {
 		slog.Error("generate pdf", "document_id", id, "error", err)
-		w.pushResult(ctx, ResultMessage{
+		_ = w.pushResult(ctx, ResultMessage{
 			DocumentID: id.String(),
 			Status:     "failed",
 			Error:      fmt.Sprintf("pdf generation: %v", err),
@@ -125,7 +125,7 @@ func (w *Worker) process(ctx context.Context, jobStr string) {
 		signed, err := w.signer.Sign(ctx, data)
 		if err != nil {
 			slog.Error("sign pdf", "document_id", id, "error", err)
-			w.pushResult(ctx, ResultMessage{
+			_ = w.pushResult(ctx, ResultMessage{
 				DocumentID: id.String(),
 				Status:     "failed",
 				Error:      fmt.Sprintf("pdf sign: %v", err),
@@ -147,7 +147,7 @@ func (w *Worker) process(ctx context.Context, jobStr string) {
 	uploadStart := time.Now()
 	if err := w.storage.Upload(ctx, objectKey, data); err != nil {
 		slog.Error("upload pdf", "document_id", id, "error", err)
-		w.pushResult(ctx, ResultMessage{
+_ = w.pushResult(ctx, ResultMessage{
 			DocumentID: id.String(),
 			Status:     "failed",
 			Error:      fmt.Sprintf("upload: %v", err),

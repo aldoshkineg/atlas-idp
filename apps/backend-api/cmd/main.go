@@ -40,7 +40,7 @@ func main() {
 		slog.Error("failed to connect to redis", "error", err)
 		os.Exit(1)
 	}
-	defer queue.Close()
+	defer func() { _ = queue.Close() }()
 
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		slog.Info("running migrations")

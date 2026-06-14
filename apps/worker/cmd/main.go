@@ -31,7 +31,7 @@ func main() {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 5 * time.Second,
 	})
-	defer redisClient.Close()
+	defer func() { _ = redisClient.Close() }()
 
 	storage, err := internal.NewStorage(ctx, cfg.Minio)
 	if err != nil {
@@ -80,5 +80,5 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
-	srv.Shutdown(shutdownCtx)
+	_ = srv.Shutdown(shutdownCtx)
 }

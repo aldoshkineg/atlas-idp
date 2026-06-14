@@ -191,7 +191,7 @@ func (h *Handler) VerifyDocument(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
+	_, _ = w.Write([]byte("ok"))
 }
 
 func (h *Handler) Readyz(w http.ResponseWriter, r *http.Request) {
@@ -200,18 +200,18 @@ func (h *Handler) Readyz(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.repo.Pool().Ping(ctx); err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "database not ready"})
+		_ = json.NewEncoder(w).Encode(ErrorResponse{Error: "database not ready"})
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
+	_, _ = w.Write([]byte("ok"))
 }
 
 func NewRouter(h *Handler) chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	// RealIP explicitly omitted — we trust the reverse proxy (gateway-api)
 	r.Use(loggingMiddleware)
 	r.Use(metricsMiddleware)
 	r.Use(middleware.Recoverer)
@@ -292,5 +292,5 @@ var (
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }

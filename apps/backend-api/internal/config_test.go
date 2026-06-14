@@ -7,10 +7,7 @@ import (
 )
 
 func TestLoadConfigDefaults(t *testing.T) {
-	os.Setenv("POSTGRES_PASSWORD", "testpass")
-	defer func() {
-		os.Unsetenv("POSTGRES_PASSWORD")
-	}()
+	t.Setenv("POSTGRES_PASSWORD", "testpass")
 
 	cfg, err := LoadConfig(context.Background())
 	if err != nil {

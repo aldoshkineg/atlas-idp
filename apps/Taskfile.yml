@@ -59,8 +59,9 @@ tasks:
 
   run-api:
     desc: Start backend API on host (requires dc-up)
+    dir: backend-api
     cmds:
-      - go run ./backend-api/cmd
+      - go run ./cmd
     env:
       POSTGRES_PASSWORD: text2pdf
       MINIO_ACCESS_KEY: minioadmin
@@ -69,27 +70,30 @@ tasks:
 
   run-worker:
     desc: Start worker on host (requires dc-up, gen-certs)
+    dir: worker
     cmds:
-      - go run ./worker/cmd
+      - go run ./cmd
     env:
-      SIGN_CERT_PATH: .certs/tls.crt
-      SIGN_KEY_PATH: .certs/tls.key
+      SIGN_CERT_PATH: '{{.TASKFILE_DIR}}/.certs/tls.crt'
+      SIGN_KEY_PATH: '{{.TASKFILE_DIR}}/.certs/tls.key'
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadminpassword
 
   # ────────────────────────────────────────────
-  # Testing
+  # Testing (both Go modules)
   # ────────────────────────────────────────────
 
   test:
-    desc: Run all unit tests
+    desc: Run all unit tests in both modules
     cmds:
-      - go test ./... -race -shuffle=on -count=1
+      - cd backend-api && go test ./... -race -shuffle=on -count=1
+      - cd worker && go test ./... -race -shuffle=on -count=1
 
   test-integration:
-    desc: Run Go integration tests (requires dc-up)
+    desc: Run Go integration tests in both modules (requires dc-up)
     cmds:
-      - go test ./... -tags=integration -race -shuffle=on -count=1
+      - cd backend-api && go test ./... -tags=integration -race -shuffle=on -count=1
+      - cd worker && go test ./... -tags=integration -race -shuffle=on -count=1
 
   test-infra:
     desc: Run infrastructure smoke tests (curl against docker compose)
@@ -98,18 +102,20 @@ tasks:
       - ./test-infra.sh
 
   # ────────────────────────────────────────────
-  # Lint / Vet / Validate
+  # Lint / Vet / Validate (both Go modules)
   # ────────────────────────────────────────────
 
   lint:
-    desc: Run golangci-lint
+    desc: Run golangci-lint in both modules
     cmds:
-      - golangci-lint run ./...
+      - cd backend-api && golangci-lint run ./...
+      - cd worker && golangci-lint run ./...
 
   vet:
-    desc: Run go vet
+    desc: Run go vet in both modules
     cmds:
-      - go vet ./...
+      - cd backend-api && go vet ./...
+      - cd worker && go vet ./...
 
   validate:
     desc: Run lint, vet, and unit tests

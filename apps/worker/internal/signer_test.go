@@ -16,9 +16,9 @@ import (
 
 func TestSignVerifyRoundTrip(t *testing.T) {
 	caPath, certPath, keyPath := generateTestChain(t)
-	defer os.Remove(caPath)
-	defer os.Remove(certPath)
-	defer os.Remove(keyPath)
+	defer func() { _ = os.Remove(caPath) }()
+	defer func() { _ = os.Remove(certPath) }()
+	defer func() { _ = os.Remove(keyPath) }()
 
 	signer, err := NewSigner(context.Background(), certPath, keyPath)
 	if err != nil {
@@ -63,9 +63,9 @@ func TestSignVerifyRoundTrip(t *testing.T) {
 
 func TestSignVerifyTamperedData(t *testing.T) {
 	caPath, certPath, keyPath := generateTestChain(t)
-	defer os.Remove(caPath)
-	defer os.Remove(certPath)
-	defer os.Remove(keyPath)
+	defer func() { _ = os.Remove(caPath) }()
+	defer func() { _ = os.Remove(certPath) }()
+	defer func() { _ = os.Remove(keyPath) }()
 
 	signer, err := NewSigner(context.Background(), certPath, keyPath)
 	if err != nil {
@@ -98,9 +98,9 @@ func TestSignVerifyTamperedData(t *testing.T) {
 
 func TestSignVerifyWithUntrustedCACert(t *testing.T) {
 	caPath, certPath, keyPath := generateTestChain(t)
-	defer os.Remove(caPath)
-	defer os.Remove(certPath)
-	defer os.Remove(keyPath)
+	defer func() { _ = os.Remove(caPath) }()
+	defer func() { _ = os.Remove(certPath) }()
+	defer func() { _ = os.Remove(keyPath) }()
 
 	signer, err := NewSigner(context.Background(), certPath, keyPath)
 	if err != nil {
@@ -118,7 +118,7 @@ func TestSignVerifyWithUntrustedCACert(t *testing.T) {
 	}
 
 	otherCAPath, _, _ := generateTestChain(t)
-	defer os.Remove(otherCAPath)
+	defer func() { _ = os.Remove(otherCAPath) }()
 	otherBlock, _ := pem.Decode([]byte(mustReadFile(t, otherCAPath)))
 	otherCA, _ := x509.ParseCertificate(otherBlock.Bytes)
 
@@ -193,7 +193,7 @@ func writePEM(t *testing.T, path, blockType string, bytes []byte) {
 	if err != nil {
 		t.Fatalf("create %s: %v", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if err := pem.Encode(f, &pem.Block{Type: blockType, Bytes: bytes}); err != nil {
 		t.Fatalf("encode %s: %v", path, err)
 	}

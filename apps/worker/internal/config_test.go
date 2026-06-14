@@ -7,12 +7,8 @@ import (
 )
 
 func TestLoadConfigDefaults(t *testing.T) {
-	os.Setenv("MINIO_ACCESS_KEY", "testkey")
-	os.Setenv("MINIO_SECRET_KEY", "testsecret")
-	defer func() {
-		os.Unsetenv("MINIO_ACCESS_KEY")
-		os.Unsetenv("MINIO_SECRET_KEY")
-	}()
+	t.Setenv("MINIO_ACCESS_KEY", "testkey")
+	t.Setenv("MINIO_SECRET_KEY", "testsecret")
 
 	cfg, err := LoadConfig(context.Background())
 	if err != nil {
