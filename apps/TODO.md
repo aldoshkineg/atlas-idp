@@ -58,6 +58,7 @@ apps/backend-api/
   - `POST /api/v1/documents` → repo.Create + queue.PushTask, return {id}
   - `GET /api/v1/documents/{id}` → repo.GetDocument, return JSON
   - `GET /api/v1/documents/{id}/download` → presigned MinIO URL
+  - `GET /api/v1/documents/{id}/verify` → download PDF from MinIO, verify signature against CA, return {valid, subject, issuer}
   - Logging middleware (slog, request_id, method, path, duration)
   - Metrics middleware (http_requests_total, http_request_duration_seconds)
   - Tracing middleware (OpenTelemetry)
@@ -70,7 +71,7 @@ apps/backend-api/
 
 ## Phase 2 — Worker (Go 1.25)
 
-**Stack:** go-redis, pgx, minio-go, gofpdf, slog, prometheus, otel.
+**Stack:** go-redis, pgx, minio-go, gofpdf, digitorus/pdfsign, slog, prometheus, otel.
 
 ```
 apps/worker/
@@ -81,10 +82,12 @@ apps/worker/
 │   ├── config.go
 │   ├── config_test.go
 │   ├── worker.go
-│   ├── worker_test.go        # unit: BLPOP loop with mock repo/storage
+│   ├── worker_test.go        # unit: BLMOVE loop with mock repo/storage
 │   ├── worker_integration_test.go  # build tag: integration, testcontainers
 │   ├── pdf.go
 │   ├── pdf_test.go           # text → PDF, check output bytes
+│   ├── signer.go             # PDF cryptographic signing (digitorus/pdfsign)
+│   ├── signer_test.go        # sign + verify round-trip
 │   ├── storage.go
 │   ├── storage_test.go       # unit: mock minio
 │   ├── repository.go
@@ -99,6 +102,24 @@ apps/worker/
 - [ ] Config struct
 - [ ] `cmd/main.go` — graceful shutdown, finish in-flight job
 - [ ] `pdf.go` — gofpdf: text → PDF (minimal: A4, monospace, plain layout)
+- [ ] `signer.go` — PDF cryptographic signing with `digitorus/pdfsign`:
+  ```go
+  // Sign reads raw PDF, appends digital signature, returns signed PDF
+  func (s *Signer) Sign(ctx context.Context, pdfData []byte) ([]byte, error)
+  ```
+  - Loads X.509 cert + RSA key from PEM files at startup
+  - Uses `digitorus/pdfsign.Sign()` for CMS/PAdES signature
+  - Configurable cert/key via `PDF_SIGN_CERT` / `PDF_SIGN_KEY` env vars
+  - Signature info: `Atlas IDP`, reason `Document authenticity`
+- [ ] `worker.go` — main loop (updated for signing):
+  ```
+  rawPDF := pdf.Generate(job.Text)
+  signedPDF := signer.Sign(rawPDF)
+  storage.Upload(job.ID, signedPDF)
+  ```
+- [ ] Metrics for signing:
+  - `pdf_sign_duration_seconds` (histogram)
+  - `pdf_sign_errors_total` (counter)
 - [ ] `storage.go` — minio-go: Upload to `text2pdf-outputs/{id}.pdf`
 - [ ] `repository.go` — pgx: UpdateDocumentStatus
 - [ ] `worker.go` — main loop:
@@ -111,7 +132,7 @@ apps/worker/
 - [ ] Retry logic: 3 attempts, then push to `text2pdf:dlq`
 - [ ] **Exponential backoff** on MinIO upload: retry 3 times with 1s/2s/4s delay
 - [ ] Metrics: `jobs_processed_total{status="ok|fail"}`, `job_duration_seconds`
-- [ ] Dockerfile (same multi-stage pattern: chainguard, cache mounts, `-ldflags="-s -w"`)
+- [ ] Dockerfile (multi-stage: golang → scratch, cache mounts, `-ldflags="-s -w"`)
 - [ ] **Test:** `go test ./...` — unit tests pass
 - [ ] **Test:** `go test -tags=integration ./...` — testcontainers: real redis + minio + postgres, full job lifecycle
 
@@ -277,6 +298,7 @@ apps/worker/
 | Area                                | %   |
 | ----------------------------------- | --- |
 | Go code (API + Worker)              | 15% |
+| PDF signing (signer.go, verify)     |  5% |
 | Helm charts                         | 15% |
 | ArgoCD manifests + GitOps           | 20% |
 | Vault policies + injection          | 15% |

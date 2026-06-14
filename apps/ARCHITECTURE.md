@@ -22,24 +22,27 @@ The text2pdf application is just a workload to demonstrate platform engineering 
 Business logic — minimal, just enough to exercise the platform:
 
 ```
-                Gateway API
-                       │
-        ┌──────────────┴──────────────┐
-        │                             │
-     Frontend                     Backend API
-     (React 19)                    (Go 1.25)
-                                       │
-                     ┌────────────────┼──────────────┐
-                     │                │              │
-                  Redis         PostgreSQL       Vault
-               (Bitnami)        (CNPG 17.6)   (Bank-Vaults)
-                     │
-                     ▼
-                KEDA Worker
-              (Go 1.25 + gofpdf)
-                     │
-                     ▼
-                   MinIO
+                 Gateway API
+                        │
+         ┌──────────────┴──────────────┐
+         │                             │
+      Frontend                     Backend API
+      (React 19)                    (Go 1.25)
+                                        │
+                      ┌────────────────┼──────────────┐
+                      │                │              │
+                   Redis         PostgreSQL       Vault
+                (Bitnami)        (CNPG 17.6)   (Bank-Vaults)
+                      │                              │
+                      │                              │ PDF sign cert
+                      ▼                              ▼
+                 KEDA Worker ────── Cert Manager / Static
+               (Go 1.25 + gofpdf          (clusters/kind/certs)
+                + digitorus/pdfsign)
+                      │
+                      ▼
+                    MinIO
+                   (signed PDFs)
 ```
 
 ### Data Flow
@@ -53,24 +56,34 @@ User ──POST /documents──▶ Backend API
                                     ▼
                           Worker (BLPOP via KEDA)
                             │
-                            ├── Generate PDF (gofpdf)
-                            ├── Upload to MinIO
-                            └── UPDATE PostgreSQL (status: completed)
+                            ├── 1. Generate PDF (gofpdf)
+                            ├── 2. Sign PDF (digitorus/pdfsign)
+                            │     └── X.509 cert from Vault / file
+                            ├── 3. Upload signed PDF to MinIO
+                            └── 4. UPDATE PostgreSQL (status: completed)
 
-User ──GET /documents/{id}──────▶ Backend API ──▶ PostgreSQL
-User ──GET /documents/{id}/download──▶ MinIO presigned URL
+User ──GET /documents/{id}──────────▶ Backend API ──▶ PostgreSQL
+User ──GET /documents/{id}/download──▶ MinIO presigned URL (signed PDF)
+User ──GET /documents/{id}/verify ───▶ Backend API
+                            │
+                            ├── Download PDF from MinIO
+                            ├── Extract CMS/PAdES signature
+                            ├── Verify cert chain against CA
+                            └── Return {valid, subject, issuer, expiry}
 ```
 
 ### Components
 
-| Component   | Stack                                      | Responsibility                                   |
-| ----------- | ------------------------------------------ | ------------------------------------------------ |
-| Frontend    | React 19 + Vite 7 + TypeScript 5.9 + Nginx | Web UI: text input, status polling, PDF download |
-| Backend API | Go 1.25                                    | REST API, metadata in PG, task queue to Redis    |
-| Worker      | Go 1.25 + gofpdf                           | Redis consumer, PDF generation, MinIO upload     |
-| PostgreSQL  | CloudNativePG 17.6                         | Document metadata                                |
-| Redis       | Bitnami Redis 24.0.8                       | Async task queue + status cache                  |
-| MinIO       | S3-compatible storage                      | PDF file storage                                 |
+| Component   | Stack                                                | Responsibility                                   |
+| ----------- | ---------------------------------------------------- | ------------------------------------------------ |
+| Frontend    | React 19 + Vite 7 + TypeScript 5.9 + Nginx           | Web UI: text input, status polling, PDF download |
+| Backend API | Go 1.26                                              | REST API, metadata in PG, task queue to Redis    |
+| Worker      | Go 1.26 + gofpdf + digitorus/pdfsign                 | Redis consumer, PDF generation, signing, MinIO upload |
+| Signer      | digitorus/pdfsign, X.509 (RSA 2048, SHA-256)         | CMS/PAdES digital signature appended to PDF      |
+| Cert Store  | File (dev) / Vault Agent (prod) / cert-manager       | X.509 signing certificate + RSA private key      |
+| PostgreSQL  | CloudNativePG 17.6                                   | Document metadata                                |
+| Redis       | Bitnami Redis 24.0.8                                 | Async task queue + status cache                  |
+| MinIO       | S3-compatible storage                                | Signed PDF file storage                          |
 
 ---
 
@@ -101,18 +114,19 @@ User ──GET /documents/{id}/download──▶ MinIO presigned URL
 | `stretchr/testify`                 | Testing (assert, mock)                                   |
 | `testcontainers/testcontainers-go` | Integration tests (real Postgres/Redis/MinIO on the fly) |
 
-### Worker (Go 1.25)
+### Worker (Go 1.26)
 
-| Library                    | Purpose              |
-| -------------------------- | -------------------- |
-| `redis/go-redis/v9`        | BLPOP queue consumer |
-| `jackc/pgx/v5`             | Status updates       |
-| `minio/minio-go/v7`        | Upload to MinIO      |
-| `jung-kurt/gofpdf`         | PDF generation       |
-| `sethvargo/go-envconfig`   | Configuration        |
-| `prometheus/client_golang` | Metrics              |
-| `go.opentelemetry.io/otel` | Tracing              |
-| `log/slog`                 | Structured logging   |
+| Library                     | Purpose                        |
+| --------------------------- | ------------------------------ |
+| `redis/go-redis/v9`         | BLPOP / BLMOVE queue consumer  |
+| `jackc/pgx/v5`              | Status updates                 |
+| `minio/minio-go/v7`         | Upload to MinIO                |
+| `jung-kurt/gofpdf`          | PDF generation                 |
+| `digitorus/pdfsign`          | CMS/PAdES digital signing      |
+| `sethvargo/go-envconfig`    | Configuration                  |
+| `prometheus/client_golang`  | Metrics (+ signing metrics)    |
+| `go.opentelemetry.io/otel`  | Tracing                        |
+| `log/slog`                  | Structured logging             |
 
 ---
 
@@ -720,6 +734,57 @@ Status lifecycle: `pending → processing → completed | failed`
 
 ---
 
+### 5. PDF Digital Signing
+
+**Goal:** Every generated PDF carries a cryptographic signature proving authenticity and integrity.
+
+**Stack:** `digitorus/pdfsign` (Go), RSA 2048, SHA-256, X.509 certificate from dev CA.
+
+```
+                    ┌─────────────┐
+                    │  Raw PDF    │
+                    │  (gofpdf)   │
+                    └──────┬──────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │  Signer     │
+                    │  pdfsign    │
+                    │  CMS/PAdES  │
+                    └──────┬──────┘
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │  Signed PDF │
+                    │  (+ sig     │
+                    │   appended) │
+                    └──────┬──────┘
+                           │
+                           ▼
+                       MinIO
+```
+
+**Key Management:**
+- **Dev:** PEM files from `clusters/kind/certs/pdf-signer.{crt,key}` mounted into Docker Compose
+- **Prod:** Vault Agent injects cert+key into `/vault/secrets/pdf-signer/`, or cert-manager issues short-lived cert
+
+**Verification (Backend API):**
+```
+GET /api/v1/documents/{id}/verify
+  ├── Download signed PDF from MinIO
+  ├── digitorus/pdfsign.Digest() → extract signature blocks
+  ├── Verify cert chain against CA root (clusters/kind/certs/ca.crt)
+  └── Response: {valid: bool, subject, issuer, expiry}
+```
+
+**Metrics (Worker):**
+- `pdf_sign_duration_seconds` — histogram of signing latency
+- `pdf_sign_errors_total` — counter of signing failures (expired cert, malformed key)
+
+**Implementation:** Phase 2 Worker (signer.go) + Phase 1 Backend API (verify endpoint).
+
+---
+
 ## Repository Structure
 
 ```
@@ -735,7 +800,7 @@ atlas-idp/
 │   │   │   └── migrate.go
 │   │   ├── migrations/
 │   │   └── Dockerfile
-│   ├── worker/            # Go 1.25, PDF generator
+│   ├── worker/            # Go 1.26, PDF generator + signer
 │   │   ├── cmd/
 │   │   ├── internal/
 │   │   │   ├── config.go
@@ -743,6 +808,7 @@ atlas-idp/
 │   │   │   ├── repository.go
 │   │   │   ├── storage.go
 │   │   │   ├── pdf.go
+│   │   │   ├── signer.go         # PDF signing (digitorus/pdfsign)
 │   │   │   └── migrate.go
 │   │   └── Dockerfile
 │   ├── frontend/          # React 19 + Vite 7

@@ -3,6 +3,7 @@ module github.com/aldoshkineg/atlas-idp/apps/worker
 go 1.26.3
 
 require (
+	github.com/digitorus/pdfsign v0.0.0-20240602090639-c47c1e8b5c9a
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jung-kurt/gofpdf v1.16.2

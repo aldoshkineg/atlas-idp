@@ -141,6 +141,14 @@ Pre-commit runs on every commit:
 - Example: `go-task dc-ps`, `go-task dc-up`, `go-task test`.
 - Taskfile.yml is at `apps/Taskfile.yml`. Run from repo root with `go-task -f apps/Taskfile.yml <target>` or `cd apps && go-task <target>`.
 
+### PDF Signing (June 2026)
+- Worker signs every PDF with `digitorus/pdfsign` (CMS/PAdES, RSA 2048, SHA-256)
+- Signing cert: `clusters/kind/certs/pdf-signer.crt`, key: `clusters/kind/certs/pdf-signer.key`
+- Signed by dev CA (`clusters/kind/certs/ca.crt`)
+- Metrics: `pdf_sign_duration_seconds`, `pdf_sign_errors_total`
+- Verify endpoint: `GET /api/v1/documents/{id}/verify` in backend-api
+- **Next:** integrate `digitorus/pdfsign` into worker (signer.go), add verify endpoint to handler.go
+
 ### Infra Tests (June 2026)
 - Full stack smoke tests: `cd apps/tests/integration && ./test-infra.sh`
 - Tests: postgres, redis, minio, API healthz/readyz, document CRUD, worker processing, MinIO PDF existence, worker metrics
