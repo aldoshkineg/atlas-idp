@@ -145,6 +145,8 @@ Pre-commit runs on every commit:
 - Worker signs every PDF with `digitorus/pdfsign` (CMS/PAdES, RSA 2048, SHA-256)
 - Signing cert: `clusters/kind/certs/pdf-signer.crt`, key: `clusters/kind/certs/pdf-signer.key`
 - Signed by dev CA (`clusters/kind/certs/ca.crt`)
+- **Production:** key stored in Vault (`kv/data/text2pdf/pdf-signer`), injected via Vault Agent
+- **Dev:** `.key` is gitignored (`*.key` pattern); `.crt` committed for reference
 - Metrics: `pdf_sign_duration_seconds`, `pdf_sign_errors_total`
 - Verify endpoint: `GET /api/v1/documents/{id}/verify` in backend-api
 - **Next:** integrate `digitorus/pdfsign` into worker (signer.go), add verify endpoint to handler.go

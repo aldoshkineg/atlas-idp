@@ -764,9 +764,10 @@ Status lifecycle: `pending → processing → completed | failed`
                        MinIO
 ```
 
-**Key Management:**
-- **Dev:** PEM files from `clusters/kind/certs/pdf-signer.{crt,key}` mounted into Docker Compose
-- **Prod:** Vault Agent injects cert+key into `/vault/secrets/pdf-signer/`, or cert-manager issues short-lived cert
+**Key Management (Vault-first):**
+- **Production:** Signing key never touches disk or git. Vault stores `kv/data/text2pdf/pdf-signer` with `cert` and `key` fields. Vault Agent injects into worker pod at `/vault/secrets/pdf-signer/`.
+- **Dev / Docker Compose:** Local PEM files from `clusters/kind/certs/pdf-signer.{crt,key}` mounted as volumes. The `.key` file is gitignored (`*.key` in `.gitignore`), only the certificate `.crt` is committed.
+- **Future:** cert-manager with Vault issuer for automatic certificate rotation.
 
 **Verification (Backend API):**
 ```
