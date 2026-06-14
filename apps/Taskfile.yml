@@ -52,6 +52,7 @@ tasks:
     cmds:
       - mkdir -p .certs
       - openssl req -x509 -newkey rsa:2048 -keyout .certs/tls.key -out .certs/tls.crt -days 365 -nodes -subj "/CN=text2pdf-worker-dev/O=Atlas IDP Local"
+      - chmod 644 .certs/tls.crt .certs/tls.key
 
   # ────────────────────────────────────────────
   # Run Services on Host (requires dc-up)

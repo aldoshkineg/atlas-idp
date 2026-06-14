@@ -63,7 +63,7 @@ apps/backend-api/
   - Metrics middleware (http_requests_total, http_request_duration_seconds)
   - Tracing middleware (OpenTelemetry)
   - CORS middleware
-- [x] Dockerfile (multi-stage: `golang:1.26` → `chainguard/static`, non-root, `-ldflags="-s -w"`, `--mount=type=cache` for go mod + build cache)
+- [x] Dockerfile (multi-stage: `golang:1.26` → `scratch`, non-root, `-ldflags="-s -w"`, `--mount=type=cache` for go mod + build cache)
 - [x] **Test:** `go test ./...` — unit tests pass
 - [x] **Test:** `go test -tags=integration ./...` — testcontainers: real postgres + redis, full POST/GET flow
 

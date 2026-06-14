@@ -99,8 +99,8 @@ User ──GET /documents/{id}/verify           ──▶ Frontend ──▶ Bac
 
 | Service     | Language                         | Runtime               |
 | ----------- | -------------------------------- | --------------------- |
-| Backend API | Go 1.26                          | chainguard/static     |
-| Worker      | Go 1.26                          | chainguard/static     |
+| Backend API | Go 1.26                          | scratch               |
+| Worker      | Go 1.26                          | scratch               |
 | Frontend    | Go 1.26                          | chainguard/static     |
 
 ### Backend Libraries (Go 1.26)
@@ -573,7 +573,7 @@ tasks:
 ## Container Images
 
 ```dockerfile
-# Dockerfile (multi-stage with BuildKit cache)
+# Multi-stage Dockerfile (BuildKit cache)
 FROM golang:1.26 AS builder
 WORKDIR /src
 
