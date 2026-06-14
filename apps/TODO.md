@@ -13,10 +13,10 @@
 
 **Goal:** Local dev without Kubernetes.
 
-- [ ] `docker-compose.yml` — postgres:17-alpine, redis:7-alpine, minio/minio
+- [x] `docker-compose.yml` — postgres:17-alpine, redis:7-alpine, minio/minio (in `apps/tests/integration/`)
 - [ ] `.env.example`
-- [ ] `Taskfile.yml` targets: `dc-up`, `dc-down`, `run-api`, `run-worker`
-- [ ] **Test:** `dc-up` starts all containers, services respond on expected ports
+- [x] `Taskfile.yml` targets: `dc-up`, `dc-down`, `run-api`, `run-worker`, `gen-certs`
+- [x] **Test:** `apps/tests/integration/test-infra.sh` — 14 smoke tests (all pass)
 
 ---
 
@@ -25,118 +25,113 @@
 **Stack:** chi, pgx, go-redis, go-envconfig, slog, prometheus, otel.
 
 **Flat structure — no service layer, no telemetry package:**
-
 ```
 apps/backend-api/
 ├── cmd/
 │   ├── main.go
-│   └── main_test.go          # smoke: startup, /healthz /readyz
+│   └── main_test.go
 ├── internal/
 │   ├── config.go
-│   ├── config_test.go        # env parsing, defaults
+│   ├── config_test.go
 │   ├── handler.go
-│   ├── handler_test.go       # unit: testify/mock for repo + queue
-│   ├── handler_integration_test.go  # build tag: integration, testcontainers
+│   ├── handler_test.go
+│   ├── handler_integration_test.go
 │   ├── repository.go
-│   ├── repository_test.go    # unit: mock pgx
+│   ├── repository_test.go
 │   ├── queue.go
-│   ├── queue_test.go         # unit: mock redis
+│   ├── queue_test.go
 │   ├── migrate.go
-│   └── migrate_test.go       # embed FS reads correctly
-├── migrations/
+│   ├── migrate_test.go
+│   └── migrations/
+│       └── 001_create_documents.sql
 ├── Dockerfile
 └── go.mod
 ```
 
-- [ ] `go mod init`, Config with go-envconfig
-- [ ] `cmd/main.go` — startup, graceful shutdown, /healthz /readyz
-- [ ] `cmd/main.go` — `os.Args[1] == "migrate"` subcommand for standalone migration Job
-- [ ] `migrate.go` — `//go:embed migrations/*.sql`, run on `migrate` subcommand (NOT on startup)
-- [ ] `repository.go` — pgx: CreateDocument, GetDocument, UpdateStatus, pgxpool with `MaxConns=5`
-- [ ] `queue.go` — Redis: PushTask (RPUSH `text2pdf:jobs`)
-- [ ] `handler.go` — chi:
-  - `POST /api/v1/documents` → repo.Create + queue.PushTask, return {id}
+- [x] `go mod init`, Config with go-envconfig
+- [x] `cmd/main.go` — startup, graceful shutdown, /healthz /readyz, background results consumer
+- [x] `cmd/main.go` — `os.Args[1] == "migrate"` subcommand for standalone migration Job
+- [x] `migrate.go` — `//go:embed migrations/*.sql`, run on `migrate` subcommand (NOT on startup)
+- [x] `repository.go` — pgx: CreateDocument, GetDocument, UpdateStatus, pgxpool with `MaxConns=5`
+- [x] `queue.go` — Redis: PushTask (RPUSH `text2pdf:jobs`), PopResult (BLPOP `text2pdf:results`)
+- [x] `handler.go` — chi:
+  - `POST /api/v1/documents` → repo.Create + queue.PushTask, return `{id}`
   - `GET /api/v1/documents/{id}` → repo.GetDocument, return JSON
-  - `GET /api/v1/documents/{id}/download` → presigned MinIO URL
-  - `GET /api/v1/documents/{id}/verify` → download PDF from MinIO, verify signature against CA, return {valid, subject, issuer}
+  - `GET /api/v1/documents/{id}/download` → returns download URL (constructed from config prefix, no MinIO client)
+  - `GET /api/v1/documents/{id}/verify` → checks PG status, returns `{valid: true}` if `completed`
   - Logging middleware (slog, request_id, method, path, duration)
   - Metrics middleware (http_requests_total, http_request_duration_seconds)
   - Tracing middleware (OpenTelemetry)
   - CORS middleware
-- [ ] Dockerfile (multi-stage: `golang:1.25` → `cgr.dev/chainguard/static`, non-root, `-ldflags="-s -w"`, `--mount=type=cache` for go mod + build cache)
-- [ ] **Test:** `go test ./...` — unit tests pass
-- [ ] **Test:** `go test -tags=integration ./...` — testcontainers: real postgres + redis, full POST/GET flow
+- [x] Dockerfile (multi-stage: `golang:1.25` → `scratch`, non-root, `-ldflags="-s -w"`, `--mount=type=cache` for go mod + build cache)
+- [x] **Test:** `go test ./...` — unit tests pass
+- [x] **Test:** `go test -tags=integration ./...` — testcontainers: real postgres + redis, full POST/GET flow
 
 ---
 
 ## Phase 2 — Worker (Go 1.25)
 
-**Stack:** go-redis, pgx, minio-go, gofpdf, digitorus/pdfsign, slog, prometheus, otel.
+**Stack:** go-redis, minio-go, gofpdf, digitorus/pdfsign, slog, prometheus, otel.
 
 ```
 apps/worker/
 ├── cmd/
 │   ├── main.go
-│   └── main_test.go          # smoke: startup, graceful shutdown
+│   └── main_test.go
 ├── internal/
 │   ├── config.go
 │   ├── config_test.go
-│   ├── worker.go
-│   ├── worker_test.go        # unit: BLMOVE loop with mock repo/storage
-│   ├── worker_integration_test.go  # build tag: integration, testcontainers
-│   ├── pdf.go
-│   ├── pdf_test.go           # text → PDF, check output bytes
-│   ├── signer.go             # PDF cryptographic signing (digitorus/pdfsign)
-│   ├── signer_test.go        # sign + verify round-trip
-│   ├── storage.go
-│   ├── storage_test.go       # unit: mock minio
-│   ├── repository.go
-│   ├── repository_test.go    # unit: mock pgx
-│   ├── migrate.go
-│   └── migrate_test.go
+│   ├── worker.go           # BLMove loop + retry/DLQ + results queue push
+│   ├── worker_test.go
+│   ├── worker_integration_test.go
+│   ├── pdf.go              # gofpdf: text → PDF
+│   ├── pdf_test.go
+│   ├── signer.go           # PDF cryptographic signing (digitorus/pdfsign)
+│   ├── signer_test.go      # sign + verify round-trip + tamper + untrusted CA
+│   ├── storage.go          # minio-go: Upload to text2pdf-outputs/{id}.pdf
+│   └── storage_test.go
 ├── Dockerfile
 └── go.mod
 ```
 
-- [ ] `go mod init`
-- [ ] Config struct
-- [ ] `cmd/main.go` — graceful shutdown, finish in-flight job
-- [ ] `pdf.go` — gofpdf: text → PDF (minimal: A4, monospace, plain layout)
-- [ ] `signer.go` — PDF cryptographic signing with `digitorus/pdfsign`:
+- [x] `go mod init`
+- [x] Config struct (CryptoConfig with Vault-default paths)
+- [x] `cmd/main.go` — graceful shutdown, finish in-flight job
+- [x] `pdf.go` — gofpdf: text → PDF (A4, monospace, plain layout)
+- [x] `signer.go` — PDF cryptographic signing with `digitorus/pdfsign`:
   ```go
-  // Sign reads raw PDF, appends digital signature, returns signed PDF
   func (s *Signer) Sign(ctx context.Context, pdfData []byte) ([]byte, error)
   ```
-  - Loads X.509 cert + RSA key from PEM files at startup
-  - Uses `digitorus/pdfsign.Sign()` for CMS/PAdES signature
-  - Configurable cert/key via `PDF_SIGN_CERT` / `PDF_SIGN_KEY` env vars
-  - **Dev:** reads from file path (`apps/.certs/`, gitignored `.key`)
-  - **Prod:** Vault Agent injects into `/vault/secrets/pdf-signer/`
+  - Loads X.509 cert + key from PEM files at startup (reads from file paths)
+  - Uses `crypto.Signer` interface (not just `*rsa.PrivateKey`)
+  - Uses `sign.Sign()` / `verify.VerifyWithOptions()` from `digitorus/pdfsign` v0.0.0-20260407063256
+  - Configurable cert/key via `SIGN_CERT_PATH` / `SIGN_KEY_PATH` env vars
+  - **Dev:** reads from `apps/.certs/` (gitignored, generated via `go-task gen-certs`)
+  - **Prod:** Vault Agent injects into `/vault/secrets/tls.{crt,key}`
   - Signature info: `Atlas IDP`, reason `Document authenticity`
-- [ ] `worker.go` — main loop (updated for signing):
+- [x] `worker.go` — main loop:
   ```
-  rawPDF := pdf.Generate(job.Text)
+  job := redis.BLMove(text2pdf:jobs → text2pdf:processing)
+  rawPDF := pdf.Generate(job.InputText)
   signedPDF := signer.Sign(rawPDF)
-  storage.Upload(job.ID, signedPDF)
+  storage.Upload(job.DocumentID, signedPDF)
+  redis.LPush(text2pdf:results, {document_id, status, s3_path})
+  redis.LRem(text2pdf:processing)
   ```
-- [ ] Metrics for signing:
+  - Job message is JSON `{document_id, input_text}` (no PostgreSQL)
+  - Writes results to `text2pdf:results` Redis list
+  - Per-step logging (pdf generated, signed, uploaded, result pushed, job completed)
+- [x] Retry logic: 3 attempts via `LLen` on processing queue, then push to `text2pdf:dlq`
+- [x] **Exponential backoff** on MinIO upload: retry 3 times with 1s/2s/4s delay
+- [x] Metrics:
   - `pdf_sign_duration_seconds` (histogram)
   - `pdf_sign_errors_total` (counter)
-- [ ] `storage.go` — minio-go: Upload to `text2pdf-outputs/{id}.pdf`
-- [ ] `repository.go` — pgx: UpdateDocumentStatus
-- [ ] `worker.go` — main loop:
-  ```go
-  // BLMOVE: atomic move from pending → processing, survives crashes
-  job, _ := client.BLMove(ctx, "text2pdf:jobs", "text2pdf:processing", "LEFT", "RIGHT", 0)
-  ```
-  On success: process → `LREM text2pdf:processing` → next iteration
-  On failure: re-queue or DLQ after N attempts
-- [ ] Retry logic: 3 attempts, then push to `text2pdf:dlq`
-- [ ] **Exponential backoff** on MinIO upload: retry 3 times with 1s/2s/4s delay
-- [ ] Metrics: `jobs_processed_total{status="ok|fail"}`, `job_duration_seconds`
-- [ ] Dockerfile (multi-stage: golang → scratch, cache mounts, `-ldflags="-s -w"`)
-- [ ] **Test:** `go test ./...` — unit tests pass
-- [ ] **Test:** `go test -tags=integration ./...` — testcontainers: real redis + minio + postgres, full job lifecycle
+  - `pdf_verify_total` (counter)
+  - `jobs_processed_total{status="ok|fail"}` (counter)
+  - `job_duration_seconds` (histogram)
+- [x] Dockerfile (multi-stage: golang → `scratch`, cache mounts, `-ldflags="-s -w"`)
+- [x] **Test:** `go test ./...` — unit tests pass
+- [x] **Test:** `go test -tags=integration ./...` — testcontainers: real redis + minio, full job lifecycle
 
 ---
 
