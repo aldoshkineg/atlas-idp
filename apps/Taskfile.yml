@@ -40,6 +40,13 @@ tasks:
       - docker compose restart
     silent: false
 
+  # --- Certificates ---
+  gen-certs:
+    desc: Generate local self-signed certificates for development
+    cmds:
+      - mkdir -p .certs
+      - openssl req -x509 -newkey rsa:2048 -keyout .certs/tls.key -out .certs/tls.crt -days 365 -nodes -subj "/CN=text2pdf-worker-dev/O=Atlas IDP Local"
+
   # --- Run Services (host, outside containers) ---
   run-api:
     desc: Start backend API on host (requires dc-up)
@@ -48,10 +55,12 @@ tasks:
     silent: false
 
   run-worker:
-    desc: Start worker on host (requires dc-up)
+    desc: Start worker on host (requires dc-up, gen-certs)
     cmds:
       - go run ./worker/cmd
-    silent: false
+    env:
+      SIGN_CERT_PATH: '.certs/tls.crt'
+      SIGN_KEY_PATH: '.certs/tls.key'
 
   # --- Testing ---
   test:

@@ -7,11 +7,9 @@ import (
 )
 
 func TestLoadConfigDefaults(t *testing.T) {
-	os.Setenv("POSTGRES_PASSWORD", "testpass")
 	os.Setenv("MINIO_ACCESS_KEY", "testkey")
 	os.Setenv("MINIO_SECRET_KEY", "testsecret")
 	defer func() {
-		os.Unsetenv("POSTGRES_PASSWORD")
 		os.Unsetenv("MINIO_ACCESS_KEY")
 		os.Unsetenv("MINIO_SECRET_KEY")
 	}()
@@ -21,9 +19,6 @@ func TestLoadConfigDefaults(t *testing.T) {
 		t.Fatalf("LoadConfig() error = %v", err)
 	}
 
-	if cfg.Database.Host != "localhost" {
-		t.Errorf("Database.Host = %s, want localhost", cfg.Database.Host)
-	}
 	if cfg.Worker.PollInterval != 1000 {
 		t.Errorf("Worker.PollInterval = %d, want 1000", cfg.Worker.PollInterval)
 	}

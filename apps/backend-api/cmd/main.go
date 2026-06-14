@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 	"time"
 
 	"github.com/aldoshkineg/atlas-idp/apps/backend-api/internal"
+	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -49,8 +52,55 @@ func main() {
 		return
 	}
 
-	handler := internal.NewHandler(repo, queue, cfg.Minio)
+	handler := internal.NewHandler(repo, queue, cfg.DownloadBaseURL)
 	router := internal.NewRouter(handler)
+
+	// Background consumer: reads results from Redis and updates PostgreSQL
+	go func() {
+		for {
+			resultStr, err := queue.PopResult(ctx, 5*time.Second)
+			if err != nil {
+				if err == redis.Nil {
+					continue
+				}
+				slog.Error("pop result from queue", "error", err)
+				time.Sleep(time.Second)
+				continue
+			}
+
+			slog.Debug("result popped from queue", "result", resultStr)
+
+			var result struct {
+				DocumentID string `json:"document_id"`
+				Status     string `json:"status"`
+				S3Path     string `json:"s3_path"`
+				Error      string `json:"error"`
+			}
+			if err := json.Unmarshal([]byte(resultStr), &result); err != nil {
+				slog.Error("unmarshal result", "result", resultStr, "error", err)
+				continue
+			}
+
+			docID, err := uuid.Parse(result.DocumentID)
+			if err != nil {
+				slog.Error("parse document ID from result", "document_id", result.DocumentID, "error", err)
+				continue
+			}
+
+			if err := repo.UpdateStatus(ctx, docID, result.Status, result.S3Path, result.Error); err != nil {
+				slog.Error("update document status from result", "document_id", docID, "error", err)
+			} else {
+				slog.Info("document status updated from result",
+					"document_id", docID,
+					"status", result.Status,
+					"s3_path", result.S3Path,
+				)
+				if result.Error != "" {
+					slog.Warn("result contained error", "document_id", docID, "error", result.Error)
+				}
+			}
+		}
+	}()
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.HTTP.Port),

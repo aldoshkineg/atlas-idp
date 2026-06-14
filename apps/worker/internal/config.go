@@ -7,25 +7,16 @@ import (
 )
 
 type Config struct {
-	Database  DatabaseConfig
+	Crypto    CryptoConfig
 	Redis     RedisConfig
 	Minio     MinioConfig
 	Telemetry TelemetryConfig
 	Worker    WorkerConfig
 }
 
-type DatabaseConfig struct {
-	Host     string `env:"POSTGRES_HOST, default=localhost"`
-	Port     int    `env:"POSTGRES_PORT, default=5432"`
-	User     string `env:"POSTGRES_USER, default=text2pdf"`
-	Password string `env:"POSTGRES_PASSWORD, required"`
-	DBName   string `env:"POSTGRES_DB, default=text2pdf"`
-}
-
-func (d DatabaseConfig) ConnString() string {
-	return "postgres://" + d.User + ":" + d.Password +
-		"@" + d.Host + ":" + itoa(d.Port) + "/" + d.DBName +
-		"?sslmode=disable"
+type CryptoConfig struct {
+	CertPath string `env:"SIGN_CERT_PATH, default=/vault/secrets/tls.crt"`
+	KeyPath  string `env:"SIGN_KEY_PATH, default=/vault/secrets/tls.key"`
 }
 
 type RedisConfig struct {

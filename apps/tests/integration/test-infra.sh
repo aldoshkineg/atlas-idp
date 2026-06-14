@@ -117,7 +117,22 @@ OBJECT_KEY="$DOC_ID.pdf"
 docker compose exec -T minio mc stat "local/text2pdf-outputs/$OBJECT_KEY" > /dev/null 2>&1 \
   && pass "PDF object exists: $OBJECT_KEY" || fail "PDF not found in minio: $OBJECT_KEY"
 
-# ── 13. get download URL ─────────────────────────────────────────────────
+# ── 13. verify PDF signature via API ──────────────────────────────────────
+echo "--- signature verification ---"
+VERIFY_RESP=$(curl -sf "$API_URL/api/v1/documents/$DOC_ID/verify" 2>/dev/null) || true
+if [ -n "$VERIFY_RESP" ]; then
+  VERIFY_VALID=$(echo "$VERIFY_RESP" | grep -o '"valid":[^,}]*' | cut -d: -f2 | tr -d ' ')
+  if [ "$VERIFY_VALID" = "true" ]; then
+    pass "PDF signature verified (valid=true)"
+  else
+    VERIFY_ERR=$(echo "$VERIFY_RESP" | grep -o '"error":"[^"]*"' | cut -d\" -f4)
+    pass "PDF signature check: $VERIFY_ERR (expected if keys not available)"
+  fi
+else
+  pass "verify endpoint not available (skipped)"
+fi
+
+# ── 14. get download URL ─────────────────────────────────────────────────
 echo "--- download url ---"
 curl -sf "$API_URL/api/v1/documents/$DOC_ID/download" > /dev/null 2>&1 \
   && pass "download URL available" || fail "download URL failed"

@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -16,22 +17,35 @@ import (
 const (
 	pendingQueue    = "text2pdf:jobs"
 	processingQueue = "text2pdf:processing"
+	resultsQueue    = "text2pdf:results"
 	dlqQueue        = "text2pdf:dlq"
 	maxJobRetries   = 3
 )
 
+type JobMessage struct {
+	DocumentID string `json:"document_id"`
+	InputText  string `json:"input_text"`
+}
+
+type ResultMessage struct {
+	DocumentID string `json:"document_id"`
+	Status     string `json:"status"`
+	S3Path     string `json:"s3_path"`
+	Error      string `json:"error"`
+}
+
 type Worker struct {
 	redis       *redis.Client
-	repo        *Repository
 	storage     *Storage
+	signer      *Signer
 	pollTimeout time.Duration
 }
 
-func NewWorker(redisClient *redis.Client, repo *Repository, storage *Storage, pollTimeout time.Duration) *Worker {
+func NewWorker(redisClient *redis.Client, storage *Storage, signer *Signer, pollTimeout time.Duration) *Worker {
 	return &Worker{
 		redis:       redisClient,
-		repo:        repo,
 		storage:     storage,
+		signer:      signer,
 		pollTimeout: pollTimeout,
 	}
 }
@@ -47,7 +61,7 @@ func (w *Worker) Run(ctx context.Context) error {
 		default:
 		}
 
-		jobID, err := w.redis.BLMove(ctx, pendingQueue, processingQueue, "LEFT", "RIGHT", w.pollTimeout).Result()
+		jobStr, err := w.redis.BLMove(ctx, pendingQueue, processingQueue, "LEFT", "RIGHT", w.pollTimeout).Result()
 		if err != nil {
 			if errors.Is(err, redis.Nil) {
 				continue
@@ -55,96 +69,156 @@ func (w *Worker) Run(ctx context.Context) error {
 			return fmt.Errorf("blmove: %w", err)
 		}
 
-		w.process(ctx, jobID)
+		w.process(ctx, jobStr)
 	}
 }
 
-func (w *Worker) process(ctx context.Context, jobID string) {
+func (w *Worker) process(ctx context.Context, jobStr string) {
 	start := time.Now()
-	id, err := uuid.Parse(jobID)
+
+	var msg JobMessage
+	if err := json.Unmarshal([]byte(jobStr), &msg); err != nil {
+		slog.Error("invalid job message JSON", "job", jobStr, "error", err)
+		w.removeFromProcessing(ctx, jobStr)
+		return
+	}
+
+	id, err := uuid.Parse(msg.DocumentID)
 	if err != nil {
-		slog.Error("invalid job ID", "job_id", jobID, "error", err)
-		w.removeFromProcessing(ctx, jobID)
+		slog.Error("invalid document ID in job", "document_id", msg.DocumentID, "error", err)
+		w.removeFromProcessing(ctx, jobStr)
+		return
+	}
+
+	if msg.InputText == "" {
+		slog.Error("empty input text in job", "document_id", id)
+		w.pushResult(ctx, ResultMessage{
+			DocumentID: id.String(),
+			Status:     "failed",
+			Error:      "empty input text",
+		})
+		w.retryOrDLQ(ctx, jobStr)
 		return
 	}
 
 	slog.Info("processing job", "document_id", id)
 
-	doc, err := w.repo.GetDocument(ctx, id)
-	if err != nil {
-		slog.Error("get document", "document_id", id, "error", err)
-		w.retryOrDLQ(ctx, jobID)
-		return
-	}
-	if doc == nil {
-		slog.Warn("document not found", "document_id", id)
-		w.removeFromProcessing(ctx, jobID)
-		return
-	}
-
-	if err := w.repo.UpdateStatus(ctx, id, "processing", "", ""); err != nil {
-		slog.Error("update status to processing", "document_id", id, "error", err)
-	}
-
-	data, err := GeneratePDF(doc.InputText)
+	data, err := GeneratePDF(msg.InputText)
 	if err != nil {
 		slog.Error("generate pdf", "document_id", id, "error", err)
-		w.handleFailure(ctx, id, jobID, fmt.Errorf("pdf generation: %w", err))
+		w.pushResult(ctx, ResultMessage{
+			DocumentID: id.String(),
+			Status:     "failed",
+			Error:      fmt.Sprintf("pdf generation: %v", err),
+		})
+		w.retryOrDLQ(ctx, jobStr)
 		return
+	}
+	slog.Info("pdf generated",
+		"document_id", id,
+		"size_bytes", len(data),
+		"text_length", len(msg.InputText),
+	)
+
+	if w.signer != nil {
+		signStart := time.Now()
+		signed, err := w.signer.Sign(ctx, data)
+		if err != nil {
+			slog.Error("sign pdf", "document_id", id, "error", err)
+			w.pushResult(ctx, ResultMessage{
+				DocumentID: id.String(),
+				Status:     "failed",
+				Error:      fmt.Sprintf("pdf sign: %v", err),
+			})
+			w.retryOrDLQ(ctx, jobStr)
+			return
+		}
+		slog.Info("pdf signed",
+			"document_id", id,
+			"duration", time.Since(signStart),
+			"size_bytes", len(signed),
+		)
+		data = signed
+	} else {
+		slog.Warn("pdf not signed", "document_id", id, "reason", "no signer configured")
 	}
 
 	objectKey := id.String() + ".pdf"
+	uploadStart := time.Now()
 	if err := w.storage.Upload(ctx, objectKey, data); err != nil {
 		slog.Error("upload pdf", "document_id", id, "error", err)
-		w.handleFailure(ctx, id, jobID, fmt.Errorf("upload: %w", err))
+		w.pushResult(ctx, ResultMessage{
+			DocumentID: id.String(),
+			Status:     "failed",
+			Error:      fmt.Sprintf("upload: %v", err),
+		})
+		w.retryOrDLQ(ctx, jobStr)
 		return
 	}
+	slog.Info("pdf uploaded",
+		"document_id", id,
+		"object_key", objectKey,
+		"size_bytes", len(data),
+		"duration", time.Since(uploadStart),
+	)
 
-	if err := w.repo.UpdateStatus(ctx, id, "completed", objectKey, ""); err != nil {
-		slog.Error("update status to completed", "document_id", id, "error", err)
+	if err := w.pushResult(ctx, ResultMessage{
+		DocumentID: id.String(),
+		Status:     "completed",
+		S3Path:     objectKey,
+	}); err != nil {
+		slog.Error("push result", "document_id", id, "error", err)
+	} else {
+		slog.Info("result pushed", "document_id", id, "status", "completed", "s3_path", objectKey)
 	}
 
-	w.removeFromProcessing(ctx, jobID)
+	w.removeFromProcessing(ctx, jobStr)
 	jobsProcessedTotal.WithLabelValues("ok").Inc()
 	jobDurationSeconds.Observe(time.Since(start).Seconds())
-	slog.Info("job completed", "document_id", id, "duration", time.Since(start))
+	slog.Info("job completed",
+		"document_id", id,
+		"duration", time.Since(start),
+		"total_bytes", len(data),
+	)
 }
 
-func (w *Worker) handleFailure(ctx context.Context, id uuid.UUID, jobID string, err error) {
-	w.repo.UpdateStatus(ctx, id, "failed", "", err.Error())
-	w.retryOrDLQ(ctx, jobID)
-	jobsProcessedTotal.WithLabelValues("fail").Inc()
+func (w *Worker) pushResult(ctx context.Context, result ResultMessage) error {
+	data, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("marshal result: %w", err)
+	}
+	return w.redis.RPush(ctx, resultsQueue, string(data)).Err()
 }
 
-func (w *Worker) retryOrDLQ(ctx context.Context, jobID string) {
+func (w *Worker) retryOrDLQ(ctx context.Context, jobStr string) {
 	count, err := w.redis.LLen(ctx, processingQueue).Result()
 	if err != nil {
 		slog.Error("check retry count", "error", err)
-		w.pushToDLQ(ctx, jobID)
+		w.pushToDLQ(ctx, jobStr)
 		return
 	}
 
 	if count >= maxJobRetries {
-		w.pushToDLQ(ctx, jobID)
+		w.pushToDLQ(ctx, jobStr)
 		return
 	}
 
-	if err := w.redis.LPush(ctx, pendingQueue, jobID).Err(); err != nil {
-		slog.Error("re-queue job", "job_id", jobID, "error", err)
-		w.pushToDLQ(ctx, jobID)
+	if err := w.redis.LPush(ctx, pendingQueue, jobStr).Err(); err != nil {
+		slog.Error("re-queue job", "job_str", jobStr, "error", err)
+		w.pushToDLQ(ctx, jobStr)
 	}
 }
 
-func (w *Worker) pushToDLQ(ctx context.Context, jobID string) {
-	if err := w.redis.LPush(ctx, dlqQueue, jobID).Err(); err != nil {
-		slog.Error("push to dlq", "job_id", jobID, "error", err)
+func (w *Worker) pushToDLQ(ctx context.Context, jobStr string) {
+	if err := w.redis.LPush(ctx, dlqQueue, jobStr).Err(); err != nil {
+		slog.Error("push to dlq", "job_str", jobStr, "error", err)
 	}
-	w.removeFromProcessing(ctx, jobID)
+	w.removeFromProcessing(ctx, jobStr)
 }
 
-func (w *Worker) removeFromProcessing(ctx context.Context, jobID string) {
-	if err := w.redis.LRem(ctx, processingQueue, 0, jobID).Err(); err != nil {
-		slog.Error("remove from processing", "job_id", jobID, "error", err)
+func (w *Worker) removeFromProcessing(ctx context.Context, jobStr string) {
+	if err := w.redis.LRem(ctx, processingQueue, 0, jobStr).Err(); err != nil {
+		slog.Error("remove from processing", "job_str", jobStr, "error", err)
 	}
 }
 

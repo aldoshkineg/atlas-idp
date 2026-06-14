@@ -24,13 +24,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	repo, err := internal.NewRepository(ctx, cfg.Database.ConnString())
-	if err != nil {
-		slog.Error("failed to connect to database", "error", err)
-		os.Exit(1)
-	}
-	defer repo.Close()
-
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:         cfg.Redis.Addr(),
 		Password:     cfg.Redis.Password,
@@ -46,17 +39,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	if len(os.Args) > 1 && os.Args[1] == "migrate" {
-		slog.Info("running migrations")
-		if err := internal.Migrate(ctx, repo.Pool()); err != nil {
-			slog.Error("migration failed", "error", err)
+	var signer *internal.Signer
+	if _, err := os.Stat(cfg.Crypto.CertPath); err == nil {
+		signer, err = internal.NewSigner(ctx, cfg.Crypto.CertPath, cfg.Crypto.KeyPath)
+		if err != nil {
+			slog.Error("failed to initialize signer", "error", err)
 			os.Exit(1)
 		}
-		slog.Info("migrations complete")
-		return
+	} else {
+		slog.Warn("PDF signing disabled: cert not found", "path", cfg.Crypto.CertPath)
 	}
 
-	worker := internal.NewWorker(redisClient, repo, storage,
+	worker := internal.NewWorker(redisClient, storage, signer,
 		time.Duration(cfg.Worker.PollInterval)*time.Millisecond)
 
 	mux := http.NewServeMux()

@@ -37,7 +37,7 @@ Business logic — minimal, just enough to exercise the platform:
                       │                              │ PDF sign cert
                       ▼                              ▼
                  KEDA Worker ────── Cert Manager / Static
-               (Go 1.25 + gofpdf          (clusters/kind/certs)
+               (Go 1.25 + gofpdf          (apps/.certs/)
                 + digitorus/pdfsign)
                       │
                       ▼
@@ -766,7 +766,7 @@ Status lifecycle: `pending → processing → completed | failed`
 
 **Key Management (Vault-first):**
 - **Production:** Signing key never touches disk or git. Vault stores `kv/data/text2pdf/pdf-signer` with `cert` and `key` fields. Vault Agent injects into worker pod at `/vault/secrets/pdf-signer/`.
-- **Dev / Docker Compose:** Local PEM files from `clusters/kind/certs/pdf-signer.{crt,key}` mounted as volumes. The `.key` file is gitignored (`*.key` in `.gitignore`), only the certificate `.crt` is committed.
+- **Dev / Docker Compose:** Local PEM files from `apps/.certs/tls.{crt,key}` mounted as volumes. The entire `apps/.certs/` directory is gitignored; certs are generated locally via `go-task gen-certs`.
 - **Future:** cert-manager with Vault issuer for automatic certificate rotation.
 
 **Verification (Backend API):**
@@ -774,7 +774,7 @@ Status lifecycle: `pending → processing → completed | failed`
 GET /api/v1/documents/{id}/verify
   ├── Download signed PDF from MinIO
   ├── digitorus/pdfsign.Digest() → extract signature blocks
-  ├── Verify cert chain against CA root (clusters/kind/certs/ca.crt)
+  ├── Verify cert against self-signed root (apps/.certs/tls.crt)
   └── Response: {valid: bool, subject, issuer, expiry}
 ```
 

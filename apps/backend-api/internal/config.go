@@ -7,11 +7,12 @@ import (
 )
 
 type Config struct {
-	HTTP      HTTPConfig
-	Database  DatabaseConfig
-	Redis     RedisConfig
-	Minio     MinioConfig
-	Telemetry TelemetryConfig
+	HTTP            HTTPConfig
+	Database        DatabaseConfig
+	Redis           RedisConfig
+	MinioEndpoint   string `env:"MINIO_ENDPOINT, default=localhost:9000"`
+	DownloadBaseURL string `env:"DOWNLOAD_URL_PREFIX, default=http://localhost:9000"`
+	Telemetry       TelemetryConfig
 }
 
 type HTTPConfig struct {
@@ -41,13 +42,6 @@ type RedisConfig struct {
 
 func (r RedisConfig) Addr() string {
 	return r.Host + ":" + itoa(r.Port)
-}
-
-type MinioConfig struct {
-	Endpoint  string `env:"MINIO_ENDPOINT, default=localhost:9000"`
-	AccessKey string `env:"MINIO_ACCESS_KEY, required"`
-	SecretKey string `env:"MINIO_SECRET_KEY, required"`
-	UseSSL    bool   `env:"MINIO_USE_SSL, default=false"`
 }
 
 type TelemetryConfig struct {

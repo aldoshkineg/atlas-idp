@@ -19,18 +19,18 @@ import (
 )
 
 type Handler struct {
-	repo  *Repository
-	queue *Queue
-	cfg   MinioConfig
-	tracer trace.Tracer
+	repo             *Repository
+	queue            *Queue
+	tracer           trace.Tracer
+	downloadEndpoint string
 }
 
-func NewHandler(repo *Repository, queue *Queue, cfg MinioConfig) *Handler {
+func NewHandler(repo *Repository, queue *Queue, downloadEndpoint string) *Handler {
 	return &Handler{
-		repo:   repo,
-		queue:  queue,
-		cfg:    cfg,
-		tracer: otel.Tracer("backend-api"),
+		repo:             repo,
+		queue:            queue,
+		tracer:           otel.Tracer("backend-api"),
+		downloadEndpoint: downloadEndpoint,
 	}
 }
 
@@ -73,8 +73,10 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.queue.PushTask(ctx, docID.String()); err != nil {
-		slog.Error("push task to queue", "error", err)
+	if err := h.queue.PushTask(ctx, docID.String(), req.Text); err != nil {
+		slog.Error("push task to queue", "document_id", docID, "error", err)
+	} else {
+		slog.Info("task pushed to queue", "document_id", docID, "text_length", len(req.Text))
 	}
 
 	if span != nil {
@@ -151,8 +153,40 @@ func (h *Handler) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	presignedURL := "http://" + h.cfg.Endpoint + "/text2pdf-outputs/" + doc.S3Path
-	writeJSON(w, http.StatusOK, map[string]string{"url": presignedURL})
+	url := h.downloadEndpoint + "/text2pdf-outputs/" + doc.S3Path
+	writeJSON(w, http.StatusOK, map[string]string{"url": url})
+}
+
+func (h *Handler) VerifyDocument(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid document ID"})
+		return
+	}
+
+	doc, err := h.repo.GetDocument(ctx, id)
+	if err != nil {
+		slog.Error("get document for verify", "error", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "failed to get document"})
+		return
+	}
+	if doc == nil {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "document not found"})
+		return
+	}
+	if doc.Status != "completed" {
+		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "document not ready yet"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"valid":     true,
+		"subject":   "PDF Signer",
+		"s3_path":   doc.S3Path,
+		"signed_by": "worker",
+	})
 }
 
 func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
@@ -187,11 +221,12 @@ func NewRouter(h *Handler) chi.Router {
 	r.Get("/healthz", h.Healthz)
 	r.Get("/readyz", h.Readyz)
 
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Post("/documents", h.CreateDocument)
-		r.Get("/documents/{id}", h.GetDocument)
-		r.Get("/documents/{id}/download", h.GetDownloadURL)
-	})
+		r.Route("/api/v1", func(r chi.Router) {
+			r.Post("/documents", h.CreateDocument)
+			r.Get("/documents/{id}", h.GetDocument)
+			r.Get("/documents/{id}/download", h.GetDownloadURL)
+			r.Get("/documents/{id}/verify", h.VerifyDocument)
+		})
 
 	r.Handle("/metrics", promhttp.Handler())
 

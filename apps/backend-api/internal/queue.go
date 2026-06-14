@@ -2,12 +2,17 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-const QueueKey = "text2pdf:jobs"
+const (
+	QueueKey       = "text2pdf:jobs"
+	ResultsQueueKey = "text2pdf:results"
+)
 
 type Queue struct {
 	client *redis.Client
@@ -31,6 +36,27 @@ func (q *Queue) Close() error {
 	return q.client.Close()
 }
 
-func (q *Queue) PushTask(ctx context.Context, taskID string) error {
-	return q.client.RPush(ctx, QueueKey, taskID).Err()
+type JobMessage struct {
+	DocumentID string `json:"document_id"`
+	InputText  string `json:"input_text"`
+}
+
+func (q *Queue) PushTask(ctx context.Context, documentID, inputText string) error {
+	msg := JobMessage{DocumentID: documentID, InputText: inputText}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	return q.client.RPush(ctx, QueueKey, string(data)).Err()
+}
+
+func (q *Queue) PopResult(ctx context.Context, timeout time.Duration) (string, error) {
+	items, err := q.client.BLPop(ctx, timeout, ResultsQueueKey).Result()
+	if err != nil {
+		return "", err
+	}
+	if len(items) < 2 {
+		return "", fmt.Errorf("unexpected BLPop result: %v", items)
+	}
+	return items[1], nil
 }

@@ -8,12 +8,8 @@ import (
 
 func TestLoadConfigDefaults(t *testing.T) {
 	os.Setenv("POSTGRES_PASSWORD", "testpass")
-	os.Setenv("MINIO_ACCESS_KEY", "testkey")
-	os.Setenv("MINIO_SECRET_KEY", "testsecret")
 	defer func() {
 		os.Unsetenv("POSTGRES_PASSWORD")
-		os.Unsetenv("MINIO_ACCESS_KEY")
-		os.Unsetenv("MINIO_SECRET_KEY")
 	}()
 
 	cfg, err := LoadConfig(context.Background())

@@ -7,5 +7,5 @@ import (
 )
 
 func TestWorkerIntegration(t *testing.T) {
-	t.Skip("requires real redis, postgres, minio")
+	t.Skip("requires real redis, minio")
 }

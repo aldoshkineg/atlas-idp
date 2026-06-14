@@ -110,7 +110,7 @@ apps/worker/
   - Loads X.509 cert + RSA key from PEM files at startup
   - Uses `digitorus/pdfsign.Sign()` for CMS/PAdES signature
   - Configurable cert/key via `PDF_SIGN_CERT` / `PDF_SIGN_KEY` env vars
-  - **Dev:** reads from file path (`clusters/kind/certs/`, gitignored `.key`)
+  - **Dev:** reads from file path (`apps/.certs/`, gitignored `.key`)
   - **Prod:** Vault Agent injects into `/vault/secrets/pdf-signer/`
   - Signature info: `Atlas IDP`, reason `Document authenticity`
 - [ ] `worker.go` — main loop (updated for signing):

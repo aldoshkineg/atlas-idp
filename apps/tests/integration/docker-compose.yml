@@ -66,11 +66,33 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: ["migrate"]
+
+  worker:
+    image: ghcr.io/atlas-idp/worker:dev
+    container_name: text2pdf-worker
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadminpassword}
       MINIO_USE_SSL: false
-    command: ["migrate"]
+      WORKER_POLL_INTERVAL_MS: 1000
+      SIGN_CERT_PATH: /etc/atlas-idp/certs/tls.crt
+      SIGN_KEY_PATH: /etc/atlas-idp/certs/tls.key
+    volumes:
+      - ../../../apps/.certs/tls.crt:/etc/atlas-idp/certs/tls.crt:ro
+      - ../../../apps/.certs/tls.key:/etc/atlas-idp/certs/tls.key:ro
 
   backend-api:
     image: ghcr.io/atlas-idp/backend-api:dev
@@ -92,38 +114,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadminpassword}
-      MINIO_USE_SSL: false
-
-  worker:
-    image: ghcr.io/atlas-idp/worker:dev
-    container_name: text2pdf-worker
-    restart: unless-stopped
-    ports:
-      - "9090:9090"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-text2pdf}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-text2pdf}
-      POSTGRES_DB: ${POSTGRES_DB:-text2pdf}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadminpassword}
-      MINIO_USE_SSL: false
-      WORKER_POLL_INTERVAL_MS: 1000
+      DOWNLOAD_URL_PREFIX: http://minio:9000
 
 volumes:
   pgdata:

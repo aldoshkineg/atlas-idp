@@ -62,3 +62,6 @@ clusters/kind/ci/act-runner/cache/*
 
 # Self-signed CA
 clusters/kind/certs/ca*
+
+# Dev certs
+apps/.certs/

@@ -141,18 +141,24 @@ Pre-commit runs on every commit:
 - Example: `go-task dc-ps`, `go-task dc-up`, `go-task test`.
 - Taskfile.yml is at `apps/Taskfile.yml`. Run from repo root with `go-task -f apps/Taskfile.yml <target>` or `cd apps && go-task <target>`.
 
+### text2pdf Architecture (June 2026)
+- **Worker** is a blind PDF factory: reads JSON `{document_id, input_text}` from Redis `text2pdf:jobs`, generates PDF, signs, uploads to MinIO, writes `{document_id, status, s3_path, error}` to `text2pdf:results`. **No PostgreSQL access.**
+- **Backend API** owns PostgreSQL and Redis job queue. Pushes JSON jobs to `text2pdf:jobs` (with `input_text`), background goroutine consumes `text2pdf:results` and updates PG document status. **No MinIO client** (download URL constructed from config prefix).
+- Verify endpoint (`/api/v1/documents/{id}/verify`) checks PG status — returns `valid: true` if status is `completed`.
+- Job flow: `POST /documents` → PG insert + Redis `text2pdf:jobs` → Worker reads → signs → uploads → Redis `text2pdf:results` → Backend-API consumer updates PG status
+
 ### PDF Signing (June 2026)
 - Worker signs every PDF with `digitorus/pdfsign` (CMS/PAdES, RSA 2048, SHA-256)
-- Signing cert: `clusters/kind/certs/pdf-signer.crt`, key: `clusters/kind/certs/pdf-signer.key`
-- Signed by dev CA (`clusters/kind/certs/ca.crt`)
+- Signing cert paths configured via `SIGN_CERT_PATH` / `SIGN_KEY_PATH` env vars
+- Dev defaults point to Vault Agent paths (`/vault/secrets/tls.{crt,key}`)
+- Local dev: `go-task gen-certs` generates self-signed cert to `apps/.certs/tls.{crt,key}`
+- Docker Compose mounts `apps/.certs/` into the worker container
 - **Production:** key stored in Vault (`kv/data/text2pdf/pdf-signer`), injected via Vault Agent
-- **Dev:** `.key` is gitignored (`*.key` pattern); `.crt` committed for reference
+- **Dev:** `.certs/` is gitignored; certs generated via `go-task gen-certs`
 - Metrics: `pdf_sign_duration_seconds`, `pdf_sign_errors_total`
-- Verify endpoint: `GET /api/v1/documents/{id}/verify` in backend-api
-- **Next:** integrate `digitorus/pdfsign` into worker (signer.go), add verify endpoint to handler.go
 
 ### Infra Tests (June 2026)
 - Full stack smoke tests: `cd apps/tests/integration && ./test-infra.sh`
-- Tests: postgres, redis, minio, API healthz/readyz, document CRUD, worker processing, MinIO PDF existence, worker metrics
+- Tests: postgres, redis, minio, API healthz/readyz, document CRUD, worker processing, MinIO PDF existence, worker metrics, signature verification
 - Docker Compose stack: `apps/tests/integration/docker-compose.yml`
 - Secrets: `apps/tests/integration/.env` (not committed)
