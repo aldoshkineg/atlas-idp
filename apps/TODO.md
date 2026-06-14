@@ -14,7 +14,7 @@
 **Goal:** Local dev without Kubernetes.
 
 - [x] `docker-compose.yml` — postgres:17-alpine, redis:7-alpine, minio/minio (in `apps/tests/integration/`)
-- [ ] `.env.example`
+- [x] `.env.example` — all required and optional vars for both backend-api and worker
 - [x] `Taskfile.yml` targets: `dc-up`, `dc-down`, `run-api`, `run-worker`, `gen-certs`
 - [x] **Test:** `apps/tests/integration/test-infra.sh` — 14 smoke tests (all pass)
 

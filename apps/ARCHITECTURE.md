@@ -51,25 +51,30 @@ Business logic — minimal, just enough to exercise the platform:
 User ──POST /documents──▶ Backend API
                             │
                             ├── INSERT into PostgreSQL (status: pending)
-                            └── RPUSH task_id into Redis LIST
+                            └── RPUSH job into Redis text2pdf:jobs
                                     │
                                     ▼
-                          Worker (BLPOP via KEDA)
+                          Worker (BLMOVE via KEDA)
                             │
                             ├── 1. Generate PDF (gofpdf)
                             ├── 2. Sign PDF (digitorus/pdfsign)
                             │     └── X.509 cert from Vault / file
                             ├── 3. Upload signed PDF to MinIO
-                            └── 4. UPDATE PostgreSQL (status: completed)
+                            └── 4. RPUSH result into Redis text2pdf:results
+                                          │
+                                          ▼
+                                  Backend API consumer
+                                  (BLPOP text2pdf:results)
+                                          │
+                                          └── UPDATE PostgreSQL (status: completed | failed)
 
-User ──GET /documents/{id}──────────▶ Backend API ──▶ PostgreSQL
-User ──GET /documents/{id}/download──▶ MinIO presigned URL (signed PDF)
-User ──GET /documents/{id}/verify ───▶ Backend API
+User ──GET /documents/{id}       ──▶ Backend API ──▶ PostgreSQL
+User ──GET /documents/{id}/download ──▶ Backend API ──▶ DOWNLOAD_URL_PREFIX + s3_path
+User ──GET /documents/{id}/verify ────▶ Backend API
                             │
-                            ├── Download PDF from MinIO
-                            ├── Extract CMS/PAdES signature
-                            ├── Verify cert chain against CA
-                            └── Return {valid, subject, issuer, expiry}
+                            └── Check PG document status
+                                └── completed → {valid: true}
+                                └── other    → {valid: false, error: "not ready"}
 ```
 
 ### Components
@@ -78,7 +83,7 @@ User ──GET /documents/{id}/verify ───▶ Backend API
 | ----------- | ---------------------------------------------------- | ------------------------------------------------ |
 | Frontend    | React 19 + Vite 7 + TypeScript 5.9 + Nginx           | Web UI: text input, status polling, PDF download |
 | Backend API | Go 1.26                                              | REST API, metadata in PG, task queue to Redis    |
-| Worker      | Go 1.26 + gofpdf + digitorus/pdfsign                 | Redis consumer, PDF generation, signing, MinIO upload |
+| Worker      | Go 1.26 + gofpdf + digitorus/pdfsign                 | Redis consumer, PDF generation, signing, MinIO upload (no PG access) |
 | Signer      | digitorus/pdfsign, X.509 (RSA 2048, SHA-256)         | CMS/PAdES digital signature appended to PDF      |
 | Cert Store  | File (dev) / Vault Agent (prod) / cert-manager       | X.509 signing certificate + RSA private key      |
 | PostgreSQL  | CloudNativePG 17.6                                   | Document metadata                                |
@@ -93,11 +98,11 @@ User ──GET /documents/{id}/verify ───▶ Backend API
 
 | Service     | Language                         | Runtime               |
 | ----------- | -------------------------------- | --------------------- |
-| Backend API | Go 1.25                          | distroless/chainguard |
-| Worker      | Go 1.25                          | distroless/chainguard |
+| Backend API | Go 1.26                          | distroless/chainguard |
+| Worker      | Go 1.26                          | distroless/chainguard |
 | Frontend    | TypeScript 5.9, React 19, Vite 7 | nginx:alpine          |
 
-### Backend Libraries (Go 1.25)
+### Backend Libraries (Go 1.26)
 
 | Library                            | Purpose                                                  |
 | ---------------------------------- | -------------------------------------------------------- |
@@ -114,12 +119,11 @@ User ──GET /documents/{id}/verify ───▶ Backend API
 | `stretchr/testify`                 | Testing (assert, mock)                                   |
 | `testcontainers/testcontainers-go` | Integration tests (real Postgres/Redis/MinIO on the fly) |
 
-### Worker (Go 1.26)
+### Worker Libraries
 
 | Library                     | Purpose                        |
 | --------------------------- | ------------------------------ |
-| `redis/go-redis/v9`         | BLPOP / BLMOVE queue consumer  |
-| `jackc/pgx/v5`              | Status updates                 |
+| `redis/go-redis/v9`         | BLMOVE queue consumer          |
 | `minio/minio-go/v7`         | Upload to MinIO                |
 | `jung-kurt/gofpdf`          | PDF generation                 |
 | `digitorus/pdfsign`          | CMS/PAdES digital signing      |
@@ -772,10 +776,10 @@ Status lifecycle: `pending → processing → completed | failed`
 **Verification (Backend API):**
 ```
 GET /api/v1/documents/{id}/verify
-  ├── Download signed PDF from MinIO
-  ├── digitorus/pdfsign.Digest() → extract signature blocks
-  ├── Verify cert against self-signed root (apps/.certs/tls.crt)
-  └── Response: {valid: bool, subject, issuer, expiry}
+  ├── Fetch document from PostgreSQL by ID
+  ├── If status == "completed" → {valid: true}
+  ├── If status != "completed" → {valid: false, error: "document not ready"}
+  └── No MinIO client or PDF inspection in backend
 ```
 
 **Metrics (Worker):**
@@ -791,7 +795,7 @@ GET /api/v1/documents/{id}/verify
 ```
 atlas-idp/
 ├── apps/
-│   ├── backend-api/       # Go 1.25, REST API
+│   ├── backend-api/       # Go 1.26, REST API
 │   │   ├── cmd/
 │   │   ├── internal/
 │   │   │   ├── config.go
@@ -801,16 +805,14 @@ atlas-idp/
 │   │   │   └── migrate.go
 │   │   ├── migrations/
 │   │   └── Dockerfile
-│   ├── worker/            # Go 1.26, PDF generator + signer
+│   ├── worker/            # Go 1.26, PDF generator + signer (blind, no PG)
 │   │   ├── cmd/
 │   │   ├── internal/
 │   │   │   ├── config.go
 │   │   │   ├── worker.go
-│   │   │   ├── repository.go
 │   │   │   ├── storage.go
 │   │   │   ├── pdf.go
-│   │   │   ├── signer.go         # PDF signing (digitorus/pdfsign)
-│   │   │   └── migrate.go
+│   │   │   └── signer.go         # PDF signing (digitorus/pdfsign)
 │   │   └── Dockerfile
 │   ├── frontend/          # React 19 + Vite 7
 │   │   ├── src/
@@ -833,7 +835,8 @@ atlas-idp/
 │   ├── runbooks/
 │   └── diagrams/
 ├── infra/
-├── Taskfile.yml          # Workloads: build, test, dc-up, run-api, kind-load
+├── apps/
+│   ├── Taskfile.yml          # Workloads: build, test, dc-up, run-api, kind-load
+│   └── tests/integration/docker-compose.yml
 ├── Makefile              # Platform: cluster-up, infra-apply, validate
-└── docker-compose.yml
 ```
