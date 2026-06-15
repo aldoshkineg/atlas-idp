@@ -36,6 +36,9 @@ spec:
           - name: cnpg-backups
             policy: none
             purge: false
+          - name: seal-outputs
+            policy: download
+            purge: false
         tls:
           enabled: false
         service:
