@@ -14,7 +14,7 @@ tasks:
   # ────────────────────────────────────────────
 
   dc-up:
-    desc: Start full stack (postgres, redis, minio, backend-api, worker)
+    desc: Start full stack (postgres, redis, minio, seal-api, seal-worker)
     dir: tests/integration
     cmds:
       - docker compose up -d
@@ -51,7 +51,7 @@ tasks:
     desc: Generate self-signed certs for local dev signing (needed by run-worker)
     cmds:
       - mkdir -p .certs
-      - openssl req -x509 -newkey rsa:2048 -keyout .certs/tls.key -out .certs/tls.crt -days 365 -nodes -subj "/CN=text2pdf-worker-dev/O=Atlas IDP Local"
+      - openssl req -x509 -newkey rsa:2048 -keyout .certs/tls.key -out .certs/tls.crt -days 365 -nodes -subj "/CN=seal-worker-dev/O=Atlas IDP Local"
       - chmod 644 .certs/tls.crt .certs/tls.key
 
   # ────────────────────────────────────────────
@@ -59,19 +59,19 @@ tasks:
   # ────────────────────────────────────────────
 
   run-api:
-    desc: Start backend API on host (requires dc-up)
-    dir: backend-api
+    desc: Start seal API on host (requires dc-up)
+    dir: seal-api
     cmds:
       - go run ./cmd
     env:
-      POSTGRES_PASSWORD: text2pdf
+      POSTGRES_PASSWORD: seal
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadminpassword
       DOWNLOAD_URL_PREFIX: http://localhost:9000
 
   run-worker:
-    desc: Start worker on host (requires dc-up, gen-certs)
-    dir: worker
+    desc: Start seal worker on host (requires dc-up, gen-certs)
+    dir: seal-worker
     cmds:
       - go run ./cmd
     env:
@@ -81,8 +81,8 @@ tasks:
       MINIO_SECRET_KEY: minioadminpassword
 
   run-frontend:
-    desc: Start frontend on host (requires dc-up + run-api)
-    dir: frontend
+    desc: Start seal UI on host (requires dc-up + run-api)
+    dir: seal-ui
     cmds:
       - go run ./cmd
     env:
@@ -95,15 +95,15 @@ tasks:
   test:
     desc: Run all unit tests in all modules
     cmds:
-      - cd backend-api && go test ./... -race -shuffle=on -count=1
-      - cd worker && go test ./... -race -shuffle=on -count=1
-      - cd frontend && go test ./... -race -shuffle=on -count=1
+      - cd seal-api && go test ./... -race -shuffle=on -count=1
+      - cd seal-worker && go test ./... -race -shuffle=on -count=1
+      - cd seal-ui && go test ./... -race -shuffle=on -count=1
 
   test-integration:
     desc: Run Go integration tests in both modules (requires dc-up)
     cmds:
-      - cd backend-api && go test ./... -tags=integration -race -shuffle=on -count=1
-      - cd worker && go test ./... -tags=integration -race -shuffle=on -count=1
+      - cd seal-api && go test ./... -tags=integration -race -shuffle=on -count=1
+      - cd seal-worker && go test ./... -tags=integration -race -shuffle=on -count=1
 
   test-infra:
     desc: Run infrastructure smoke tests (curl against docker compose)
@@ -118,16 +118,16 @@ tasks:
   lint:
     desc: Run golangci-lint in all modules
     cmds:
-      - cd backend-api && golangci-lint run ./...
-      - cd worker && golangci-lint run ./...
-      - cd frontend && golangci-lint run ./...
+      - cd seal-api && golangci-lint run ./...
+      - cd seal-worker && golangci-lint run ./...
+      - cd seal-ui && golangci-lint run ./...
 
   vet:
     desc: Run go vet in all modules
     cmds:
-      - cd backend-api && go vet ./...
-      - cd worker && go vet ./...
-      - cd frontend && go vet ./...
+      - cd seal-api && go vet ./...
+      - cd seal-worker && go vet ./...
+      - cd seal-ui && go vet ./...
 
   validate:
     desc: Run lint, vet, and unit tests
@@ -141,19 +141,19 @@ tasks:
   # ────────────────────────────────────────────
 
   build-api:
-    desc: Build backend-api Docker image
+    desc: Build seal-api Docker image
     cmds:
-      - docker buildx build --load -t ghcr.io/atlas-idp/backend-api:dev ./backend-api
+      - docker buildx build --load -t ghcr.io/atlas-idp/seal-api:dev ./seal-api
 
   build-worker:
-    desc: Build worker Docker image
+    desc: Build seal-worker Docker image
     cmds:
-      - docker buildx build --load -t ghcr.io/atlas-idp/worker:dev ./worker
+      - docker buildx build --load -t ghcr.io/atlas-idp/seal-worker:dev ./seal-worker
 
   build-frontend:
-    desc: Build frontend Docker image
+    desc: Build seal-ui Docker image
     cmds:
-      - docker buildx build --load -t ghcr.io/atlas-idp/frontend:dev ./frontend
+      - docker buildx build --load -t ghcr.io/atlas-idp/seal-ui:dev ./seal-ui
 
   build-all:
     desc: Build all Docker images
@@ -167,9 +167,9 @@ tasks:
     deps:
       - build-all
     cmds:
-      - kind load docker-image ghcr.io/atlas-idp/backend-api:dev
-      - kind load docker-image ghcr.io/atlas-idp/worker:dev
-      - kind load docker-image ghcr.io/atlas-idp/frontend:dev
+      - kind load docker-image ghcr.io/atlas-idp/seal-api:dev
+      - kind load docker-image ghcr.io/atlas-idp/seal-worker:dev
+      - kind load docker-image ghcr.io/atlas-idp/seal-ui:dev
 
   # ────────────────────────────────────────────
   # Cleanup

@@ -10,5 +10,5 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: High 5xx error rate on backend-api
+          summary: High 5xx error rate on seal-api
           description: More than 5% of requests returned 5xx for 5 minutes.

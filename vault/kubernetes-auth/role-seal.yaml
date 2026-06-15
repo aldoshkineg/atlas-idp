@@ -1,0 +1,12 @@
+# Kubernetes auth role for Seal workload
+# Apply after Vault is running and kubernetes auth is enabled.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-auth-seal-stub
+  namespace: vault
+data:
+  role: seal
+  policies: seal-workloads
+  bound_service_account_names: seal-api,seal-worker,seal-ui
+  bound_service_account_namespaces: seal

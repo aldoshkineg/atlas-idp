@@ -1,6 +1,11 @@
 # Workloads — Implementation Roadmap
 
-> **Legend:** `[ ]` Planned
+> **Legend:** `[ ]` Planned | `[x]` Done
+
+**Project: Seal** — Document signing platform.
+Accepts text input via web UI, queues processing jobs in Redis, asynchronously generates
+signed PDFs and stores them in object storage (MinIO). User is notified on completion
+and can download the signed document.
 
 **Philosophy:** Application is a vehicle to demonstrate platform engineering.
 15% Go code, 85% infrastructure (Helm, ArgoCD, Vault, KEDA, Observability, Security).
@@ -14,19 +19,18 @@
 **Goal:** Local dev without Kubernetes.
 
 - [x] `docker-compose.yml` — postgres:17-alpine, redis:7-alpine, minio/minio (in `apps/tests/integration/`)
-- [x] `.env.example` — all required and optional vars for both backend-api and worker
+- [x] `.env.example` — all required and optional vars for seal-api, seal-worker, seal-ui
 - [x] `Taskfile.yml` targets: `dc-up`, `dc-down`, `run-api`, `run-worker`, `gen-certs`
 - [x] **Test:** `apps/tests/integration/test-infra.sh` — 14 smoke tests (all pass)
 
 ---
 
-## Phase 1 — Backend API (Go 1.26)
+## Phase 1 — Seal API (Go 1.26)
 
 **Stack:** chi, pgx, go-redis, go-envconfig, slog, prometheus, otel.
 
-**Flat structure — no service layer, no telemetry package:**
 ```
-apps/backend-api/
+apps/seal-api/
 ├── cmd/
 │   ├── main.go
 │   └── main_test.go
@@ -53,7 +57,7 @@ apps/backend-api/
 - [x] `cmd/main.go` — `os.Args[1] == "migrate"` subcommand for standalone migration Job
 - [x] `migrate.go` — `//go:embed migrations/*.sql`, run on `migrate` subcommand (NOT on startup)
 - [x] `repository.go` — pgx: CreateDocument, GetDocument, UpdateStatus, pgxpool with `MaxConns=5`
-- [x] `queue.go` — Redis: PushTask (RPUSH `text2pdf:jobs`), PopResult (BLPOP `text2pdf:results`)
+- [x] `queue.go` — Redis: PushTask (RPUSH `seal:jobs`), PopResult (BLPOP `seal:results`)
 - [x] `handler.go` — chi:
   - `POST /api/v1/documents` → repo.Create + queue.PushTask, return `{id}`
   - `GET /api/v1/documents/{id}` → repo.GetDocument, return JSON
@@ -69,12 +73,12 @@ apps/backend-api/
 
 ---
 
-## Phase 2 — Worker (Go 1.26)
+## Phase 2 — Seal Worker (Go 1.26)
 
 **Stack:** go-redis, minio-go, gofpdf, digitorus/pdfsign, slog, prometheus, otel.
 
 ```
-apps/worker/
+apps/seal-worker/
 ├── cmd/
 │   ├── main.go
 │   └── main_test.go
@@ -88,7 +92,7 @@ apps/worker/
 │   ├── pdf_test.go
 │   ├── signer.go           # PDF cryptographic signing (digitorus/pdfsign)
 │   ├── signer_test.go      # sign + verify round-trip + tamper + untrusted CA
-│   ├── storage.go          # minio-go: Upload to text2pdf-outputs/{id}.pdf
+│   ├── storage.go          # minio-go: Upload to seal-outputs/{id}.pdf
 │   └── storage_test.go
 ├── Dockerfile
 └── go.mod
@@ -98,146 +102,108 @@ apps/worker/
 - [x] Config struct (CryptoConfig with Vault-default paths)
 - [x] `cmd/main.go` — graceful shutdown, finish in-flight job
 - [x] `pdf.go` — gofpdf: text → PDF (A4, monospace, plain layout)
-- [x] `signer.go` — PDF cryptographic signing with `digitorus/pdfsign`:
-  ```go
-  func (s *Signer) Sign(ctx context.Context, pdfData []byte) ([]byte, error)
-  ```
-  - Loads X.509 cert + key from PEM files at startup (reads from file paths)
-  - Uses `crypto.Signer` interface (not just `*rsa.PrivateKey`)
-  - Uses `sign.Sign()` / `verify.VerifyWithOptions()` from `digitorus/pdfsign` v0.0.0-20260407063256
-  - Configurable cert/key via `SIGN_CERT_PATH` / `SIGN_KEY_PATH` env vars
-  - **Dev:** reads from `apps/.certs/` (gitignored, generated via `go-task gen-certs`)
-  - **Prod:** Vault Agent injects into `/vault/secrets/tls.{crt,key}`
-  - Signature info: `Atlas IDP`, reason `Document authenticity`
-- [x] `worker.go` — main loop:
-  ```
-  job := redis.BLMove(text2pdf:jobs → text2pdf:processing)
-  rawPDF := pdf.Generate(job.InputText)
-  signedPDF := signer.Sign(rawPDF)
-  storage.Upload(job.DocumentID, signedPDF)
-  redis.LPush(text2pdf:results, {document_id, status, s3_path})
-  redis.LRem(text2pdf:processing)
-  ```
-  - Job message is JSON `{document_id, input_text}` (no PostgreSQL)
-  - Writes results to `text2pdf:results` Redis list
-  - Per-step logging (pdf generated, signed, uploaded, result pushed, job completed)
-- [x] Retry logic: 3 attempts via `LLen` on processing queue, then push to `text2pdf:dlq`
+- [x] `signer.go` — PDF cryptographic signing with `digitorus/pdfsign`
+- [x] `worker.go` — main loop with BLMOVE, retry, DLQ
+- [x] Retry logic: 3 attempts via `LLen` on processing queue, then push to `seal:dlq`
 - [x] **Exponential backoff** on MinIO upload: retry 3 times with 1s/2s/4s delay
-- [x] Metrics:
-  - `pdf_sign_duration_seconds` (histogram)
-  - `pdf_sign_errors_total` (counter)
-  - `pdf_verify_total` (counter)
-  - `jobs_processed_total{status="ok|fail"}` (counter)
-  - `job_duration_seconds` (histogram)
+- [x] Metrics: pdf_sign_duration_seconds, pdf_sign_errors_total, jobs_processed_total, job_duration_seconds
 - [x] Dockerfile (multi-stage: golang → `scratch`, cache mounts, `-ldflags="-s -w"`)
 - [x] **Test:** `go test ./...` — unit tests pass
 - [x] **Test:** `go test -tags=integration ./...` — testcontainers: real redis + minio, full job lifecycle
 
 ---
 
-## Phase 3 — Frontend (Go + HTMX)
+## Phase 3 — Seal UI (Go + HTMX)
 
 **Stack:** Go 1.26, chi, html/template, HTMX, Tailwind CSS (CDN).
 
 ```
-apps/frontend/
+apps/seal-ui/
 ├── cmd/
 │   └── main.go
 ├── internal/
 │   ├── config.go
 │   ├── server.go
 │   ├── handlers/
-│   │   ├── page.go              # GET / — главная форма
+│   │   ├── page.go              # GET / — main form
 │   │   └── document.go          # POST /documents, GET /documents/{id}/status (HTMX)
 │   ├── templates/
-│   │   ├── base.html            # общий layout (DOCTYPE, head, htmx.min.js CDN, Tailwind CDN)
-│   │   ├── index.html           # форма textarea + кнопка Submit
-│   │   ├── status.html          # фрагмент: спиннер → hx-get polling
-│   │   ├── status_pending.html  # фрагмент: продолжаем poll
-│   │   └── download.html        # фрагмент: ссылка на скачивание + verify
+│   │   ├── base.html            # layout
+│   │   ├── index.html           # textarea + Submit
+│   │   ├── status.html          # spinner → hx-get polling
+│   │   ├── status_pending.html  # continue polling
+│   │   └── download.html        # download link + verify
 │   └── client/
-│       └── api.go               # HTTP-клиент к backend-api (retry с экспоненциальным backoff, timeouts)
-├── Dockerfile                   # golang:1.26 → chainguard/static
+│       └── api.go               # HTTP client to seal-api
+├── Dockerfile
 ├── go.mod
 ├── .env.example                 # BACKEND_API_URL=http://localhost:8080
 ```
 
 - [x] `go mod init`, Config (`BACKEND_API_URL`, `PORT`)
 - [x] `cmd/main.go` — chi router, graceful shutdown, /healthz /readyz
-- [x] `internal/client/api.go` — `CreateDocument(text)`, `GetDocument(id)`, `GetDownloadURL(id)`, `VerifyDocument(id)` через HTTP к backend-api
-- [x] `internal/templates/base.html` — DOCTYPE, `<script src="https://unpkg.com/htmx.org@2.0.4">`, `<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">`
-- [x] `internal/templates/index.html` — `<form hx-post="/documents" hx-target="#result" hx-swap="innerHTML">` с textarea + submit
-- [x] `internal/templates/status.html` — `<div hx-get="/documents/{id}/status" hx-trigger="load delay:1s" hx-swap="outerHTML">Processing...</div>`
-- [x] `internal/templates/status_pending.html` — фрагмент, продолжающий poll с HX-Retarget
-- [x] `internal/templates/download.html` — ссылка скачивания + кнопка verify (hx-get)
-- [x] `internal/handlers/page.go` — `GET /` → рендер index.html
-- [x] `internal/handlers/document.go` — `POST /documents` → вызов api.CreateDocument → фрагмент status.html; `GET /documents/{id}/status` → вызов api.GetDocument → download.html или status_pending.html; `GET /documents/{id}/download` → вызов api.GetDownloadURL, 303 redirect на полученный MinIO URL
-- [x] `internal/server.go` — сборка роутера, middleware (slog, request_id, duration)
-- [x] Dockerfile — multi-stage (golang:1.26 → chainguard/static, `-ldflags="-s -w"`, non-root)
-- [x] `.env.example` — `BACKEND_API_URL=http://localhost:8080`
-- [x] Metriки: `http_requests_total`, `http_request_duration_seconds`, `http_requests_in_flight`, `frontend_backend_requests_total`
-- [x] **Test:** `go test ./...` — unit-тесты обработчиков с mock client
-- [x] **Test:** `go vet ./...` — без ошибок
+- [x] `internal/client/api.go` — CreateDocument, GetDocument, GetDownloadURL, VerifyDocument
+- [x] Templates: base.html, index.html, status.html, status_pending.html, download.html
+- [x] Handlers: page (GET /), document (POST /documents, GET /documents/{id}/status, download)
+- [x] Dockerfile — multi-stage (golang:1.26 → chainguard/static, non-root)
+- [x] Metrics: http_requests_total, http_request_duration_seconds, frontend_backend_requests_total
+- [x] **Test:** `go test ./...` — unit tests with mock client
+- [x] **Test:** `go vet ./...` — no errors
 
 ---
 
-## Phase 4 — Helm Charts
+## Phase 4 — Helm Chart
 
-- [ ] `apps/charts/backend-api/`:
+- [x] Single chart `apps/charts/seal/`:
   - `Chart.yaml`, `values.yaml` (zero secrets — host/port/logLevel only)
-  - `templates/deployment.yaml` — Vault Agent annotations, envFrom ConfigMap, probes, resources
-  - `templates/service.yaml`
-  - `templates/servicemonitor.yaml`
-  - `templates/vault-role.yaml`
-  - `templates/migration-job.yaml` — ArgoCD PreSync hook, runs `./app migrate`, deletes on success
-- [ ] `apps/charts/worker/` — same structure
-- [ ] `apps/charts/frontend/` — same (minimal)
-- [ ] **Test:** `helm lint apps/charts/*` — no errors
-- [ ] **Test:** `helm template apps/charts/backend-api` — valid YAML output
+  - `templates/deployment-api.yaml` — Vault Agent annotations, envFrom ConfigMap/Secret, probes, resources
+  - `templates/deployment-worker.yaml` — same + Vault Agent cert injection, redis-client label
+  - `templates/deployment-ui.yaml` — same (minimal)
+  - `templates/service.yaml` — seal-api:8080, seal-worker:9090, seal-ui:8081
+  - `templates/servicemonitor.yaml` — Prometheus ServiceMonitor for API + Worker
+  - `templates/vault-role.yaml` — RBAC roles for Vault Agent
+  - `templates/migration-job.yaml` — ArgoCD PreSync hook, runs `./app migrate`
+  - `templates/keda-scaledobject.yaml` — KEDA ScaledObject for worker (scale-to-zero)
+  - `templates/cronjob.yaml` — DLQ reprocessor every 5min
+  - `templates/configmap.yaml` — configmaps for all 3 components
+  - `templates/secret.yaml` — placeholder secrets (populated by Vault)
+  - `templates/serviceaccount.yaml` — service accounts for all 3 components
+- [x] **Test:** `helm lint apps/charts/seal` — no errors
+- [x] **Test:** `helm template apps/charts/seal` — valid YAML output
 
 ---
 
 ## Phase 5 — GitOps (ArgoCD)
 
-- [ ] ArgoCD Application manifests in `gitops/workloads/layers/`:
-  - `backend-api.yaml`, `worker.yaml`, `frontend.yaml`
-- [ ] Gateway API HTTPRoutes:
-  - `api.text2pdf.local` → backend-api:8080
-  - `app.text2pdf.local` → frontend:80
-- [ ] KEDA ScaledObject for worker:
-  ```yaml
-  minReplicaCount: 0
-  maxReplicaCount: 20
-  triggers:
-    - type: redis-list
-      metadata:
-        address: redis.redis:6379
-        listName: text2pdf:jobs
-        listLength: "1"
-  ```
-- [ ] **Test:** `yamllint gitops/workloads/layers/` — valid YAML
+- [x] Single ArgoCD Application `seal` in `gitops/workloads/layers/seal/seal.yaml`
+- [x] AppProject `seal` in `gitops/workloads/layers/seal/project.yaml`
+- [x] Gateway API HTTPRoutes:
+  - `seal.atlas` `/` → seal-ui:8081
+  - `seal.atlas` `/api/` → seal-api:8080
+- [x] KEDA ScaledObject for worker (scale-to-zero on `seal:jobs` queue length)
+- [x] **Test:** `yamllint gitops/workloads/layers/` — valid YAML
 - [ ] **Test:** `argocd app sync root-app` — apps create and sync successfully
 
 ---
 
 ## Phase 6 — Vault Integration
 
-- [ ] Vault policy: `workloads-text2pdf` — read `kv/data/text2pdf/*`
-- [ ] K8s auth role: `text2pdf` — bound to SA in `backend-api`, `worker` namespaces
-- [ ] Secrets in Vault: `kv/data/text2pdf/backend-api`, `kv/data/text2pdf/worker`
+- [ ] Vault policy: `seal-workloads` — read `kv/data/seal/*`
+- [ ] K8s auth role: `seal` — bound to SA in `seal` namespace
+- [ ] Secrets in Vault: `kv/data/seal/seal-api`, `kv/data/seal/seal-worker`, `kv/data/seal/seal-ui`
+- [ ] PDF signing cert in Vault: `kv/data/seal/pdf-signer`
 - [ ] Vault Agent injection annotations in Helm deployment templates
-- [ ] Bootstrap script: `security/vault-bootstrap-workloads.sh`
-- [ ] **Test:** `vault policy read workloads-text2pdf` — policy exists
+- [ ] Bootstrap script: `security/vault-bootstrap-seal.sh`
+- [ ] **Test:** `vault policy read seal-workloads` — policy exists
 - [ ] **Test:** Deploy pod with Vault annotations → verify `/vault/secrets/config` exists
 
 ---
 
 ## Phase 7 — MinIO Buckets
 
-- [ ] Create `text2pdf-inputs` (7-day auto-purge)
-- [ ] Create `text2pdf-outputs` (30-day retention)
-- [ ] **Test:** `mc ls myminio/text2pdf-inputs` — bucket exists
-- [ ] **Test:** Upload + lifecycle policy — verify 7-day rule applied
+- [ ] Create `seal-outputs` (30-day retention)
+- [ ] **Test:** `mc ls myminio/seal-outputs` — bucket exists
+- [ ] **Test:** Upload + lifecycle policy — verify 30-day rule applied
 
 ---
 
@@ -250,7 +216,7 @@ apps/frontend/
 - [ ] Loki: structured log correlation by `request_id`
 - [ ] PrometheusRules: `QueueBacklog`, `WorkerFailures`, `HighErrorRate`
 - [ ] **Test:** Grafana API — dashboards provisioned and visible
-- [ ] **Test:** Prometheus — targets are up (backend-api, worker, redis, cnpg)
+- [ ] **Test:** Prometheus — targets are up (seal-api, seal-worker, redis, cnpg)
 
 ---
 
@@ -259,11 +225,11 @@ apps/frontend/
 - [ ] **PgBouncer**: enable CNPG connection pooler — `pooler.mode: transaction`, 2 instances
 - [ ] NetworkPolicies:
   ```
-  frontend → api
-  api → postgres (5432)
-  api → redis (6379)
-  worker → redis (6379)
-  worker → minio (9000)
+  seal-ui → seal-api
+  seal-api → postgres (5432)
+  seal-api → redis (6379)
+  seal-worker → redis (6379)
+  seal-worker → minio (9000)
   deny-all else
   ```
 - [ ] Pod Security: `runAsNonRoot`, `readOnlyRootFilesystem`, `drop: ALL`
@@ -283,51 +249,12 @@ apps/frontend/
   ```yaml
   build-api:
     cmds:
-      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/backend-api:dev apps/backend-api
-  kind-load-api:
-    cmds:
-      - kind load docker-image ghcr.io/atlas-idp/backend-api:dev
+      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/seal-api:dev apps/seal-api
   ```
-- [ ] GitHub Actions pipeline:
-  ```yaml
-  name: Build & Deploy
-  on:
-    push:
-      branches: [main]
-      paths: ["apps/backend-api/**", "apps/worker/**"]
-  jobs:
-    test:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
-        - uses: actions/setup-go@v5
-          with:
-            go-version: "1.26"
-        - run: go test ./... -race -shuffle=on -count=1
-        - run: go test ./... -tags=integration
-    build:
-      needs: [test]
-      steps:
-        - uses: docker/setup-buildx-action@v3
-        - uses: docker/login-action@v3
-          with:
-            registry: ghcr.io
-        - uses: docker/build-push-action@v6
-          with:
-            push: true
-            tags: |
-              ghcr.io/atlas-idp/backend-api:sha-${{ github.sha }}
-              ghcr.io/atlas-idp/backend-api:${{ github.ref_name }}
-            cache-from: type=gha
-            cache-to: type=gha,mode=max
-            platforms: linux/amd64,linux/arm64
-        - run: trivy image --severity HIGH,CRITICAL ghcr.io/atlas-idp/backend-api:sha-${{ github.sha }}
-        - run: cosign sign --key env://COSIGN_KEY ghcr.io/atlas-idp/backend-api:sha-${{ github.sha }}
-        # TODO: helm-lint + argocd-update
-  ```
+- [ ] GitHub Actions pipeline with test → build → trivy → cosign → push
 - [ ] Image tagging: `sha-{short}`, `v{semver}`, never `latest`
 - [ ] Trivy image scan (HIGH/CRITICAL fail)
-- [ ] Cosign signing + keyless (or key env var)
+- [ ] Cosign signing
 - [ ] SBOM generation (syft or trivy)
 - [ ] k6 load tests (`apps/tests/load/`)
 - [ ] DR runbook: backup → delete → restore → verify
@@ -342,8 +269,8 @@ apps/frontend/
 | ----------------------------------- | --- |
 | Go code (API + Worker)              | 10% |
 | PDF signing (signer.go, verify)     |  5% |
-| Frontend (Go + HTMX)              | 10% |
-| Helm charts                         | 15% |
+| Frontend (Go + HTMX)                | 10% |
+| Helm chart                          | 15% |
 | ArgoCD manifests + GitOps           | 20% |
 | Vault policies + injection          | 15% |
 | Monitoring/Logging/Tracing          | 15% |

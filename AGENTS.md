@@ -119,18 +119,6 @@ Pre-commit runs on every commit:
 - **Cluster:** `production-db` in `database` namespace, 1 instance, PG 17.6, csi-hostpath-sc
 - **Operator:** cloudnative-pg 0.28.3 (app 1.29.1) in `cnpg-system`, `INCLUDE_PLUGINS: barman-cloud.cloudnative-pg.io`
 - **Backup config moved to** `examples/cnpg-backup/` (ObjectStore + Secret + ScheduledBackup)
-- **Current running cluster** (`kubectl get cluster -n database production-db -o json`):
-  ```json
-  "spec": {
-    "plugins": [{
-      "enabled": true,
-      "isWALArchiver": true,
-      "name": "barman-cloud.cloudnative-pg.io",
-      "parameters": {"barmanObjectName": "production-db-backup"}
-    }]
-  }
-  ```
-  ObjectStore `production-db-backup`, Secret `production-db-backup`, ScheduledBackup `production-db-weekly` — recreated by ArgoCD from git HEAD, pending cleanup commit.
 - **MinIO:** bucket `cnpg-backups`, endpoint `http://minio.minio.svc.cluster.local:9000`, creds `minioadmin`/`minioadminpassword`
 - **Next commit removes** all backup CRs from gitops; infra cluster will run as plain PostgreSQL without plugins.
 
@@ -141,11 +129,11 @@ Pre-commit runs on every commit:
 - Example: `go-task dc-ps`, `go-task dc-up`, `go-task test`.
 - Taskfile.yml is at `apps/Taskfile.yml`. Run from repo root with `go-task -f apps/Taskfile.yml <target>` or `cd apps && go-task <target>`.
 
-### text2pdf Architecture (June 2026)
-- **Worker** is a blind PDF factory: reads JSON `{document_id, input_text}` from Redis `text2pdf:jobs`, generates PDF, signs, uploads to MinIO, writes `{document_id, status, s3_path, error}` to `text2pdf:results`. **No PostgreSQL access.**
-- **Backend API** owns PostgreSQL and Redis job queue. Pushes JSON jobs to `text2pdf:jobs` (with `input_text`), background goroutine consumes `text2pdf:results` and updates PG document status. **No MinIO client** (download URL constructed from config prefix).
+### Seal Architecture (June 2026)
+- **Seal Worker** is a blind PDF factory: reads JSON `{document_id, input_text}` from Redis `seal:jobs`, generates PDF, signs, uploads to MinIO, writes `{document_id, status, s3_path, error}` to `seal:results`. **No PostgreSQL access.**
+- **Seal API** owns PostgreSQL and Redis job queue. Pushes JSON jobs to `seal:jobs` (with `input_text`), background goroutine consumes `seal:results` and updates PG document status. **No MinIO client** (download URL constructed from config prefix).
 - Verify endpoint (`/api/v1/documents/{id}/verify`) checks PG status — returns `valid: true` if status is `completed`.
-- Job flow: `POST /documents` → PG insert + Redis `text2pdf:jobs` → Worker reads → signs → uploads → Redis `text2pdf:results` → Backend-API consumer updates PG status
+- Job flow: `POST /documents` → PG insert + Redis `seal:jobs` → Worker reads → signs → uploads → Redis `seal:results` → Seal API consumer updates PG status
 
 ### PDF Signing (June 2026)
 - Worker signs every PDF with `digitorus/pdfsign` (CMS/PAdES, RSA 2048, SHA-256)
@@ -153,7 +141,7 @@ Pre-commit runs on every commit:
 - Dev defaults point to Vault Agent paths (`/vault/secrets/tls.{crt,key}`)
 - Local dev: `go-task gen-certs` generates self-signed cert to `apps/.certs/tls.{crt,key}`
 - Docker Compose mounts `apps/.certs/` into the worker container
-- **Production:** key stored in Vault (`kv/data/text2pdf/pdf-signer`), injected via Vault Agent
+- **Production:** key stored in Vault (`kv/data/seal/pdf-signer`), injected via Vault Agent
 - **Dev:** `.certs/` is gitignored; certs generated via `go-task gen-certs`
 - Metrics: `pdf_sign_duration_seconds`, `pdf_sign_errors_total`
 

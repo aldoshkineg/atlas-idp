@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seal
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "100"
+spec:
+  project: seal
+  source:
+    repoURL: https://github.com/aldoshkineg/atlas-idp.git
+    targetRevision: HEAD
+    path: apps/charts/seal
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: seal
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

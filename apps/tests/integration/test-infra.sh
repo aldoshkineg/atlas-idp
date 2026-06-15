@@ -4,7 +4,7 @@ set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
-echo "=== text2pdf — Infrastructure Smoke Tests ==="
+echo "=== seal — Infrastructure Smoke Tests ==="
 echo ""
 
 # ── helpers ──────────────────────────────────────────────────────────────
@@ -39,7 +39,7 @@ done
 
 # ── 4. postgres check ────────────────────────────────────────────────────
 echo "--- postgres ---"
-docker compose exec -T postgres pg_isready -U text2pdf -d text2pdf > /dev/null 2>&1 \
+docker compose exec -T postgres pg_isready -U seal -d seal > /dev/null 2>&1 \
   && pass "pg_isready" || fail "postgres not accepting connections"
 
 # ── 5. redis check ───────────────────────────────────────────────────────
@@ -57,18 +57,18 @@ docker compose exec -T minio mc alias set local http://localhost:9000 \
   "${MINIO_ACCESS_KEY:-minioadmin}" "${MINIO_SECRET_KEY:-minioadminpassword}" > /dev/null 2>&1 \
   && pass "mc alias configured" || fail "mc alias setup failed"
 
-docker compose exec -T minio mc mb --ignore-existing local/text2pdf-outputs 2>/dev/null \
-  && pass "bucket text2pdf-outputs created" || pass "bucket text2pdf-outputs already exists"
+docker compose exec -T minio mc mb --ignore-existing local/seal-outputs 2>/dev/null \
+  && pass "bucket seal-outputs created" || pass "bucket seal-outputs already exists"
 
-# ── 7. wait for backend-api ──────────────────────────────────────────────
-echo "--- backend-api ---"
+# ── 7. wait for seal-api ─────────────────────────────────────────────────
+echo "--- seal-api ---"
 API_URL="http://localhost:8080"
 for i in $(seq 1 15); do
   if curl -sf "$API_URL/healthz" > /dev/null 2>&1; then
     pass "healthz OK"
     break
   fi
-  if [ "$i" -eq 15 ]; then fail "backend-api not responding after 30s"; fi
+  if [ "$i" -eq 15 ]; then fail "seal-api not responding after 30s"; fi
   sleep 2
 done
 
@@ -114,7 +114,7 @@ curl -sf "$WORKER_URL/metrics" | grep -q 'jobs_processed_total' \
 # ── 12. verify PDF in MinIO ──────────────────────────────────────────────
 echo "--- minio verification ---"
 OBJECT_KEY="$DOC_ID.pdf"
-docker compose exec -T minio mc stat "local/text2pdf-outputs/$OBJECT_KEY" > /dev/null 2>&1 \
+docker compose exec -T minio mc stat "local/seal-outputs/$OBJECT_KEY" > /dev/null 2>&1 \
   && pass "PDF object exists: $OBJECT_KEY" || fail "PDF not found in minio: $OBJECT_KEY"
 
 # ── 13. verify PDF signature via API ──────────────────────────────────────

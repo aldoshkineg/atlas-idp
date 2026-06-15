@@ -1,0 +1,12 @@
+apiVersion: v2
+name: seal
+description: Seal — document signing platform. Accepts text via UI, queues in Redis,
+             worker generates signed PDFs asynchronously, stores in MinIO.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - pdf
+  - signing
+  - document
+  - platform-engineering

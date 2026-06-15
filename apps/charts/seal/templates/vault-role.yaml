@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: seal-vault-config
+  labels: {{- include "seal.labels" (dict "name" "seal") | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: seal-vault-config
+  labels: {{- include "seal.labels" (dict "name" "seal") | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: seal-vault-config
+subjects:
+  - kind: ServiceAccount
+    name: seal-api
+  - kind: ServiceAccount
+    name: seal-worker
+  - kind: ServiceAccount
+    name: seal-ui

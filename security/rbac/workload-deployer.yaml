@@ -35,7 +35,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: workload-deployer
-  namespace: backend-api
+  namespace: seal
   labels:
     app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: atlas-idp
@@ -52,24 +52,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: workload-deployer
-  namespace: worker
-  labels:
-    app.kubernetes.io/component: rbac
-    app.kubernetes.io/part-of: atlas-idp
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: workload-deployer
-subjects:
-  - kind: Group
-    name: atlas:workload-deployer
-    apiGroup: rbac.authorization.k8s.io
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: workload-deployer
-  namespace: cronjob
+  namespace: cronjob  # kept for legacy; unused
   labels:
     app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: atlas-idp

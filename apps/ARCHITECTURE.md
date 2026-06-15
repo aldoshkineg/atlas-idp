@@ -3,7 +3,7 @@
 ## Positioning
 
 This is **not "yet another CRUD in Go"**, but a production-ready Kubernetes platform showcase.
-The text2pdf application is just a workload to demonstrate platform engineering practices:
+The **Seal** application is just a workload to demonstrate platform engineering practices:
 
 - GitOps (Argo CD, app-of-apps, promotion)
 - Gateway API (modern Kubernetes ingress)
@@ -17,61 +17,61 @@ The text2pdf application is just a workload to demonstrate platform engineering 
 
 ---
 
-## Application Architecture (text2pdf)
+## Application Architecture (Seal)
 
-Business logic — minimal, just enough to exercise the platform:
+**Seal** — Document signing platform. Accepts text via web UI, queues jobs in Redis,
+asynchronously generates PDFs with digital signatures, stores signed documents in MinIO.
 
 ```
-                 Gateway API
-                        │
-         ┌──────────────┴──────────────┐
-         │                             │
-Frontend                     Backend API
-       (Go + HTMX)                    (Go 1.26)
-                                        │
-                      ┌────────────────┼──────────────┐
-                      │                │              │
-                   Redis         PostgreSQL       Vault
-                (Bitnami)        (CNPG 17.6)   (Bank-Vaults)
-                      │                              │
-                      │                              │ PDF sign cert
-                      ▼                              ▼
-                 KEDA Worker ────── Cert Manager / Static
-               (Go 1.26 + gofpdf          (apps/.certs/)
-                + digitorus/pdfsign)
-                      │
-                      ▼
-                    MinIO
-                   (signed PDFs)
+                  Gateway API
+                         │
+          ┌──────────────┴──────────────┐
+          │                             │
+      Seal UI                    Seal API
+   (Go + HTMX)                   (Go 1.26)
+                                         │
+                       ┌────────────────┼──────────────┐
+                       │                │              │
+                    Redis         PostgreSQL       Vault
+                 (Bitnami)        (CNPG 17.6)   (Bank-Vaults)
+                       │                              │
+                       │                              │ PDF sign cert
+                       ▼                              ▼
+               Seal Worker ────── Cert Manager / Static
+             (Go 1.26 + gofpdf          (apps/.certs/)
+              + digitorus/pdfsign)
+                       │
+                       ▼
+                     MinIO
+                    (signed PDFs)
 ```
 
 ### Data Flow
 
 ```
-User ──POST /documents──▶ Backend API
+User ──POST /documents──▶ Seal API
                             │
                             ├── INSERT into PostgreSQL (status: pending)
-                            └── RPUSH job into Redis text2pdf:jobs
+                            └── RPUSH job into Redis seal:jobs
                                     │
                                     ▼
-                          Worker (BLMOVE via KEDA)
+                          Seal Worker (BLMOVE via KEDA)
                             │
                             ├── 1. Generate PDF (gofpdf)
                             ├── 2. Sign PDF (digitorus/pdfsign)
                             │     └── X.509 cert from Vault / file
                             ├── 3. Upload signed PDF to MinIO
-                            └── 4. RPUSH result into Redis text2pdf:results
+                            └── 4. RPUSH result into Redis seal:results
                                           │
                                           ▼
-                                  Backend API consumer
-                                  (BLPOP text2pdf:results)
+                                  Seal API consumer (BLPOP seal:results)
                                           │
                                           └── UPDATE PostgreSQL (status: completed | failed)
 
-User ──GET /documents/{id}                  ──▶ Frontend ──▶ Backend API ──▶ PostgreSQL
-User ──GET /documents/{id}/download         ──▶ Frontend ──▶ Backend API ──▶ {"url"} ──▶ 303 redirect
+User ──GET /documents/{id}                  ──▶ Seal UI ──▶ Seal API ──▶ PostgreSQL
+User ──GET /documents/{id}/download         ──▶ Seal UI ──▶ Seal API ──▶ {"url"} ──▶ 303 redirect
                                                                                     ──▶ Gateway ──▶ MinIO
-User ──GET /documents/{id}/verify           ──▶ Frontend ──▶ Backend API
+User ──GET /documents/{id}/verify           ──▶ Seal UI ──▶ Seal API
                             │
                             └── Check PG document status
                                 └── completed → {valid: true}
@@ -80,16 +80,16 @@ User ──GET /documents/{id}/verify           ──▶ Frontend ──▶ Bac
 
 ### Components
 
-| Component   | Stack                                                | Responsibility                                   |
-| ----------- | ---------------------------------------------------- | ------------------------------------------------ |
-| Frontend    | Go 1.26 + chi + html/template + HTMX | Web UI: text input, status polling, PDF download |
-| Backend API | Go 1.26                                              | REST API, metadata in PG, task queue to Redis    |
-| Worker      | Go 1.26 + gofpdf + digitorus/pdfsign                 | Redis consumer, PDF generation, signing, MinIO upload (no PG access) |
-| Signer      | digitorus/pdfsign, X.509 (RSA 2048, SHA-256)         | CMS/PAdES digital signature appended to PDF      |
-| Cert Store  | File (dev) / Vault Agent (prod) / cert-manager       | X.509 signing certificate + RSA private key      |
-| PostgreSQL  | CloudNativePG 17.6                                   | Document metadata                                |
-| Redis       | Bitnami Redis 24.0.8                                 | Async task queue + status cache                  |
-| MinIO       | S3-compatible storage                                | Signed PDF file storage                          |
+| Component    | Stack                                                | Responsibility                                   |
+| ------------ | ---------------------------------------------------- | ------------------------------------------------ |
+| Seal UI      | Go 1.26 + chi + html/template + HTMX                 | Web UI: text input, status polling, PDF download |
+| Seal API     | Go 1.26                                              | REST API, metadata in PG, task queue to Redis    |
+| Seal Worker  | Go 1.26 + gofpdf + digitorus/pdfsign                 | Redis consumer, PDF generation, signing, MinIO upload (no PG access) |
+| Signer       | digitorus/pdfsign, X.509 (RSA 2048, SHA-256)         | CMS/PAdES digital signature appended to PDF      |
+| Cert Store   | File (dev) / Vault Agent (prod) / cert-manager       | X.509 signing certificate + RSA private key      |
+| PostgreSQL   | CloudNativePG 17.6                                   | Document metadata                                |
+| Redis        | Bitnami Redis 24.0.8                                 | Async task queue + status cache                  |
+| MinIO        | S3-compatible storage                                | Signed PDF file storage                          |
 
 ---
 
@@ -99,11 +99,11 @@ User ──GET /documents/{id}/verify           ──▶ Frontend ──▶ Bac
 
 | Service     | Language                         | Runtime               |
 | ----------- | -------------------------------- | --------------------- |
-| Backend API | Go 1.26                          | scratch               |
-| Worker      | Go 1.26                          | scratch               |
-| Frontend    | Go 1.26                          | chainguard/static     |
+| Seal API    | Go 1.26                          | chainguard/static     |
+| Seal Worker | Go 1.26                          | chainguard/static     |
+| Seal UI     | Go 1.26                          | chainguard/static     |
 
-### Backend Libraries (Go 1.26)
+### API Libraries (Go 1.26)
 
 | Library                            | Purpose                                                  |
 | ---------------------------------- | -------------------------------------------------------- |
@@ -133,7 +133,7 @@ User ──GET /documents/{id}/verify           ──▶ Frontend ──▶ Bac
 | `go.opentelemetry.io/otel`  | Tracing                        |
 | `log/slog`                  | Structured logging             |
 
-### Frontend Libraries (Go 1.26)
+### UI Libraries (Go 1.26)
 
 | Library                     | Purpose                        |
 | --------------------------- | ------------------------------ |
@@ -160,12 +160,9 @@ gitops/
 │       ├── storage/      # CSI, MinIO, Velero (wave 1-4)
 │       ├── data/         # CNPG, Redis (wave 1-6)
 │       └── observability/# Prometheus, Loki, Alloy (wave 5-7)
-└── workloads/            # Application workloads
+└── workloads/
     └── layers/
-        ├── bootstrap/    # AppProject (sync-wave -1)
-        ├── backend-api/
-        ├── worker/
-        └── cronjob/
+        ├── seal/         # AppProject + Application
 ```
 
 **Demonstrates:** App-of-apps, sync-waves, multi-source, automated sync & prune, self-healing.
@@ -176,8 +173,8 @@ gitops/
 
 ```
 Gateway (nginx-gateway-fabric)
-  ├── HTTPRoute ── app.demo.local ──▶ Frontend
-  ├── HTTPRoute ── api.demo.local ──▶ Backend API
+  ├── HTTPRoute ── seal.atlas  /  ──▶ Seal UI
+  ├── HTTPRoute ── seal.atlas  /api/  ──▶ Seal API
   ├── HTTPRoute ── grafana.demo.local ──▶ Grafana
   ├── HTTPRoute ── vault.demo.local ──▶ Vault
   └── HTTPRoute ── minio.demo.local ──▶ MinIO Console
@@ -195,26 +192,26 @@ Gateway (nginx-gateway-fabric)
 Production chain:
 
 Vault (Bank-Vaults)
-  │  kv/data/text2pdf/backend
-  │  ├── username
-  │  ├── password
+  │  kv/data/seal/seal-api
+  │  ├── postgres_password
   │  ├── redis_password
+  │  kv/data/seal/seal-worker
   │  ├── minio_access_key
-  │  └── minio_secret_key
+  │  ├── minio_secret_key
+  │  └── redis_password
   │
   ▼
 Vault Agent Sidecar (vault-secrets-webhook)
   │  annotations:
   │    vault.hashicorp.com/agent-inject: "true"
   │    vault.hashicorp.com/agent-inject-template-config: |
-  │      export POSTGRES_USER=...
   │      export POSTGRES_PASSWORD=...
   │
   ▼
 /vault/secrets/config (file with export statements)
   │
   ▼
-Entrypoint: source /vault/secrets/config && exec /app/backend
+Entrypoint: source /vault/secrets/config && exec /app/seal-*
   │
   ▼
 Environment Variables
@@ -228,7 +225,6 @@ Go Application (go-envconfig)
 **Sensitive config** → Vault → Vault Agent sidecar → sourced on startup → ENV
 
 **Key points for CV:**
-
 - No secrets in Git
 - No secrets in Helm values
 - No Kubernetes Secret objects for app secrets
@@ -241,9 +237,8 @@ Go Application (go-envconfig)
 
 ```
 Buckets:
-  ├── text2pdf-inputs/     # Raw uploads (7-day TTL)
-  ├── text2pdf-outputs/    # Generated PDFs (30-day retention)
-  └── cnpg-backups/        # WAL archives (forever)
+  ├── seal-outputs/       # Generated PDFs (30-day retention)
+  └── cnpg-backups/       # WAL archives (forever)
 
 Policies:
   ├── Lifecycle (auto-purge, archive tier)
@@ -258,7 +253,7 @@ Policies:
 ### 5. Event-Driven Autoscaling (KEDA)
 
 ```
-Redis (LIST: task_queue)
+Redis (LIST: seal:jobs)
         │
         ▼
 KEDA ScaledObject
@@ -268,7 +263,7 @@ KEDA ScaledObject
         └── redis-list
                 │
                 ▼
-        Deployment: worker
+        Deployment: seal-worker
 ```
 
 **Demonstrates:** Scale-to-zero, queue-based autoscaling, difference between HPA (API) and KEDA (worker).
@@ -279,14 +274,14 @@ KEDA ScaledObject
 
 #### Metrics (Prometheus)
 
-| Component   | Metrics                                                                     | Exporter            |
-| ----------- | --------------------------------------------------------------------------- | ------------------- |
-| Backend API | http_requests_total, http_request_duration_seconds, documents_created_total | Built-in (/metrics) |
-| Worker      | jobs_processed_total, jobs_failed_total, job_duration_seconds               | Built-in (/metrics) |
-| Redis       | redis_exporter                                                              | Sidecar             |
-| PostgreSQL  | CNPG metrics (port 9187)                                                    | Built-in            |
-| MinIO       | Native Prometheus endpoint                                                  | Built-in            |
-| KEDA        | keda_scaler_metrics_value                                                   | Built-in            |
+| Component    | Metrics                                                                     | Exporter            |
+| ------------ | --------------------------------------------------------------------------- | ------------------- |
+| Seal API     | http_requests_total, http_request_duration_seconds, documents_created_total | Built-in (/metrics) |
+| Seal Worker  | jobs_processed_total, jobs_failed_total, job_duration_seconds               | Built-in (/metrics) |
+| Redis        | redis_exporter                                                              | Sidecar             |
+| PostgreSQL   | CNPG metrics (port 9187)                                                    | Built-in            |
+| MinIO        | Native Prometheus endpoint                                                  | Built-in            |
+| KEDA         | keda_scaler_metrics_value                                                   | Built-in            |
 
 #### Dashboards (Grafana)
 
@@ -300,7 +295,7 @@ KEDA ScaledObject
 
 ```json
 {
-  "service": "backend-api",
+  "service": "seal-api",
   "request_id": "req_abc123",
   "document_id": "doc_uuid_xyz",
   "status": "completed",
@@ -308,12 +303,12 @@ KEDA ScaledObject
 }
 ```
 
-**Correlation:** request_id across API → Worker → MinIO → PG.
+**Correlation:** request_id across Seal API → Worker → MinIO → PG.
 
 #### Tracing (OpenTelemetry + Tempo)
 
 ```
-Frontend ──▶ Backend API ──▶ Redis ──▶ Worker ──▶ MinIO
+Seal UI ──▶ Seal API ──▶ Redis ──▶ Seal Worker ──▶ MinIO
            trace_id=abc                    trace_id=abc
 ```
 
@@ -346,11 +341,11 @@ DR Runbook:
 
 ```
 Default deny-all per namespace
-  ├── Allow: Frontend → Backend API
-  ├── Allow: Backend API → PostgreSQL
-  ├── Allow: Backend API → Redis
-  ├── Allow: Worker → Redis
-  ├── Allow: Worker → MinIO
+  ├── Allow: Seal UI → Seal API
+  ├── Allow: Seal API → PostgreSQL
+  ├── Allow: Seal API → Redis
+  ├── Allow: Seal Worker → Redis
+  ├── Allow: Seal Worker → MinIO
   ├── Allow: Prometheus → all (metrics scrape)
   └── Deny: everything else
 ```
@@ -365,7 +360,7 @@ Default deny-all per namespace
 #### Image Signing (Cosign)
 
 ```bash
-cosign sign --key cosign.key ghcr.io/atlas-idp/backend-api:latest
+cosign sign --key cosign.key ghcr.io/atlas-idp/seal-api:latest
 ```
 
 #### Image Scanning
@@ -377,12 +372,12 @@ cosign sign --key cosign.key ghcr.io/atlas-idp/backend-api:latest
 
 ### 9. Autoscaling (HPA + KEDA)
 
-| Component   | Trigger            | Type              |
-| ----------- | ------------------ | ----------------- |
-| Backend API | CPU / Memory       | HPA               |
-| Worker      | Redis queue length | KEDA ScaledObject |
-| Grafana     | CPU / Memory       | HPA               |
-| Prometheus  | CPU / Memory       | HPA               |
+| Component    | Trigger            | Type               |
+| ------------ | ------------------ | ------------------ |
+| Seal API     | CPU / Memory       | HPA                |
+| Seal Worker  | Redis queue length | KEDA ScaledObject  |
+| Grafana      | CPU / Memory       | HPA                |
+| Prometheus   | CPU / Memory       | HPA                |
 
 **Demonstrates:** Understanding of when to use request-based (HPA) vs event-driven (KEDA) autoscaling.
 
@@ -432,9 +427,9 @@ type HTTPConfig struct {
 type DatabaseConfig struct {
     Host     string `env:"POSTGRES_HOST, default=localhost"`
     Port     int    `env:"POSTGRES_PORT, default=5432"`
-    User     string `env:"POSTGRES_USER, default=text2pdf"`
+    User     string `env:"POSTGRES_USER, default=seal"`
     Password string `env:"POSTGRES_PASSWORD, required"`
-    DBName   string `env:"POSTGRES_DB, default=text2pdf"`
+    DBName   string `env:"POSTGRES_DB, default=seal"`
 }
 ```
 
@@ -455,56 +450,27 @@ envconfig.Process(ctx, &cfg)
 ### Helm deployment
 
 ```yaml
-# templates/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-spec:
-  template:
-    metadata:
-      annotations:
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "text2pdf"
-        vault.hashicorp.com/agent-inject-secret-config: "kv/data/text2pdf/{{ .Chart.Name }}"
-        vault.hashicorp.com/agent-inject-template-config: |
-          {{`{{- with secret "kv/data/text2pdf/backend" -}}`}}
-          export POSTGRES_USER="{{`{{ .Data.data.username }}`}}"
-          export POSTGRES_PASSWORD="{{`{{ .Data.data.password }}`}}"
-          export REDIS_PASSWORD="{{`{{ .Data.data.redis_password }}`}}"
-          export MINIO_ACCESS_KEY="{{`{{ .Data.data.minio_access_key }}`}}"
-          export MINIO_SECRET_KEY="{{`{{ .Data.data.minio_secret_key }}`}}"
-          {{`{{- end }}`}}
-    spec:
-      initContainers:
-        - name: vault-agent
-          ...
-      containers:
-        - name: {{ .Chart.Name }}
-          command:
-            - /bin/sh
-            - -c
-            - |
-              source /vault/secrets/config
-              exec /app/{{ .Chart.Name }}
-          envFrom:
-            - configMapRef:
-                name: {{ .Chart.Name }}-config
+# templates/deployment-api.yaml
+annotations:
+  vault.hashicorp.com/agent-inject: "true"
+  vault.hashicorp.com/role: "seal"
+  vault.hashicorp.com/agent-inject-secret-config: "kv/data/seal/seal-api"
 ```
 
 Helm `values.yaml` contains **zero secrets**:
 
 ```yaml
-# values.yaml — safe to commit to Git
 config:
   postgres:
-    host: cnpg-rw
+    host: production-db-rw.database.svc.cluster.local
     port: 5432
   redis:
-    host: redis-master
+    host: redis-master.redis.svc.cluster.local
     port: 6379
   minio:
-    endpoint: minio:9000
+    endpoint: minio.minio.svc.cluster.local:9000
   logLevel: info
-  ```
+```
 
 ---
 
@@ -521,8 +487,8 @@ services:
 
 ```bash
 task dc-up       # start postgres, redis, minio
-task run-api     # go run ./apps/backend-api/cmd
-task run-worker  # go run ./apps/worker/cmd
+task run-api     # go run ./apps/seal-api/cmd
+task run-worker  # go run ./apps/seal-worker/cmd
 ```
 
 ### Kind Cluster (full platform)
@@ -543,29 +509,13 @@ task kind-load-all # load images into kind
 **Taskfile.yml** — workloads tasks (build, test, dc-up, run-api, kind-load)
 
 ```yaml
-# Taskfile.yml
-version: "3"
-
 tasks:
-  lint:
-    cmds:
-      - golangci-lint run ./...
-  test:
-    cmds:
-      - go test ./... -race -shuffle=on
-  test-integration:
-    cmds:
-      - go test ./tests/integration/...
   build-api:
     cmds:
-      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/backend-api:dev apps/backend-api
+      - docker buildx build --load -t ghcr.io/atlas-idp/seal-api:dev ./seal-api
   build-worker:
     cmds:
-      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/worker:dev apps/worker
-  kind-load:
-    cmds:
-      - kind load docker-image ghcr.io/atlas-idp/backend-api:dev
-      - kind load docker-image ghcr.io/atlas-idp/worker:dev
+      - docker buildx build --load -t ghcr.io/atlas-idp/seal-worker:dev ./seal-worker
 ```
 
 ---
@@ -573,31 +523,20 @@ tasks:
 ## Container Images
 
 ```dockerfile
-# Multi-stage Dockerfile (BuildKit cache)
 FROM golang:1.26 AS builder
 WORKDIR /src
-
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
-
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 go build -ldflags="-s -w" -o /app .
-
 FROM cgr.dev/chainguard/static:latest
 COPY --from=builder /app /app
 USER nonroot
 ENTRYPOINT ["/app"]
 ```
-
-Chainguard + BuildKit features:
-
-- Build cache (go mod + go build) across CI runs via `--mount=type=cache`
-- No shell, no package manager, zero CVEs
-- Built-in nonroot user
-- Signed by Chainguard (supply chain security)
 
 ### CI pipeline (GitHub Actions)
 
@@ -606,7 +545,7 @@ Chainguard + BuildKit features:
 - uses: docker/build-push-action@v6
   with:
     push: true
-    tags: ghcr.io/atlas-idp/backend-api:sha-${{ github.sha }}
+    tags: ghcr.io/atlas-idp/seal-api:sha-${{ github.sha }}
     cache-from: type=gha
     cache-to: type=gha,mode=max
     platforms: linux/amd64,linux/arm64
@@ -618,241 +557,43 @@ Security: Trivy scan → Cosign sign → Syft SBOM → push.
 
 ---
 
-## Production Considerations
-
-### 1. Queue Reliability (Redis)
-
-**Problem:** `BLPOP` removes a task from the queue before execution. Worker crash = data loss.
-
-**Solution:** Use `BLMOVE` to atomically move tasks from `text2pdf:jobs` (pending) to `text2pdf:processing`. On completion, remove from `processing`. If worker crashes, a TTL/recovery mechanism returns items to the main queue.
-
-Better alternative — **Redis Streams** with Consumer Groups:
-- `XREADGROUP` with auto-claim for failed consumers
-- `XPENDING` to inspect unacknowledged messages
-- Built-in ACK mechanism (`XACK`)
-- No manual re-queue logic needed
-
-**Implementation:** Phase 2 Worker.
-
-### 2. Safe Database Migrations
-
-**Problem:** Auto-migration on API startup causes race conditions when HPA runs multiple replicas (table locks, duplicate migrations).
-
-**Solution:** Remove migration from `cmd/main.go`. Create a separate **Kubernetes Job** for migrations, executed via **ArgoCD PreSync hook**:
-
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  annotations:
-    argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
-spec:
-  template:
-    spec:
-      containers:
-        - name: migrate
-          image: ghcr.io/atlas-idp/backend-api:sha-xxx
-          command: ["/app", "migrate"]
-      restartPolicy: Never
-```
-
-Migration binary embedded via `//go:embed`, triggered by `go run ./cmd migrate` subcommand (cobra or `os.Args[1]`).
-
-**Implementation:** Phase 1 (binary supports `migrate` subcommand) + Phase 3 (Helm hook).
-
-### 3. Connection Pool Management (PostgreSQL)
-
-**Problem:** KEDA scaling to 20 workers + API pods can exhaust PostgreSQL connections.
-
-**Solution (application level):**
-```go
-// pgxpool with hard limit
-config, _ := pgxpool.ParseConfig(connString)
-config.MaxConns = 5  // per pod
-pool, _ := pgxpool.NewWithConfig(ctx, config)
-```
-
-**Solution (infrastructure level):** Enable **PgBouncer** in CNPG cluster:
-```yaml
-apiVersion: postgresql.cnpg.io/v1
-kind: Cluster
-spec:
-  instances: 1
-  # ...
-  monitoring:
-    enablePodMonitor: true
-  # PgBouncer connection pooler
-  pooler:
-    mode: transaction
-    instances: 2
-    template:
-      spec:
-        containers:
-          - name: pgbouncer
-            image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbouncer:latest
-```
-
-**Implementation:** Phase 1 (MaxConns in code) + Phase 8 (PgBouncer in CNPG cluster).
-
-### 4. Object Storage Resilience (MinIO)
-
-**Problem:** Sudden worker scaling creates request storms, causing MinIO throttling or timeouts.
-
-**Solution:** Exponential backoff in `minio-go` client:
-```go
-// minio-go v7 retry config
-client, err := minio.New(endpoint, &minio.Options{
-    Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
-    Secure: false,
-    // Built-in retry with exponential backoff
-    Transport: &http.Transport{
-        MaxIdleConns:    10,
-        IdleConnTimeout: 30 * time.Second,
-    },
-})
-```
-
-On top of transport config, wrap uploads with retry logic:
-```go
-const maxRetries = 3
-backoff := time.Second
-for i := range maxRetries {
-    _, err := client.PutObject(ctx, bucket, key, reader, size, opts)
-    if err == nil {
-        break
-    }
-    time.Sleep(backoff * (1 << i)) // 1s, 2s, 4s
-}
-```
-
-**Implementation:** Phase 2 Worker.
-
-```sql
-CREATE TABLE documents (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    status     VARCHAR(20) NOT NULL DEFAULT 'pending',
-    input_text TEXT        NOT NULL,
-    s3_path    VARCHAR(512),
-    file_size  BIGINT      NOT NULL DEFAULT 0,
-    error      TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_documents_status ON documents(status);
-CREATE INDEX idx_documents_created_at ON documents(created_at);
-```
-
-Status lifecycle: `pending → processing → completed | failed`
-
----
-
-### 5. PDF Digital Signing
-
-**Goal:** Every generated PDF carries a cryptographic signature proving authenticity and integrity.
-
-**Stack:** `digitorus/pdfsign` (Go), RSA 2048, SHA-256, X.509 certificate from dev CA.
-
-```
-                    ┌─────────────┐
-                    │  Raw PDF    │
-                    │  (gofpdf)   │
-                    └──────┬──────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │  Signer     │
-                    │  pdfsign    │
-                    │  CMS/PAdES  │
-                    └──────┬──────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │  Signed PDF │
-                    │  (+ sig     │
-                    │   appended) │
-                    └──────┬──────┘
-                           │
-                           ▼
-                       MinIO
-```
-
-**Key Management (Vault-first):**
-- **Production:** Signing key never touches disk or git. Vault stores `kv/data/text2pdf/pdf-signer` with `cert` and `key` fields. Vault Agent injects into worker pod at `/vault/secrets/pdf-signer/`.
-- **Dev / Docker Compose:** Local PEM files from `apps/.certs/tls.{crt,key}` mounted as volumes. The entire `apps/.certs/` directory is gitignored; certs are generated locally via `go-task gen-certs`.
-- **Future:** cert-manager with Vault issuer for automatic certificate rotation.
-
-**Verification (Backend API):**
-```
-GET /api/v1/documents/{id}/verify
-  ├── Fetch document from PostgreSQL by ID
-  ├── If status == "completed" → {valid: true}
-  ├── If status != "completed" → {valid: false, error: "document not ready"}
-  └── No MinIO client or PDF inspection in backend
-```
-
-**Metrics (Worker):**
-- `pdf_sign_duration_seconds` — histogram of signing latency
-- `pdf_sign_errors_total` — counter of signing failures (expired cert, malformed key)
-
-**Implementation:** Phase 2 Worker (signer.go) + Phase 1 Backend API (verify endpoint).
-
----
-
 ## Repository Structure
 
 ```
-atlas-idp/
-├── apps/
-│   ├── backend-api/       # Go 1.26, REST API
-│   │   ├── cmd/
-│   │   ├── internal/
-│   │   │   ├── config.go
-│   │   │   ├── handler.go
-│   │   │   ├── repository.go
-│   │   │   ├── queue.go
-│   │   │   └── migrate.go
-│   │   ├── migrations/
-│   │   └── Dockerfile
-│   ├── worker/            # Go 1.26, PDF generator + signer (blind, no PG)
-│   │   ├── cmd/
-│   │   ├── internal/
-│   │   │   ├── config.go
-│   │   │   ├── worker.go
-│   │   │   ├── storage.go
-│   │   │   ├── pdf.go
-│   │   │   └── signer.go         # PDF signing (digitorus/pdfsign)
-│   │   └── Dockerfile
-│   ├── frontend/          # Go + HTMX
-│   │   ├── cmd/
-│   │   ├── internal/
-│   │   │   ├── config.go
-│   │   │   ├── server.go
-│   │   │   ├── handlers/
-│   │   │   ├── templates/
-│   │   │   └── client/
-│   │   └── Dockerfile
-│   ├── cronjob/           # S3 cleanup / maintenance
-│   ├── charts/            # Helm charts
-│   │   ├── backend-api/
-│   │   ├── worker/
-│   │   ├── frontend/
-│   │   └── cronjob/
-│   └── tests/
-│       ├── integration/   # testcontainers-go
-│       └── load/          # k6 scripts
-├── gitops/
-│   ├── bootstrap/
-│   ├── platform-kind/
-│   └── workloads/
-├── docs/
-│   ├── ADR/
-│   ├── runbooks/
-│   └── diagrams/
-├── infra/
-├── apps/
-│   ├── Taskfile.yml          # Workloads: build, test, dc-up, run-api, kind-load
-│   └── tests/integration/docker-compose.yml
-├── Makefile              # Platform: cluster-up, infra-apply, validate
+apps/
+├── seal-api/           # Go 1.26, REST API
+│   ├── cmd/
+│   ├── internal/
+│   │   ├── config.go
+│   │   ├── handler.go
+│   │   ├── repository.go
+│   │   ├── queue.go
+│   │   └── migrate.go
+│   ├── migrations/
+│   └── Dockerfile
+├── seal-worker/        # Go 1.26, PDF generator + signer (blind, no PG)
+│   ├── cmd/
+│   ├── internal/
+│   │   ├── config.go
+│   │   ├── worker.go
+│   │   ├── storage.go
+│   │   ├── pdf.go
+│   │   └── signer.go
+│   └── Dockerfile
+├── seal-ui/            # Go + HTMX
+│   ├── cmd/
+│   ├── internal/
+│   │   ├── config.go
+│   │   ├── server.go
+│   │   ├── handlers/
+│   │   ├── templates/
+│   │   └── client/
+│   └── Dockerfile
+├── charts/
+│   └── seal/           # Single Helm chart
+├── tests/
+│   ├── integration/    # testcontainers-go
+│   └── load/           # k6 scripts
+├── Taskfile.yml        # Workloads: build, test, dc-up, run-api, kind-load
+└── TODO.md
 ```
