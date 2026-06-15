@@ -16,6 +16,7 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         redis-client: "{{ .Values.redisClientLabel }}"
       annotations:
+        {{- if .Values.vault.enabled }}
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "{{ .Values.vault.role }}"
         vault.hashicorp.com/agent-inject-secret-config: "{{ .Values.vault.paths.api }}"
@@ -24,18 +25,21 @@ spec:
           export POSTGRES_PASSWORD="{{`{{ .Data.data.postgres_password }}`}}"
           export REDIS_PASSWORD="{{`{{ .Data.data.redis_password }}`}}"
           {{`{{- end }}`}}
+        {{- end }}
     spec:
       serviceAccountName: seal-api
       securityContext:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      {{- if .Values.vault.enabled }}
       initContainers:
         - name: vault-agent
           image: hashicorp/vault:latest
           args:
             - agent
             - -config=/etc/vault/config.hcl
+      {{- end }}
       containers:
         - name: seal-api
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.images.api.repository }}:{{ .Values.images.api.tag }}"
@@ -49,12 +53,7 @@ spec:
                 name: seal-api-config
             - secretRef:
                 name: seal-api-secret
-          command:
-            - /bin/sh
-            - -c
-            - |
-              source /vault/secrets/config 2>/dev/null || true
-              exec /app/seal-api
+
           livenessProbe:
             httpGet:
               path: /healthz

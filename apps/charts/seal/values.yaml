@@ -34,9 +34,10 @@ config:
     endpoint: minio.minio.svc.cluster.local:9000
     useSSL: false
   logLevel: info
-  downloadUrlPrefix: ""
+  downloadUrlPrefix: https://s3.atlas
 
 vault:
+  enabled: true
   role: seal
   paths:
     api: kv/data/seal/seal-api
@@ -95,6 +96,12 @@ migration:
 serviceMonitor:
   enabled: true
   interval: 15s
+
+secrets:
+  postgresPassword: ""
+  redisPassword: ""
+  minioAccessKey: ""
+  minioSecretKey: ""
 
 redisClientLabel: "true"
 

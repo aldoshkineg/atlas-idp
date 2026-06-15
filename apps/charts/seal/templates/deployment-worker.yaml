@@ -16,6 +16,7 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         redis-client: "{{ .Values.redisClientLabel }}"
       annotations:
+        {{- if .Values.vault.enabled }}
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "{{ .Values.vault.role }}"
         vault.hashicorp.com/agent-inject-secret-config: "{{ .Values.vault.paths.worker }}"
@@ -35,18 +36,21 @@ spec:
           {{`{{- with secret "`}}{{ .Values.vault.paths.pdfSigner }}{{`" -}}`}}
           {{`{{ .Data.data.key }}`}}
           {{`{{- end }}`}}
+        {{- end }}
     spec:
       serviceAccountName: seal-worker
       securityContext:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      {{- if .Values.vault.enabled }}
       initContainers:
         - name: vault-agent
           image: hashicorp/vault:latest
           args:
             - agent
             - -config=/etc/vault/config.hcl
+      {{- end }}
       containers:
         - name: seal-worker
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.images.worker.repository }}:{{ .Values.images.worker.tag }}"
@@ -60,12 +64,7 @@ spec:
                 name: seal-worker-config
             - secretRef:
                 name: seal-worker-secret
-          command:
-            - /bin/sh
-            - -c
-            - |
-              source /vault/secrets/config 2>/dev/null || true
-              exec /app/seal-worker
+
           livenessProbe:
             httpGet:
               path: /metrics
