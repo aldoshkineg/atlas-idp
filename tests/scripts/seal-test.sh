@@ -15,12 +15,8 @@ MINIO_PASSWORD="minioadminpassword"
 MINIO_BUCKET="seal-outputs"
 S3_SIGV4="aws:amz:us-east-1:s3"
 
-GATEWAY_PORT="30444"
 SEAL_HOST="seal.atlas"
 S3_HOST="s3.atlas"
-
-CA_CERT="clusters/kind/certs/ca.crt"
-GATEWAY_NODE=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}' 2>/dev/null || echo "localhost")
 
 POLL_TIMEOUT=30
 POD_READY_TIMEOUT="60s"
@@ -41,15 +37,13 @@ in_pod() {
 
 gateway_curl() {
   local host="$1" path="$2"; shift 2
-  curl -sf --cacert "$CA_CERT" --resolve "$host:$GATEWAY_PORT:$GATEWAY_NODE" \
-    "https://$host:$GATEWAY_PORT$path" "$@"
+  curl -sf "https://$host$path" "$@"
 }
 
 gateway_curl_s3() {
   local path="$1" out="$2"
   curl -s --aws-sigv4 "$S3_SIGV4" --user "$MINIO_USER:$MINIO_PASSWORD" \
-    --cacert "$CA_CERT" --resolve "$S3_HOST:$GATEWAY_PORT:$GATEWAY_NODE" \
-    "https://$S3_HOST:$GATEWAY_PORT/$MINIO_BUCKET$path" \
+    "https://$S3_HOST/$MINIO_BUCKET$path" \
     -o "$out" -w "%{http_code}" 2>/dev/null || echo "000"
 }
 
@@ -187,39 +181,34 @@ echo ""
 
 # --- Step 7: Gateway external access ---
 echo "--- Step 7: Gateway external access (https) ---"
-if [ ! -f "$CA_CERT" ]; then
-  echo "  SKIP: CA cert $CA_CERT not found (run 'make seed-ca'?)"
-else
-  if [ -n "$DOC_ID" ]; then
-    if gateway_curl "$SEAL_HOST" "/api/v1/documents/$DOC_ID" > /dev/null 2>&1; then
-      ok "Gateway: $SEAL_HOST routes to API"
-    else
-      fail "Gateway: $SEAL_HOST API unreachable"
-    fi
-  fi
-
-  if gateway_curl "$SEAL_HOST" "/" -o /dev/null 2>&1; then
-    ok "Gateway: $SEAL_HOST/ serves UI"
+if [ -n "$DOC_ID" ]; then
+  if gateway_curl "$SEAL_HOST" "/api/v1/documents/$DOC_ID" > /dev/null 2>&1; then
+    ok "Gateway: $SEAL_HOST routes to API"
   else
-    fail "Gateway: $SEAL_HOST/ unreachable"
+    fail "Gateway: $SEAL_HOST API unreachable"
   fi
+fi
 
-  if [ -n "$S3_PATH" ]; then
-    PDF_TMP=$(mktemp)
-    HTTP_CODE=$(gateway_curl_s3 "/$S3_PATH" "$PDF_TMP")
-    if [ "$HTTP_CODE" = "200" ] && head -c 4 "$PDF_TMP" | grep -q "%PDF"; then
-      ok "Gateway: $S3_HOST serves signed PDF ($S3_PATH)"
-    else
-      fail "Gateway: $S3_HOST PDF download failed (HTTP $HTTP_CODE)"
-    fi
-    rm -f "$PDF_TMP"
+if gateway_curl "$SEAL_HOST" "/" -o /dev/null 2>&1; then
+  ok "Gateway: $SEAL_HOST/ serves UI"
+else
+  fail "Gateway: $SEAL_HOST/ unreachable"
+fi
+
+if [ -n "$S3_PATH" ]; then
+  PDF_TMP=$(mktemp)
+  HTTP_CODE=$(gateway_curl_s3 "/$S3_PATH" "$PDF_TMP")
+  if [ "$HTTP_CODE" = "200" ] && head -c 4 "$PDF_TMP" | grep -q "%PDF"; then
+    ok "Gateway: $S3_HOST serves signed PDF ($S3_PATH)"
+  else
+    fail "Gateway: $S3_HOST PDF download failed (HTTP $HTTP_CODE)"
   fi
+  rm -f "$PDF_TMP"
 fi
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
-if [ -n "$S3_PATH" ] && [ "$FAIL" = "0" ] && [ -f "$CA_CERT" ]; then
-  echo "  Download: curl --cacert $CA_CERT --resolve $S3_HOST:$GATEWAY_PORT:$GATEWAY_NODE \\"
-  echo "    https://$S3_HOST:$GATEWAY_PORT/$MINIO_BUCKET/$S3_PATH"
+if [ -n "$S3_PATH" ] && [ "$FAIL" = "0" ]; then
+  echo "  curl https://$S3_HOST/$MINIO_BUCKET/$S3_PATH"
 fi
 exit $FAIL
