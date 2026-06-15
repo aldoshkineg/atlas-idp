@@ -173,11 +173,12 @@ gitops/
 
 ```
 Gateway (nginx-gateway-fabric)
-  ├── HTTPRoute ── seal.atlas  /  ──▶ Seal UI
-  ├── HTTPRoute ── seal.atlas  /api/  ──▶ Seal API
-  ├── HTTPRoute ── grafana.demo.local ──▶ Grafana
-  ├── HTTPRoute ── vault.demo.local ──▶ Vault
-  └── HTTPRoute ── minio.demo.local ──▶ MinIO Console
+  ├── HTTPRoute ── seal.atlas     /  ──▶ Seal UI
+  ├── HTTPRoute ── seal.atlas     /api/  ──▶ Seal API
+  ├── HTTPRoute ── grafana.atlas  ──▶ Grafana
+  ├── HTTPRoute ── vault.atlas    ──▶ Vault
+  ├── HTTPRoute ── s3.atlas       ──▶ MinIO S3 API
+  └── HTTPRoute ── console.s3.atlas ──▶ MinIO Console
 ```
 
 **Demonstrates:** Modern Kubernetes ingress (not legacy Ingress), HTTPRoute, cross-namespace routing.
@@ -211,7 +212,7 @@ Vault Agent Sidecar (vault-secrets-webhook)
 /vault/secrets/config (file with export statements)
   │
   ▼
-Entrypoint: source /vault/secrets/config && exec /app/seal-*
+Entrypoint: source /vault/secrets/config && exec /app
   │
   ▼
 Environment Variables
@@ -223,6 +224,10 @@ Go Application (go-envconfig)
 **Non-sensitive config** → ConfigMap (`envFrom: configMapRef`, host/port/log level)
 
 **Sensitive config** → Vault → Vault Agent sidecar → sourced on startup → ENV
+
+**⚠️ Caveat:** The base image `cgr.dev/chainguard/static:latest` has **no `/bin/sh`**. The vault-agent sourcing pattern requires a shell entrypoint. Currently `vault.enabled=false` in chart defaults; production Vault integration needs a different approach (e.g., `envsubst` init container or vault-csi-provider).
+
+**Dev override:** When `vault.enabled=false`, secrets are provided via `.Values.secrets.*` (Helm `--set`), rendered as Kubernetes Secret objects. This breaks the zero-trust principle but is acceptable for development.
 
 **Key points for CV:**
 - No secrets in Git
@@ -452,9 +457,11 @@ envconfig.Process(ctx, &cfg)
 ```yaml
 # templates/deployment-api.yaml
 annotations:
+  {{- if .Values.vault.enabled }}
   vault.hashicorp.com/agent-inject: "true"
-  vault.hashicorp.com/role: "seal"
-  vault.hashicorp.com/agent-inject-secret-config: "kv/data/seal/seal-api"
+  vault.hashicorp.com/role: "{{ .Values.vault.role }}"
+  vault.hashicorp.com/agent-inject-secret-config: "{{ .Values.vault.paths.api }}"
+  {{- end }}
 ```
 
 Helm `values.yaml` contains **zero secrets**:
@@ -470,6 +477,10 @@ config:
   minio:
     endpoint: minio.minio.svc.cluster.local:9000
   logLevel: info
+  downloadUrlPrefix: https://s3.atlas
+vault:
+  enabled: true          # false = use .Values.secrets.* (dev only)
+secrets: {}              # --set for dev; vault-agent for prod
 ```
 
 ---
@@ -511,11 +522,13 @@ task kind-load-all # load images into kind
 ```yaml
 tasks:
   build-api:
+    desc: Build seal-api (build-arg APP_NAME=api)
     cmds:
-      - docker buildx build --load -t ghcr.io/atlas-idp/seal-api:dev ./seal-api
+      - docker buildx build --load --build-arg APP_NAME=api -t ghcr.io/atlas-idp/seal-api:dev ./seal-api
   build-worker:
+    desc: Build seal-worker (build-arg APP_NAME=worker)
     cmds:
-      - docker buildx build --load -t ghcr.io/atlas-idp/seal-worker:dev ./seal-worker
+      - docker buildx build --load --build-arg APP_NAME=worker -t ghcr.io/atlas-idp/seal-worker:dev ./seal-worker
 ```
 
 ---
@@ -529,12 +542,16 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 COPY . .
+ARG APP_NAME
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go build -ldflags="-s -w" -o /app .
+    CGO_ENABLED=0 go build \
+      -trimpath \
+      -ldflags="-s -w" \
+      -o /app \
+      ./cmd/${APP_NAME}
 FROM cgr.dev/chainguard/static:latest
 COPY --from=builder /app /app
-USER nonroot
 ENTRYPOINT ["/app"]
 ```
 
@@ -563,6 +580,8 @@ Security: Trivy scan → Cosign sign → Syft SBOM → push.
 apps/
 ├── seal-api/           # Go 1.26, REST API
 │   ├── cmd/
+│   │   └── api/
+│   │       └── main.go
 │   ├── internal/
 │   │   ├── config.go
 │   │   ├── handler.go
@@ -573,6 +592,8 @@ apps/
 │   └── Dockerfile
 ├── seal-worker/        # Go 1.26, PDF generator + signer (blind, no PG)
 │   ├── cmd/
+│   │   └── worker/
+│   │       └── main.go
 │   ├── internal/
 │   │   ├── config.go
 │   │   ├── worker.go
@@ -582,6 +603,8 @@ apps/
 │   └── Dockerfile
 ├── seal-ui/            # Go + HTMX
 │   ├── cmd/
+│   │   └── ui/
+│   │       └── main.go
 │   ├── internal/
 │   │   ├── config.go
 │   │   ├── server.go

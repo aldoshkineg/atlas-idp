@@ -32,8 +32,9 @@ and can download the signed document.
 ```
 apps/seal-api/
 ├── cmd/
-│   ├── main.go
-│   └── main_test.go
+│   └── api/
+│       ├── main.go
+│       └── main_test.go
 ├── internal/
 │   ├── config.go
 │   ├── config_test.go
@@ -80,8 +81,9 @@ apps/seal-api/
 ```
 apps/seal-worker/
 ├── cmd/
-│   ├── main.go
-│   └── main_test.go
+│   └── worker/
+│       ├── main.go
+│       └── main_test.go
 ├── internal/
 │   ├── config.go
 │   ├── config_test.go
@@ -120,7 +122,8 @@ apps/seal-worker/
 ```
 apps/seal-ui/
 ├── cmd/
-│   └── main.go
+│   └── ui/
+│       └── main.go
 ├── internal/
 │   ├── config.go
 │   ├── server.go
@@ -155,8 +158,8 @@ apps/seal-ui/
 ## Phase 4 — Helm Chart
 
 - [x] Single chart `apps/charts/seal/`:
-  - `Chart.yaml`, `values.yaml` (zero secrets — host/port/logLevel only)
-  - `templates/deployment-api.yaml` — Vault Agent annotations, envFrom ConfigMap/Secret, probes, resources
+  - `Chart.yaml`, `values.yaml` (zero secrets — host/port/logLevel only; `secrets.*` for dev overrides)
+  - `templates/deployment-api.yaml` — Vault Agent annotations (conditional via `vault.enabled`), envFrom ConfigMap/Secret, probes, resources, direct entrypoint (no shell)
   - `templates/deployment-worker.yaml` — same + Vault Agent cert injection, redis-client label
   - `templates/deployment-ui.yaml` — same (minimal)
   - `templates/service.yaml` — seal-api:8080, seal-worker:9090, seal-ui:8081
@@ -166,8 +169,9 @@ apps/seal-ui/
   - `templates/keda-scaledobject.yaml` — KEDA ScaledObject for worker (scale-to-zero)
   - `templates/cronjob.yaml` — DLQ reprocessor every 5min
   - `templates/configmap.yaml` — configmaps for all 3 components
-  - `templates/secret.yaml` — placeholder secrets (populated by Vault)
+  - `templates/secret.yaml` — values-driven via `.Values.secrets.*` (Vault in prod, --set in dev)
   - `templates/serviceaccount.yaml` — service accounts for all 3 components
+  - `templates/httproute.yaml` — seal.atlas / → seal-ui, /api/ → seal-api
 - [x] **Test:** `helm lint apps/charts/seal` — no errors
 - [x] **Test:** `helm template apps/charts/seal` — valid YAML output
 
@@ -183,6 +187,7 @@ apps/seal-ui/
 - [x] KEDA ScaledObject for worker (scale-to-zero on `seal:jobs` queue length)
 - [x] **Test:** `yamllint gitops/workloads/layers/` — valid YAML
 - [ ] **Test:** `argocd app sync root-app` — apps create and sync successfully
+     ⚠️ Sync temporarily disabled (root-app: no automated, seal: deleted from cluster)
 
 ---
 
@@ -201,7 +206,8 @@ apps/seal-ui/
 
 ## Phase 7 — MinIO Buckets
 
-- [ ] Create `seal-outputs` (30-day retention)
+- [x] Create `seal-outputs` bucket with `policy: download` (in MinIO chart via `gitops/platform-kind/layers/storage/minio.yaml`)
+- [ ] Lifecycle policy (30-day retention)
 - [ ] **Test:** `mc ls myminio/seal-outputs` — bucket exists
 - [ ] **Test:** Upload + lifecycle policy — verify 30-day rule applied
 
