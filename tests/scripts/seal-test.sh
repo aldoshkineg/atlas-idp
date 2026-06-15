@@ -3,15 +3,28 @@ set -euo pipefail
 
 # --- Configuration ---
 NS="seal"
+DEBUG_POD="seal-test"
+DEBUG_POD_MANIFEST="tests/seal/test-pod.yaml"
+
 API_SVC="seal-api.seal.svc.cluster.local:8080"
 WORKER_SVC="seal-worker.seal.svc.cluster.local:9090"
+
 MINIO_HOST="minio.minio.svc.cluster.local:9000"
 MINIO_USER="minioadmin"
 MINIO_PASSWORD="minioadminpassword"
-GATEWAY_PORT="30444"
-CA_CERT="clusters/kind/certs/ca.crt"
+MINIO_BUCKET="seal-outputs"
+S3_SIGV4="aws:amz:us-east-1:s3"
 
+GATEWAY_PORT="30444"
+SEAL_HOST="seal.atlas"
+S3_HOST="s3.atlas"
+
+CA_CERT="clusters/kind/certs/ca.crt"
 GATEWAY_NODE=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}' 2>/dev/null || echo "localhost")
+
+POLL_TIMEOUT=30
+POD_READY_TIMEOUT="60s"
+TEST_TEXT="Integration test PDF content"
 
 PASS=0
 FAIL=0
@@ -23,11 +36,25 @@ fail() { FAIL=$((FAIL+1)); echo "  FAIL: $1"; }
 
 # --- helpers ---
 in_pod() {
-  kubectl exec seal-test -n "$NS" -- "$@"
+  kubectl exec "$DEBUG_POD" -n "$NS" -- "$@"
+}
+
+gateway_curl() {
+  local host="$1" path="$2"; shift 2
+  curl -sf --cacert "$CA_CERT" --resolve "$host:$GATEWAY_PORT:$GATEWAY_NODE" \
+    "https://$host:$GATEWAY_PORT$path" "$@"
+}
+
+gateway_curl_s3() {
+  local path="$1" out="$2"
+  curl -s --aws-sigv4 "$S3_SIGV4" --user "$MINIO_USER:$MINIO_PASSWORD" \
+    --cacert "$CA_CERT" --resolve "$S3_HOST:$GATEWAY_PORT:$GATEWAY_NODE" \
+    "https://$S3_HOST:$GATEWAY_PORT/$MINIO_BUCKET$path" \
+    -o "$out" -w "%{http_code}" 2>/dev/null || echo "000"
 }
 
 await_doc_completed() {
-  local id="$1" max=30
+  local id="$1" max="$POLL_TIMEOUT"
   for i in $(seq 1 "$max"); do
     status=$(in_pod curl -sf "http://$API_SVC/api/v1/documents/$id" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
     [ "$status" = "completed" ] && return 0
@@ -37,7 +64,7 @@ await_doc_completed() {
 }
 
 cleanup() {
-  kubectl delete pod seal-test -n "$NS" --ignore-not-found --wait=false >/dev/null 2>&1 || true
+  kubectl delete pod "$DEBUG_POD" -n "$NS" --ignore-not-found --wait=false >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -75,8 +102,8 @@ echo ""
 
 # --- Step 2: Deploy debug pod ---
 echo "--- Step 2: Deploying debug pod ---"
-kubectl apply -f tests/seal/test-pod.yaml > /dev/null
-if kubectl wait --for=condition=Ready pod seal-test -n "$NS" --timeout=60s > /dev/null 2>&1; then
+kubectl apply -f "$DEBUG_POD_MANIFEST" > /dev/null
+if kubectl wait --for=condition=Ready pod "$DEBUG_POD" -n "$NS" --timeout="$POD_READY_TIMEOUT" > /dev/null 2>&1; then
   ok "Debug pod ready"
 else
   fail "Debug pod not ready"
@@ -102,7 +129,7 @@ echo ""
 echo "--- Step 4: Document creation and processing ---"
 RESP=$(in_pod curl -sf -X POST "http://$API_SVC/api/v1/documents" \
   -H "Content-Type: application/json" \
-  -d '{"text":"Integration test PDF content"}') || true
+  -d "{\"text\":\"$TEST_TEXT\"}") || true
 DOC_ID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
 
 if [ -n "$DOC_ID" ]; then
@@ -115,7 +142,7 @@ if [ -n "$DOC_ID" ]; then
   if await_doc_completed "$DOC_ID"; then
     ok "Document $DOC_ID processed to completed"
   else
-    fail "Document $DOC_ID not completed within 30s"
+    fail "Document $DOC_ID not completed within ${POLL_TIMEOUT}s"
   fi
 
   DOC_DATA=$(in_pod curl -sf "http://$API_SVC/api/v1/documents/$DOC_ID" 2>/dev/null || echo "")
@@ -148,13 +175,13 @@ for metric in pdf_sign_duration_seconds pdf_sign_errors_total; do
 done
 echo ""
 
-# --- Step 6: MinIO bucket (seal-outputs) ---
-echo "--- Step 6: MinIO bucket seal-outputs ---"
-BUCKET_XML=$(in_pod curl -sf --aws-sigv4 "aws:amz:us-east-1:s3" --user "$MINIO_USER:$MINIO_PASSWORD" "http://$MINIO_HOST/seal-outputs/" 2>/dev/null || echo "")
+# --- Step 6: MinIO bucket ---
+echo "--- Step 6: MinIO bucket $MINIO_BUCKET ---"
+BUCKET_XML=$(in_pod curl -sf --aws-sigv4 "$S3_SIGV4" --user "$MINIO_USER:$MINIO_PASSWORD" "http://$MINIO_HOST/$MINIO_BUCKET/" 2>/dev/null || echo "")
 if echo "$BUCKET_XML" | grep -q "<Contents>"; then
-  ok "MinIO bucket seal-outputs contains signed PDFs"
+  ok "MinIO bucket $MINIO_BUCKET contains signed PDFs"
 else
-  fail "MinIO bucket seal-outputs empty or inaccessible"
+  fail "MinIO bucket $MINIO_BUCKET empty or inaccessible"
 fi
 echo ""
 
@@ -163,36 +190,27 @@ echo "--- Step 7: Gateway external access (https) ---"
 if [ ! -f "$CA_CERT" ]; then
   echo "  SKIP: CA cert $CA_CERT not found (run 'make seed-ca'?)"
 else
-  GATEWAY_RESOLVE="--cacert $CA_CERT --resolve"
-
   if [ -n "$DOC_ID" ]; then
-    if curl -sf --cacert "$CA_CERT" --resolve "seal.atlas:$GATEWAY_PORT:$GATEWAY_NODE" \
-      "https://seal.atlas:$GATEWAY_PORT/api/v1/documents/$DOC_ID" > /dev/null 2>&1; then
-      ok "Gateway: seal.atlas routes to API"
+    if gateway_curl "$SEAL_HOST" "/api/v1/documents/$DOC_ID" > /dev/null 2>&1; then
+      ok "Gateway: $SEAL_HOST routes to API"
     else
-      fail "Gateway: seal.atlas API unreachable"
+      fail "Gateway: $SEAL_HOST API unreachable"
     fi
   fi
 
-  if curl -sf --cacert "$CA_CERT" --resolve "seal.atlas:$GATEWAY_PORT:$GATEWAY_NODE" \
-    "https://seal.atlas:$GATEWAY_PORT/" -o /dev/null 2>&1; then
-    ok "Gateway: seal.atlas/ serves UI"
+  if gateway_curl "$SEAL_HOST" "/" -o /dev/null 2>&1; then
+    ok "Gateway: $SEAL_HOST/ serves UI"
   else
-    fail "Gateway: seal.atlas/ unreachable"
+    fail "Gateway: $SEAL_HOST/ unreachable"
   fi
 
   if [ -n "$S3_PATH" ]; then
     PDF_TMP=$(mktemp)
-    HTTP_CODE=$(curl -s --aws-sigv4 "aws:amz:us-east-1:s3" \
-      --user "$MINIO_USER:$MINIO_PASSWORD" \
-      --cacert "$CA_CERT" \
-      --resolve "s3.atlas:$GATEWAY_PORT:$GATEWAY_NODE" \
-      "https://s3.atlas:$GATEWAY_PORT/seal-outputs/$S3_PATH" \
-      -o "$PDF_TMP" -w "%{http_code}" 2>/dev/null || echo "000")
+    HTTP_CODE=$(gateway_curl_s3 "/$S3_PATH" "$PDF_TMP")
     if [ "$HTTP_CODE" = "200" ] && head -c 4 "$PDF_TMP" | grep -q "%PDF"; then
-      ok "Gateway: s3.atlas serves signed PDF ($S3_PATH)"
+      ok "Gateway: $S3_HOST serves signed PDF ($S3_PATH)"
     else
-      fail "Gateway: s3.atlas PDF download failed (HTTP $HTTP_CODE)"
+      fail "Gateway: $S3_HOST PDF download failed (HTTP $HTTP_CODE)"
     fi
     rm -f "$PDF_TMP"
   fi
@@ -200,4 +218,8 @@ fi
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="
+if [ -n "$S3_PATH" ] && [ "$FAIL" = "0" ] && [ -f "$CA_CERT" ]; then
+  echo "  Download: curl --cacert $CA_CERT --resolve $S3_HOST:$GATEWAY_PORT:$GATEWAY_NODE \\"
+  echo "    https://$S3_HOST:$GATEWAY_PORT/$MINIO_BUCKET/$S3_PATH"
+fi
 exit $FAIL
