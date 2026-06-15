@@ -20,4 +20,5 @@ Each target deploys and verifies itself.
 | `make test-network-policy` | Test NetworkPolicy isolation between 3 pods |
 | `make test-keda` | Test KEDA autoscaling via ConfigMap trigger |
 | `make test-db-backup` | Test CNPG backup/restore to MinIO |
+| `make test-seal` | Test Seal deployment (pods, API, document CRUD, worker metrics, MinIO bucket, gateway) |
 | `make test-undeploy` | Remove all test resources |

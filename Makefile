@@ -59,6 +59,7 @@ help:
 	@echo "  test-keda        Test KEDA autoscaling via ConfigMap trigger"
 	@echo "  test-network-policy  Test NetworkPolicy isolation between pods"
 	@echo "  test-db-backup       Test CNPG backup/restore to MinIO"
+	@echo "  test-seal            Test Seal deployment (pods, API, documents, gateway)"
 	@echo "  test-undeploy    Remove all test resources"
 	@echo ""
 	@echo "RBAC:"
@@ -125,7 +126,7 @@ test-ca-gateway:
 test-vault:
 	./tests/scripts/vault-test.sh
 
-test: test-ca-gateway test-vault test-network-policy test-velero test-keda test-db-backup
+test: test-ca-gateway test-vault test-network-policy test-velero test-keda test-db-backup test-seal
 
 test-velero:
 	./tests/scripts/velero-test.sh
@@ -139,12 +140,16 @@ test-network-policy:
 test-db-backup:
 	./tests/scripts/db-backup-test.sh
 
+test-seal:
+	./tests/scripts/seal-test.sh
+
 test-undeploy:
 	kubectl delete -f tests/keda --ignore-not-found
 	kubectl delete -f tests/vault --ignore-not-found
 	kubectl delete -f tests/gateway --ignore-not-found
 	kubectl delete -f tests/network-policy --ignore-not-found
 	kubectl delete -f tests/db-backup --ignore-not-found
+	kubectl delete pod -n seal seal-test --ignore-not-found 2>/dev/null || true
 	kubectl delete ns db-backup-test --ignore-not-found
 	kubectl delete pod -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
 	kubectl delete pvc -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
