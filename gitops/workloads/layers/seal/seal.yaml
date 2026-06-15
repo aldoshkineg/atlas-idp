@@ -11,6 +11,15 @@ spec:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: HEAD
     path: apps/charts/seal
+    helm:
+      values: |
+        vault:
+          enabled: false
+        secrets:
+          postgresPassword: "XCGeXFlNxVYonmOdFOO7WNlfa04WU6RmRc2K6TatzW35mRFid1RmbDnUSdE7aVXA"
+          redisPassword: "super-secret-redis"
+          minioAccessKey: "minioadmin"
+          minioSecretKey: "minioadminpassword"
   destination:
     server: https://kubernetes.default.svc
     namespace: seal
