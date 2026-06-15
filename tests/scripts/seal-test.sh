@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# --- Configuration ---
 NS="seal"
 API_SVC="seal-api.seal.svc.cluster.local:8080"
 WORKER_SVC="seal-worker.seal.svc.cluster.local:9090"
 MINIO_HOST="minio.minio.svc.cluster.local:9000"
+MINIO_USER="minioadmin"
+MINIO_PASSWORD="minioadminpassword"
 GATEWAY_PORT="30444"
 CA_CERT="clusters/kind/certs/ca.crt"
+
+GATEWAY_NODE=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}' 2>/dev/null || echo "localhost")
+
 PASS=0
 FAIL=0
 DOC_ID=""
+S3_PATH=""
 
 ok()   { PASS=$((PASS+1)); echo "  PASS: $1"; }
 fail() { FAIL=$((FAIL+1)); echo "  FAIL: $1"; }
@@ -40,23 +47,13 @@ echo ""
 # --- Step 1: K8s resources ---
 echo "--- Step 1: Checking Kubernetes resources ---"
 
-if kubectl get pod -l app.kubernetes.io/name=seal-api -n "$NS" -o jsonpath='{.items[*].status.phase}' 2>/dev/null | tr ' ' '\n' | grep -q Running; then
-  ok "seal-api pod is Running"
-else
-  fail "seal-api pod not Running"
-fi
-
-if kubectl get pod -l app.kubernetes.io/name=seal-worker -n "$NS" -o jsonpath='{.items[*].status.phase}' 2>/dev/null | tr ' ' '\n' | grep -q Running; then
-  ok "seal-worker pod is Running"
-else
-  fail "seal-worker pod not Running"
-fi
-
-if kubectl get pod -l app.kubernetes.io/name=seal-ui -n "$NS" -o jsonpath='{.items[*].status.phase}' 2>/dev/null | tr ' ' '\n' | grep -q Running; then
-  ok "seal-ui pod is Running"
-else
-  fail "seal-ui pod not Running"
-fi
+for label in seal-api seal-worker seal-ui; do
+  if kubectl get pod -l app.kubernetes.io/name="$label" -n "$NS" -o jsonpath='{.items[*].status.phase}' 2>/dev/null | tr ' ' '\n' | grep -q Running; then
+    ok "$label pod is Running"
+  else
+    fail "$label pod not Running"
+  fi
+done
 
 for svc in seal-api seal-worker seal-ui; do
   if kubectl get svc "$svc" -n "$NS" > /dev/null 2>&1; then
@@ -142,22 +139,19 @@ echo ""
 # --- Step 5: Worker metrics ---
 echo "--- Step 5: Worker metrics ---"
 METRICS=$(in_pod curl -sf "http://$WORKER_SVC/metrics" 2>/dev/null || echo "")
-if echo "$METRICS" | grep -q "pdf_sign_duration_seconds"; then
-  ok "Worker metrics: pdf_sign_duration_seconds"
-else
-  fail "Worker metrics missing pdf_sign_duration_seconds"
-fi
-if echo "$METRICS" | grep -q "pdf_sign_errors_total"; then
-  ok "Worker metrics: pdf_sign_errors_total"
-else
-  fail "Worker metrics missing pdf_sign_errors_total"
-fi
+for metric in pdf_sign_duration_seconds pdf_sign_errors_total; do
+  if echo "$METRICS" | grep -q "$metric"; then
+    ok "Worker metric: $metric"
+  else
+    fail "Worker metric missing: $metric"
+  fi
+done
 echo ""
 
 # --- Step 6: MinIO bucket (seal-outputs) ---
 echo "--- Step 6: MinIO bucket seal-outputs ---"
-BUCKET_LIST=$(in_pod curl -sf --aws-sigv4 "aws:amz:us-east-1:s3" --user "minioadmin:minioadminpassword" "http://$MINIO_HOST/seal-outputs/" 2>/dev/null || echo "")
-if echo "$BUCKET_LIST" | grep -q "<Contents>"; then
+BUCKET_XML=$(in_pod curl -sf --aws-sigv4 "aws:amz:us-east-1:s3" --user "$MINIO_USER:$MINIO_PASSWORD" "http://$MINIO_HOST/seal-outputs/" 2>/dev/null || echo "")
+if echo "$BUCKET_XML" | grep -q "<Contents>"; then
   ok "MinIO bucket seal-outputs contains signed PDFs"
 else
   fail "MinIO bucket seal-outputs empty or inaccessible"
@@ -166,25 +160,42 @@ echo ""
 
 # --- Step 7: Gateway external access ---
 echo "--- Step 7: Gateway external access (https) ---"
-if [ -f "$CA_CERT" ]; then
-  GATEWAY_NODE=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}' 2>/dev/null || echo "localhost")
-  API_PATH="/api/v1/documents/$DOC_ID"
+if [ ! -f "$CA_CERT" ]; then
+  echo "  SKIP: CA cert $CA_CERT not found (run 'make seed-ca'?)"
+else
+  GATEWAY_RESOLVE="--cacert $CA_CERT --resolve"
+
   if [ -n "$DOC_ID" ]; then
     if curl -sf --cacert "$CA_CERT" --resolve "seal.atlas:$GATEWAY_PORT:$GATEWAY_NODE" \
-      "https://seal.atlas:$GATEWAY_PORT$API_PATH" > /dev/null 2>&1; then
+      "https://seal.atlas:$GATEWAY_PORT/api/v1/documents/$DOC_ID" > /dev/null 2>&1; then
       ok "Gateway: seal.atlas routes to API"
     else
       fail "Gateway: seal.atlas API unreachable"
     fi
   fi
+
   if curl -sf --cacert "$CA_CERT" --resolve "seal.atlas:$GATEWAY_PORT:$GATEWAY_NODE" \
     "https://seal.atlas:$GATEWAY_PORT/" -o /dev/null 2>&1; then
     ok "Gateway: seal.atlas/ serves UI"
   else
     fail "Gateway: seal.atlas/ unreachable"
   fi
-else
-  echo "  SKIP: CA cert $CA_CERT not found (run 'make seed-ca'?)"
+
+  if [ -n "$S3_PATH" ]; then
+    PDF_TMP=$(mktemp)
+    HTTP_CODE=$(curl -s --aws-sigv4 "aws:amz:us-east-1:s3" \
+      --user "$MINIO_USER:$MINIO_PASSWORD" \
+      --cacert "$CA_CERT" \
+      --resolve "s3.atlas:$GATEWAY_PORT:$GATEWAY_NODE" \
+      "https://s3.atlas:$GATEWAY_PORT/seal-outputs/$S3_PATH" \
+      -o "$PDF_TMP" -w "%{http_code}" 2>/dev/null || echo "000")
+    if [ "$HTTP_CODE" = "200" ] && head -c 4 "$PDF_TMP" | grep -q "%PDF"; then
+      ok "Gateway: s3.atlas serves signed PDF ($S3_PATH)"
+    else
+      fail "Gateway: s3.atlas PDF download failed (HTTP $HTTP_CODE)"
+    fi
+    rm -f "$PDF_TMP"
+  fi
 fi
 
 echo ""
