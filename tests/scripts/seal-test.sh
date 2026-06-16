@@ -49,7 +49,7 @@ gateway_curl_s3() {
 
 await_doc_completed() {
   local id="$1" max="$POLL_TIMEOUT"
-  for i in $(seq 1 "$max"); do
+  for _ in $(seq 1 "$max"); do
     status=$(in_pod curl -sf "http://$API_SVC/api/v1/documents/$id" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
     [ "$status" = "completed" ] && return 0
     sleep 1

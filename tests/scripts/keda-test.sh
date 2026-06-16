@@ -77,7 +77,7 @@ kubectl patch scaledobject $SCALER -n "$NS" --type='json' \
   -p='[{"op": "replace", "path": "/spec/triggers/0/metadata/desiredReplicas", "value": "3"}]'
 echo "  desiredReplicas=3, waiting for pods (timeout 60s)..."
 
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   REPLICAS=$(kubectl get deployment $DEPLOY -n "$NS" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
   if [ "${REPLICAS:-0}" -ge 3 ]; then
     DURATION=$((SECONDS - START))
@@ -104,7 +104,7 @@ kubectl patch scaledobject $SCALER -n "$NS" --type='json' \
 echo "  desiredReplicas=0, checking HPA metric..."
 
 METRIC_OK=0
-for i in $(seq 1 30); do
+for _ in $(seq 1 30); do
   AVG=$(kubectl get hpa "$HPA" -n "$NS" -o jsonpath='{.status.currentMetrics[0].external.current.averageValue}' 2>/dev/null || echo "")
   if [ "${AVG}" = "0" ]; then
     DURATION=$((SECONDS - START))
@@ -120,7 +120,7 @@ if [ "$METRIC_OK" -eq 0 ]; then
 fi
 
 echo "  Checking actual replica count (non-blocking, 30s)..."
-for i in $(seq 1 30); do
+for _ in $(seq 1 30); do
   REPLICAS=$(kubectl get deployment $DEPLOY -n "$NS" -o jsonpath='{.status.replicas}' 2>/dev/null || echo "0")
   if [ "${REPLICAS}" -le 1 ]; then
     DURATION=$((SECONDS - START))

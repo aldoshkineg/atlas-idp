@@ -15,3 +15,4 @@ The setup is fully automated. The script will fetch a short-lived registration t
 make setup
 # OR run the script directly:
 ./setup-runner.sh
+```

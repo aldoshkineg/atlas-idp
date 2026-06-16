@@ -112,12 +112,7 @@ atlas-idp/
 │   │   └── monitoring.yaml     #     kube-prometheus-stack
 │   └── workloads/              #   Workload Applications
 │       └── application.yaml    #     Workloads app (backend-api, worker, cron)
-├── apps/                       # Sample application code
-│   ├── backend-api/            #   Backend API service (planned)
-│   ├── worker/                 #   Worker service (planned)
-│   ├── cronjob/                #   CronJob (planned)
-│   └── charts/                 #   Helm charts (planned)
-
+├── apps/                       # Placeholder — Seal project moved to aldoshkineg/atlas-idp-seal
 ├── observability/              # Monitoring & alerting
 │   ├── alerts/                 #   Prometheus custom alert rules
 │   │   ├── custom-rule-1.yaml  #     HighErrorRate
@@ -236,21 +231,21 @@ make cluster-down   # Delete kind cluster
 
 GitHub Actions workflows (`.github/workflows/`):
 
-| Workflow             | Trigger              | Purpose                                                    |
-| -------------------- | -------------------- | ---------------------------------------------------------- |
-| `ci.yaml`            | push, PR, manual     | Unified CI: tools → checks → terraform-kind deploy         |
-| `cleanup-local.yaml` | manual               | Aggressive cleanup: delete KinD cluster, remove TF state   |
+| Workflow             | Trigger          | Purpose                                                  |
+| -------------------- | ---------------- | -------------------------------------------------------- |
+| `ci.yaml`            | push, PR, manual | Unified CI: tools → checks → terraform-kind deploy       |
+| `cleanup-local.yaml` | manual           | Aggressive cleanup: delete KinD cluster, remove TF state |
 
 ### Composite Actions Architecture
 
 The CI uses **composite actions** for reusability:
 
-| Action               | Purpose                                                     |
-| -------------------- | ----------------------------------------------------------- |
-| `actions/tools/`     | Install CLI tools (terraform, kubectl, kind, trivy, yamllint) |
-| `actions/checks/`    | Terraform fmt/validate, yamllint, Trivy IaC scan            |
-| `actions/terraform-kind/` | kind cluster + Argo CD bootstrap (init, plan, apply, verify) |
-| `actions/terraform-eks/`  | EKS stub (not implemented yet)                          |
+| Action                    | Purpose                                                       |
+| ------------------------- | ------------------------------------------------------------- |
+| `actions/tools/`          | Install CLI tools (terraform, kubectl, kind, trivy, yamllint) |
+| `actions/checks/`         | Terraform fmt/validate, yamllint, Trivy IaC scan              |
+| `actions/terraform-kind/` | kind cluster + Argo CD bootstrap (init, plan, apply, verify)  |
+| `actions/terraform-eks/`  | EKS stub (not implemented yet)                                |
 
 ### CI Pipeline Flow (`ci.yaml`)
 

@@ -1,6 +1,7 @@
 # ArgoCD GitOps Prompt
 
 ## Context
+
 - **Login:** `make argocd-login`
 - **Repo:** `https://github.com/aldoshkineg/atlas-idp.git` (main)
 - **Structure:**
@@ -9,6 +10,7 @@
   - `gitops/platform/configs/` — Day-1 Configs (gateway, certs)
 
 ## Local Loop (Test WITHOUT Git Push)
+
 ```bash
 argocd app diff <app> --local <dir>  # Dry-run local vs live
 argocd app sync <app> --local <dir>  # Apply local direct
@@ -44,6 +46,6 @@ kubectl get/describe <res> <name> -n <ns>
 
 ## LLM Rules
 
-* **Strict brevity:** Output ONLY changed YAML snippets, NOT full files.
-* **Local first:** Suggest `--local` for tests, avoid `git push` in debug loops.
-* **Limit output:** Use `| head`, `| grep` in bash commands to save tokens.
+- **Strict brevity:** Output ONLY changed YAML snippets, NOT full files.
+- **Local first:** Suggest `--local` for tests, avoid `git push` in debug loops.
+- **Limit output:** Use `| head`, `| grep` in bash commands to save tokens.

@@ -53,6 +53,7 @@
 > Day-0 and Day-1 bootstrap implemented. 20 applications deployed and synced.
 
 ### Day-0: Argo CD Install (Terraform-driven)
+
 - [x] `infra/modules/argocd-bootstrap/` — complete Terraform module with `helm_release` resource
   - [x] Namespace pre-creation via `kubernetes_namespace`
   - [x] `values.yaml` override: server NodePort, insecure mode for local, admin password BCrypt hash
@@ -62,6 +63,7 @@
   - [x] Smoke test: `kubectl get applications -n argocd`
 
 ### Day-1: App-of-Apps Root Application
+
 - [x] `gitops/bootstrap/root-app.yaml` — root Application manifest
 - [x] `repoURL` points to actual GitHub repo
 - [x] Root-app auto-discovers child Application CRs under `gitops/platform-kind/layers/`
@@ -71,6 +73,7 @@
 - [x] Verify Argo CD self-heals on git push (automated sync + prune)
 
 ### Day-1+: Argo CD Self-Management
+
 - [x] Root-app renamed `root-platform` → `root-app`, converted to multi-source (`platform-kind/layers/` + `workloads/layers/`)
 - [x] ArgoCD Project `platform-kind` — restricts platform apps to their namespaces (sync-wave -1)
 - [x] ArgoCD Project `workloads` — restricts workload apps to backend-api, worker, cronjob (sync-wave -1), cluster-resources disabled
@@ -82,12 +85,14 @@
 ## Phase 4 — Platform Services Layer
 
 ### Networking
+
 - [x] **gateway-api-crds** — deployed (sync-wave 0)
 - [x] **nginx-gateway-fabric** — deployed (sync-wave 2)
 - [x] **gateway-resources** — HTTPRoute for nginx deployed (sync-wave 4)
 - [x] **Ingress gateways** — grafana-gateway, vault-gateway, minio-gateway deployed (sync-wave 6)
 
 ### Security
+
 - [x] **cert-manager** — deployed (sync-wave 0)
 - [x] **cert-manager-issuers** — ClusterIssuer for local self-signed CA (sync-wave 1)
 - [x] **vault-operator** — deployed via Bank-Vaults (sync-wave 0)
@@ -101,6 +106,7 @@
   - [x] **HPA fixed**: added `resources.requests.cpu: 100m` + autoscaling config
 
 ### Storage
+
 - [x] **snapshot-crds** — VolumeSnapshot CRDs (sync-wave 1)
 - [x] **snapshot-controller** — CSI Snapshot controller (sync-wave 2)
 - [x] **csi-hostpath** — CSI driver for local persistent volumes (sync-wave 3)
@@ -108,6 +114,7 @@
 - [x] **velero** — backup/restore, backed by MinIO (sync-wave 4)
 
 ### Data
+
 - [x] **CloudNativePG** — replaces Bitnami PostgreSQL. Operator 1.29.1, cluster `production-db` (1 instance, PG 17.6, csi-hostpath-sc). MinIO bucket `cnpg-backups`. Backup config (ObjectStore, Secret, ScheduledBackup) moved to `examples/cnpg-backup/`.
   - [x] Plugin-based recovery (no deprecated `externalClusters.barmanObjectStore`)
   - [x] `shared_buffers` reduced to 64MB (OOM risk fix)
@@ -117,9 +124,11 @@
   - [ ] Switch backup secrets to Vault (`vault/` policies + external-secrets operator to sync k8s Secret)
 
 ### Base
+
 - [x] **metrics-server** — deployed (sync-wave 1)
 
 ### Observability
+
 - [x] **kube-prometheus-stack** — Prometheus + Grafana + Alertmanager (sync-wave 5)
   - [x] Custom alert rules: HighErrorRate, HPAMaxedOut — mounted as ConfigMap
   - [x] Grafana dashboards: platform overview (inline JSON), CNPG Cluster (gnetId 20417)
@@ -128,6 +137,7 @@
 - [x] Grafana Loki datasource configured
 
 ### Vault Policy & Config
+
 - [x] `vault/policies/platform-read.hcl` — read-only ACL for `secret/data/platform/*`
 - [x] `vault/kubernetes-auth/role-backend-api.yaml` — k8s auth role
 - [x] `vault/bootstrap/README.md`

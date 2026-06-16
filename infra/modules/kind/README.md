@@ -16,7 +16,7 @@ This module provides Terraform configuration for creating and managing a kind (K
 ```hcl
 module "kind_cluster" {
   source = "./infra/modules/kind"
-  
+
   cluster_name = "my-cluster"
 }
 ```
@@ -28,13 +28,13 @@ This will create a kind cluster with one control-plane node and one worker node.
 ```hcl
 module "kind_cluster" {
   source = "./infra/modules/kind"
-  
+
   cluster_name      = "my-cluster"
   worker_node_count = 2
-  
+
   # Label control-plane for ingress
   ingress_ready = true
-  
+
   # Expose ports
   extra_port_mappings = [
     {
@@ -66,22 +66,22 @@ resource "kubernetes_namespace" "app" {
   metadata {
     name = "my-app"
   }
-  
+
   depends_on = [module.kind_cluster]
 }
 ```
 
 ## Inputs
 
-| Name | Description | Type | Default |
-|------|-------------|------|---------|
-| cluster_name | Name of the kind cluster | `string` | `"kind"` |
-| create_cluster | Whether to create the kind cluster using Terraform | `bool` | `true` |
-| worker_node_count | Number of worker nodes in the cluster | `number` | `1` |
-| control_plane_nodes | List of control plane node configurations | `list(object)` | `[{role = "control-plane"}]` |
-| ingress_ready | Whether to label the control-plane node as ingress-ready | `bool` | `false` |
-| extra_port_mappings | Extra port mappings for the control-plane node | `list(object)` | `[]` |
-| kubernetes_version | Kubernetes version to use (e.g., v1.27.0) | `string` | `""` |
+| Name                | Description                                              | Type           | Default                      |
+| ------------------- | -------------------------------------------------------- | -------------- | ---------------------------- |
+| cluster_name        | Name of the kind cluster                                 | `string`       | `"kind"`                     |
+| create_cluster      | Whether to create the kind cluster using Terraform       | `bool`         | `true`                       |
+| worker_node_count   | Number of worker nodes in the cluster                    | `number`       | `1`                          |
+| control_plane_nodes | List of control plane node configurations                | `list(object)` | `[{role = "control-plane"}]` |
+| ingress_ready       | Whether to label the control-plane node as ingress-ready | `bool`         | `false`                      |
+| extra_port_mappings | Extra port mappings for the control-plane node           | `list(object)` | `[]`                         |
+| kubernetes_version  | Kubernetes version to use (e.g., v1.27.0)                | `string`       | `""`                         |
 
 ### extra_port_mappings Object
 
@@ -95,23 +95,23 @@ object({
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| cluster_name | Name of the kind cluster |
-| kubeconfig_path | Path to the kubeconfig file (`~/.kube/config`) |
-| cluster_ready | Indicates if the cluster is ready |
-| cluster_endpoint | Kubernetes cluster endpoint |
+| Name             | Description                                    |
+| ---------------- | ---------------------------------------------- |
+| cluster_name     | Name of the kind cluster                       |
+| kubeconfig_path  | Path to the kubeconfig file (`~/.kube/config`) |
+| cluster_ready    | Indicates if the cluster is ready              |
+| cluster_endpoint | Kubernetes cluster endpoint                    |
 
 ## Example: Complete Development Setup
 
 ```hcl
 module "kind_cluster" {
   source = "./infra/modules/kind"
-  
+
   cluster_name      = "dev"
   worker_node_count = 2
   ingress_ready     = true
-  
+
   extra_port_mappings = [
     { container_port = 80, host_port = 80 },
     { container_port = 443, host_port = 443 }
@@ -121,7 +121,7 @@ module "kind_cluster" {
 # Install NGINX Ingress Controller
 resource "kubernetes_manifest" "nginx_ingress" {
   # ... ingress controller configuration
-  
+
   depends_on = [module.kind_cluster]
 }
 ```
@@ -138,6 +138,7 @@ resource "kubernetes_manifest" "nginx_ingress" {
 ## Migration from Previous Version
 
 If you were using the old version with `null_resource`, note that:
+
 - The kubeconfig is now stored at `~/.kube/config` instead of the module directory
 - Configuration is done via Terraform variables instead of a separate kind config file
 - The provider handles cluster lifecycle (create/delete) automatically

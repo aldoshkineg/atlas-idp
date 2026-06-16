@@ -61,10 +61,12 @@
 ESO подключается к `kms.vyrn.ru` через **Vault Token**.
 
 Token хранится в:
+
 - GitHub Secrets (`VAULT_TOKEN`) — для CI
 - K8s Secret `vault-token` в namespace `external-secrets` — создаётся через Terraform `kubernetes_secret` ресурс
 
 ClusterSecretStore ссылается на этот K8s Secret:
+
 ```yaml
 apiVersion: external-secrets.io/v1beta1
 kind: ClusterSecretStore
@@ -123,6 +125,7 @@ vault kv put kv/data/seal/pdf-signer \
 #### 1. Новые компоненты (Argo CD Application)
 
 `gitops/platform-kind/layers/security/external-secrets.yaml`:
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -157,6 +160,7 @@ spec:
 #### 2. ClusterSecretStore
 
 `gitops/platform-kind/layers/security/resources/external-secrets/store.yaml`:
+
 ```yaml
 apiVersion: external-secrets.io/v1beta1
 kind: ClusterSecretStore
@@ -177,6 +181,7 @@ spec:
 #### 3. Vault Token в кластер
 
 Token создаётся через Terraform как K8s Secret:
+
 ```hcl
 # infra/environments/dev/main.tf
 resource "kubernetes_secret" "vault_token" {
@@ -195,6 +200,7 @@ resource "kubernetes_secret" "vault_token" {
 #### 4. Helm charts: inline values → existingSecret
 
 **`minio.yaml`:**
+
 ```yaml
 # Было
 values: |
@@ -207,6 +213,7 @@ values: |
 ```
 
 Плюс ExternalSecret `gitops/platform-kind/layers/storage/resources/minio/external-secret.yaml`:
+
 ```yaml
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
@@ -220,19 +227,20 @@ spec:
   target:
     name: minio-credentials
   data:
-  - secretKey: rootUser
-    remoteRef:
-      key: secret/data/platform/minio
-      property: rootUser
-  - secretKey: rootPassword
-    remoteRef:
-      key: secret/data/platform/minio
-      property: rootPassword
+    - secretKey: rootUser
+      remoteRef:
+        key: secret/data/platform/minio
+        property: rootUser
+    - secretKey: rootPassword
+      remoteRef:
+        key: secret/data/platform/minio
+        property: rootPassword
 ```
 
 И Application `gitops/platform-kind/layers/storage/minio-secret.yaml` (sync-wave 4, до minio wave 5).
 
 **`velero.yaml`:**
+
 ```yaml
 # Было
 credentials:
@@ -252,12 +260,12 @@ credentials:
 Плюс ExternalSecret + Application.
 
 **`resources/redis/secret.yaml` — замена на ExternalSecret:**
+
 ```yaml
 # Было
 apiVersion: v1
 kind: Secret
-...
-
+---
 # Стало
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
@@ -271,24 +279,24 @@ spec:
   target:
     name: redis-auth
   data:
-  - secretKey: redis-password
-    remoteRef:
-      key: secret/data/platform/redis
-      property: redis-password
+    - secretKey: redis-password
+      remoteRef:
+        key: secret/data/platform/redis
+        property: redis-password
 ```
 
 **`resources/postgres-cluster/backup-secret.yaml` — аналогично:**
+
 ```yaml
 # Было
 apiVersion: v1
 kind: Secret
-...
-
+---
 # Стало
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
-...
-  data:
+---
+data:
   - secretKey: ACCESS_KEY_ID
     remoteRef:
       key: secret/data/platform/backups
@@ -322,6 +330,7 @@ Wave 7+: остальные сервисы
 ## Последствия
 
 ### Плюсы
+
 - Секретов нет в git (ни открытых, ни зашифрованных)
 - Vault — единый source of truth
 - ESO умеет авто-рефреш при смене секретов в Vault
@@ -329,6 +338,7 @@ Wave 7+: остальные сервисы
 - Централизованный аудит доступа к секретам (kms.vyrn.ru audit log)
 
 ### Минусы
+
 - Нужно переписать 5+ манифестов (структурные изменения)
 - Добавляется ESO controller (ещё один компонент в кластере)
 - Зависимость времени синка: kms.vyrn.ru должен быть доступен

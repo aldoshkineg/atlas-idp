@@ -1,6 +1,7 @@
 # Certificate Verification Guide
 
 ## Objective
+
 Verify that CA certificates used in this project are properly trusted by the system, and that TLS certificates signed by them are valid for browsers (especially Chrome).
 
 ## Certificate Locations
@@ -14,8 +15,8 @@ Verify that CA certificates used in this project are properly trusted by the sys
 
 The CA certificate and key are stored as GitHub repository secrets for use in CI/CD:
 
-| Secret | Source File | Created Via |
-|--------|-------------|-------------|
+| Secret       | Source File                  | Created Via                                                                        |
+| ------------ | ---------------------------- | ---------------------------------------------------------------------------------- |
 | `DEV_CA_CRT` | `clusters/kind/certs/ca.crt` | `make github-secrets-ca` → `gh secret set DEV_CA_CRT < clusters/kind/certs/ca.crt` |
 | `DEV_CA_KEY` | `clusters/kind/certs/ca.key` | `make github-secrets-ca` → `gh secret set DEV_CA_KEY < clusters/kind/certs/ca.key` |
 
@@ -25,14 +26,15 @@ The CA certificate and key are stored as GitHub repository secrets for use in CI
 2. `.github/actions/terraform-kind/action.yml` uses them to create a Kubernetes TLS secret in the cluster:
    ```yaml
    kubectl create secret tls dev-ca-secret \
-     --cert=<(echo "${{ inputs.dev_ca_crt }}") \
-     --key=<(echo "${{ inputs.dev_ca_key }}") \
-     -n cert-manager \
-     --dry-run=client -o yaml | kubectl apply -f -
+   --cert=<(echo "${{ inputs.dev_ca_crt }}") \
+   --key=<(echo "${{ inputs.dev_ca_key }}") \
+   -n cert-manager \
+   --dry-run=client -o yaml | kubectl apply -f -
    ```
 3. The resulting Kubernetes secret `dev-ca-secret` in namespace `cert-manager` is used as a CA issuer by cert-manager to sign certificates for in-cluster services (Ingress, etc.)
 
 **Check secrets via CLI:**
+
 ```bash
 gh secret list
 ```
@@ -142,6 +144,7 @@ curl -sv https://localhost:4443/ 2>&1 | grep -iE "verify result|subject|issuer|s
 ### 8. Chrome-specific notes
 
 Chrome on Linux uses the system trust store (`/etc/ssl/certs/`), but may cache it at startup. After adding a new CA:
+
 1. Fully restart Chrome (all windows)
 2. Open `chrome://net-internals/#hsts` and check/clear localhost HSTS if needed
 3. Use Incognito mode to bypass certificate cache
@@ -149,9 +152,9 @@ Chrome on Linux uses the system trust store (`/etc/ssl/certs/`), but may cache i
 
 ## Common Issues
 
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| `unable to get local issuer certificate` | CA not in system trust store | Add via `update-ca-certificates` |
-| `certificate has expired` | Cert validity passed | Regenerate with longer `-days` |
-| `IP mismatch` / `hostname mismatch` | CN or SAN doesn't match URL | Add `DNS:localhost` to SAN |
-| Chrome shows "NET::ERR_CERT_COMMON_NAME_INVALID" | Missing SAN extension | Regenerate with SAN config |
+| Issue                                            | Cause                        | Fix                              |
+| ------------------------------------------------ | ---------------------------- | -------------------------------- |
+| `unable to get local issuer certificate`         | CA not in system trust store | Add via `update-ca-certificates` |
+| `certificate has expired`                        | Cert validity passed         | Regenerate with longer `-days`   |
+| `IP mismatch` / `hostname mismatch`              | CN or SAN doesn't match URL  | Add `DNS:localhost` to SAN       |
+| Chrome shows "NET::ERR_CERT_COMMON_NAME_INVALID" | Missing SAN extension        | Regenerate with SAN config       |

@@ -4,13 +4,13 @@
 
 ## Состав образа
 
-| Инструмент  | Версия  |
-|-------------|---------|
-| terraform   | 1.15.3  |
-| kubectl     | 1.34.0  |
-| kind        | 0.29.0  |
-| trivy       | 0.70.0  |
-| yamllint    | 1.35.1  |
+| Инструмент | Версия |
+| ---------- | ------ |
+| terraform  | 1.15.3 |
+| kubectl    | 1.34.0 |
+| kind       | 0.29.0 |
+| trivy      | 0.70.0 |
+| yamllint   | 1.35.1 |
 
 Версии синхронизированы с `.github/actions/tools/action.yml`.
 
@@ -44,6 +44,7 @@ Bind mount в локальную папку `cache/` позволяет избе
 - **Trivy DB**, pip кэш и др. — в `cache/home/` (~/.cache)
 
 Для полной очистки кэша:
+
 ```bash
 rm -rf clusters/kind/ci/act-runner/cache/tf/* clusters/kind/ci/act-runner/cache/home/*
 ```
@@ -55,6 +56,7 @@ docker build -t act-runner:latest clusters/kind/ci/act-runner/
 ```
 
 Или через make:
+
 ```bash
 make act-build
 ```
@@ -75,6 +77,7 @@ act -W .github/workflows/ci.yaml \
 ```
 
 Или через make:
+
 ```bash
 make act-ci
 ```

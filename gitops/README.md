@@ -24,25 +24,25 @@ gitops/
 
 ## Sync Waves
 
-| Wave | Layer | Content |
-|------|-------|---------|
-| -1 | bootstrap | AppProjects |
-| 0 | CRDs + operators | cert-manager, gateway-api-crds, vault-operator |
-| 1 | Base services | cert-manager-issuers, vault-secrets-webhook, metrics-server, snapshot-crds |
-| 2 | Controllers | snapshot-controller, nginx-gateway-fabric |
-| 3 | Storage | minio, csi-hostpath |
-| 4 | Integrations | velero, gateway-resources |
-| 5 | Observability core | kube-prometheus-stack |
-| 6 | Logs + ingress | loki, grafana-gateway, vault-gateway, minio-gateway |
-| 7 | Log agent | alloy |
-| 100+ | Workloads | backend-api, worker, cronjob (reserved) |
+| Wave | Layer              | Content                                                                    |
+| ---- | ------------------ | -------------------------------------------------------------------------- |
+| -1   | bootstrap          | AppProjects                                                                |
+| 0    | CRDs + operators   | cert-manager, gateway-api-crds, vault-operator                             |
+| 1    | Base services      | cert-manager-issuers, vault-secrets-webhook, metrics-server, snapshot-crds |
+| 2    | Controllers        | snapshot-controller, nginx-gateway-fabric                                  |
+| 3    | Storage            | minio, csi-hostpath                                                        |
+| 4    | Integrations       | velero, gateway-resources                                                  |
+| 5    | Observability core | kube-prometheus-stack                                                      |
+| 6    | Logs + ingress     | loki, grafana-gateway, vault-gateway, minio-gateway                        |
+| 7    | Log agent          | alloy                                                                      |
+| 100+ | Workloads          | backend-api, worker, cronjob (reserved)                                    |
 
 ## RBAC Isolation
 
-| Project | Destinations | Cluster Resources |
-|---------|-------------|-------------------|
-| `platform-kind` | Platform namespaces | CRDs, ClusterIssuer, GatewayClass, ClusterRole |
-| `workloads` | backend-api, worker, cronjob | None (namespaced only) |
+| Project         | Destinations                 | Cluster Resources                              |
+| --------------- | ---------------------------- | ---------------------------------------------- |
+| `platform-kind` | Platform namespaces          | CRDs, ClusterIssuer, GatewayClass, ClusterRole |
+| `workloads`     | backend-api, worker, cronjob | None (namespaced only)                         |
 
 ## Adding New Services
 

@@ -31,7 +31,7 @@ kubectl wait --for=condition=Ready pod/vault-inject-test -n testing --timeout=12
 
 echo "  Checking for injected secrets..."
 FOUND=0
-for i in $(seq 1 10); do
+for _ in $(seq 1 10); do
   if kubectl logs -n testing vault-inject-test 2>&1 | grep -q "hello-from-vault"; then
     echo "  PASS: Vault secrets injected into pod"
     FOUND=1

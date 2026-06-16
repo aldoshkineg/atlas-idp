@@ -16,18 +16,6 @@ variable "worker_node_count" {
   default     = 1
 }
 
-variable "control_plane_nodes" {
-  description = "List of control plane node configurations"
-  type = list(object({
-    role = string
-  }))
-  default = [
-    {
-      role = "control-plane"
-    }
-  ]
-}
-
 variable "ingress_ready" {
   description = "Whether to label the control-plane node as ingress-ready"
   type        = bool
@@ -42,12 +30,6 @@ variable "extra_port_mappings" {
     protocol       = optional(string, "TCP")
   }))
   default = []
-}
-
-variable "kind_config_path" {
-  description = "Path to the kind configuration file (optional, not used with kind provider)"
-  type        = string
-  default     = ""
 }
 
 variable "kubernetes_version" {

@@ -1,7 +1,7 @@
 # Atlas IDP — Implementation Report
 
-**Date:** 2026-05-23  
-**Phase:** Argo CD Bootstrap (Day-0/Day-1)  
+**Date:** 2026-05-23
+**Phase:** Argo CD Bootstrap (Day-0/Day-1)
 **Status:** ✅ COMPLETE
 
 ---
@@ -22,16 +22,16 @@ Completed full restructuring and implementation of **Argo CD GitOps bootstrap** 
 
 ### Changes Applied
 
-| Action | Path | Reason |
-|--------|------|--------|
-| **DELETED** | `ci/` | Replaced by `.github/workflows/` (GitHub Actions) |
-| **DELETED** | `assets/diagrams/` | Duplicate of `docs/diagrams/` |
-| **DELETED** | `infra/modules/cluster/` | Superseded by `infra/modules/kind/` |
-| **DELETED** | `infra/bootstrap/` | Refactored into `infra/modules/argocd-bootstrap/` |
-| **CREATED** | `gitops/platform/` | Missing layer between root-app and workloads |
-| **CREATED** | `infra/modules/argocd-bootstrap/` | Reusable Day-0 Argo CD module |
+| Action      | Path                                      | Reason                                              |
+| ----------- | ----------------------------------------- | --------------------------------------------------- |
+| **DELETED** | `ci/`                                     | Replaced by `.github/workflows/` (GitHub Actions)   |
+| **DELETED** | `assets/diagrams/`                        | Duplicate of `docs/diagrams/`                       |
+| **DELETED** | `infra/modules/cluster/`                  | Superseded by `infra/modules/kind/`                 |
+| **DELETED** | `infra/bootstrap/`                        | Refactored into `infra/modules/argocd-bootstrap/`   |
+| **CREATED** | `gitops/platform/`                        | Missing layer between root-app and workloads        |
+| **CREATED** | `infra/modules/argocd-bootstrap/`         | Reusable Day-0 Argo CD module                       |
 | **RENAMED** | `infra/environments/local-kind/` → `dev/` | Align naming (README still referenced `local-kind`) |
-| **FIXED** | `infra/modules/kind/variables.tf` | Typo: `v.1.35.0` → `v1.35.0` |
+| **FIXED**   | `infra/modules/kind/variables.tf`         | Typo: `v.1.35.0` → `v1.35.0`                        |
 
 ### Final Clean Directory Tree
 
@@ -102,13 +102,13 @@ Terraform (infra/environments/dev/main.tf)
 
 ### Module Files
 
-| File | Purpose |
-|------|---------|
-| `main.tf` | Namespace creation + `helm_release` with production-like values |
+| File           | Purpose                                                         |
+| -------------- | --------------------------------------------------------------- |
+| `main.tf`      | Namespace creation + `helm_release` with production-like values |
 | `variables.tf` | Configurable: namespace, chart version, insecure mode, repo URL |
-| `outputs.tf` | Admin password (sensitive), server URL, release status |
-| `versions.tf` | Terraform >= 1.5.0, helm ~> 2.14, kubernetes ~> 2.33 |
-| `README.md` | Usage examples, inputs/outputs table, post-bootstrap steps |
+| `outputs.tf`   | Admin password (sensitive), server URL, release status          |
+| `versions.tf`  | Terraform >= 1.5.0, helm ~> 2.14, kubernetes ~> 2.33            |
+| `README.md`    | Usage examples, inputs/outputs table, post-bootstrap steps      |
 
 ### Key Features
 
@@ -123,13 +123,13 @@ Terraform (infra/environments/dev/main.tf)
 
 ### Applications Created
 
-| Application | Chart | Namespace | Purpose |
-|-------------|-------|-----------|---------|
-| **gateway-api** | kubernetes-sigs/gateway-api:v1.1.0 | gateway-api | Gateway API CRDs |
-| **gateway-api-nginx** | nginx-gateway-fabric:v1.4.0 | nginx-gateway-fabric | Gateway API controller (HTTP/HTTPS routing with hostPort, kind) |
-| **cert-manager** | jetstack/cert-manager:v1.16.2 | cert-manager | TLS certificate management (CRDs included) |
-| **metrics-server** | k8s-sigs/metrics-server:3.12.2 | kube-system | Resource metrics for HPA (kubelet insecure TLS) |
-| **kube-prometheus-stack** | prometheus-community:68.2.0 | monitoring | Prometheus + Grafana (NodePort :30300) + Alertmanager |
+| Application               | Chart                              | Namespace            | Purpose                                                         |
+| ------------------------- | ---------------------------------- | -------------------- | --------------------------------------------------------------- |
+| **gateway-api**           | kubernetes-sigs/gateway-api:v1.1.0 | gateway-api          | Gateway API CRDs                                                |
+| **gateway-api-nginx**     | nginx-gateway-fabric:v1.4.0        | nginx-gateway-fabric | Gateway API controller (HTTP/HTTPS routing with hostPort, kind) |
+| **cert-manager**          | jetstack/cert-manager:v1.16.2      | cert-manager         | TLS certificate management (CRDs included)                      |
+| **metrics-server**        | k8s-sigs/metrics-server:3.12.2     | kube-system          | Resource metrics for HPA (kubelet insecure TLS)                 |
+| **kube-prometheus-stack** | prometheus-community:68.2.0        | monitoring           | Prometheus + Grafana (NodePort :30300) + Alertmanager           |
 
 ### GitOps Flow
 
@@ -150,8 +150,8 @@ Argo CD self-heals on drift (automated sync policy)
 ```yaml
 syncPolicy:
   automated:
-    prune: true      # Delete resources not in git
-    selfHeal: true   # Revert manual kubectl changes
+    prune: true # Delete resources not in git
+    selfHeal: true # Revert manual kubectl changes
   syncOptions:
     - CreateNamespace=true
   retry:
@@ -176,16 +176,16 @@ syncPolicy:
     # Wait for Argo CD server deployment
     kubectl wait --for=condition=available deployment/argocd-server \
       -n argocd --timeout=180s
-    
+
     # Check Argo CD pods
     kubectl get pods -n argocd
-    
+
     # List Applications
     kubectl get applications -n argocd
-    
+
     # Describe root Application
     kubectl describe application root-platform -n argocd
-    
+
     # Print access instructions
     echo "Access Argo CD UI: http://localhost:30080"
     echo "Username: admin"
@@ -205,12 +205,14 @@ syncPolicy:
 ### `gitops/bootstrap/root-app.yaml`
 
 **Before:**
+
 ```yaml
 source:
-  repoURL: https://gitlab.com/example/atlas-idp.git  # ❌ Wrong platform
+  repoURL: https://gitlab.com/example/atlas-idp.git # ❌ Wrong platform
 ```
 
 **After:**
+
 ```yaml
 source:
   # IMPORTANT: Replace with your actual GitHub repository URL
@@ -219,7 +221,7 @@ source:
   path: gitops/platform
   directory:
     recurse: true
-    exclude: 'README.md'
+    exclude: "README.md"
 ```
 
 ### `infra/environments/dev/main.tf`
@@ -232,6 +234,7 @@ source:
 4. **Outputs**: `argocd_server_url`, `argocd_admin_password`
 
 **Placeholder for user:**
+
 ```hcl
 repo_url = "https://github.com/aldoshkineg/atlas-idp"
 ```
@@ -242,16 +245,16 @@ repo_url = "https://github.com/aldoshkineg/atlas-idp"
 
 ### `README.md` — Major Overhaul
 
-| Section | Changes |
-|---------|---------|
-| **Architecture diagram** | Updated: GitLab CI → GitHub Actions |
-| **Tech Stack** | CI/CD row: GitLab Runner → GitHub Actions (self-hosted) |
-| **Repository Structure** | Removed `ci/`, `assets/diagrams/`, added `gitops/platform/` |
-| **Quick Start** | Replaced Makefile targets with direct `terraform apply` commands |
-| **Makefile Targets** | Removed GitLab Runner targets (`runner-up`, `secrets-init`, etc.) |
-| **CI/CD Pipeline** | Replaced GitLab 5-stage pipeline with GitHub Actions workflow table |
-| **Environments** | Renamed `local-kind` → `dev`, updated runner reference |
-| **Project Status** | Added "Platform layer (gitops) ✅ Complete" |
+| Section                  | Changes                                                             |
+| ------------------------ | ------------------------------------------------------------------- |
+| **Architecture diagram** | Updated: GitLab CI → GitHub Actions                                 |
+| **Tech Stack**           | CI/CD row: GitLab Runner → GitHub Actions (self-hosted)             |
+| **Repository Structure** | Removed `ci/`, `assets/diagrams/`, added `gitops/platform/`         |
+| **Quick Start**          | Replaced Makefile targets with direct `terraform apply` commands    |
+| **Makefile Targets**     | Removed GitLab Runner targets (`runner-up`, `secrets-init`, etc.)   |
+| **CI/CD Pipeline**       | Replaced GitLab 5-stage pipeline with GitHub Actions workflow table |
+| **Environments**         | Renamed `local-kind` → `dev`, updated runner reference              |
+| **Project Status**       | Added "Platform layer (gitops) ✅ Complete"                         |
 
 ### `TODO.md` — Implementation Roadmap
 
@@ -267,12 +270,13 @@ repo_url = "https://github.com/aldoshkineg/atlas-idp"
 - Phase 9: Documentation & AWS Readiness
 
 **Current Sprint Focus** clearly marked:
+
 ```markdown
 1. [IMMEDIATE] Complete infra/modules/argocd-bootstrap/main.tf ✅ DONE
 2. [IMMEDIATE] Wire module into infra/environments/dev/main.tf ✅ DONE
 3. [IMMEDIATE] Fix root-app.yaml repoURL (gitlab → github) ✅ DONE
-4. [NEXT]      Create gitops/platform/ layer ✅ DONE
-5. [NEXT]      Update GitHub Actions terraform.yml ✅ DONE
+4. [NEXT] Create gitops/platform/ layer ✅ DONE
+5. [NEXT] Update GitHub Actions terraform.yml ✅ DONE
 ```
 
 ---
@@ -319,16 +323,19 @@ kubectl get applications -n argocd
 ### 🚧 Next Steps (Per TODO.md)
 
 **Immediate (Phase 3 completion):**
+
 - Test full `terraform apply` in GitHub Actions CI
 - Verify Argo CD syncs all platform Applications automatically
 - Validate Grafana UI access (http://localhost:30300)
 
 **Short-term (Phase 4):**
+
 - Deploy Vault via `gitops/platform/vault.yaml`
 - Deploy Loki via `gitops/platform/loki.yaml`
 - Mount custom Prometheus alert rules from `observability/alerts/`
 
 **Medium-term (Phase 7):**
+
 - Build sample workload apps (backend-api, worker, cronjob)
 - Create Helm charts in `apps/charts/`
 - Wire workloads into `gitops/workloads/`
@@ -339,12 +346,12 @@ kubectl get applications -n argocd
 
 ### Why Terraform for Day-0, Argo CD for Day-1+?
 
-| Concern | Decision |
-|---------|----------|
-| **Bootstrapping paradox** | Terraform installs Argo CD (Helm provider). Argo CD cannot install itself initially. |
-| **State management** | Terraform owns cluster + Argo CD installation. Argo CD owns everything else. |
-| **GitOps purity** | Only 1 `kubectl apply` from Terraform (root-app). All other resources managed by Argo CD. |
-| **Day-1 self-management** | Optional `gitops/bootstrap/argocd/` can make Argo CD manage its own Helm release. |
+| Concern                   | Decision                                                                                  |
+| ------------------------- | ----------------------------------------------------------------------------------------- |
+| **Bootstrapping paradox** | Terraform installs Argo CD (Helm provider). Argo CD cannot install itself initially.      |
+| **State management**      | Terraform owns cluster + Argo CD installation. Argo CD owns everything else.              |
+| **GitOps purity**         | Only 1 `kubectl apply` from Terraform (root-app). All other resources managed by Argo CD. |
+| **Day-1 self-management** | Optional `gitops/bootstrap/argocd/` can make Argo CD manage its own Helm release.         |
 
 ### Why GitHub Actions Instead of GitLab CI?
 
@@ -367,6 +374,7 @@ directory: gitops/platform/ (recurse: true)
 ```
 
 **Benefits:**
+
 - Single entry point (`kubectl apply -f root-app.yaml`)
 - Automatic discovery of new Applications (just add YAML to `gitops/platform/`)
 - Hierarchical dependency management (root ensures platform exists before workloads)
@@ -377,16 +385,16 @@ directory: gitops/platform/ (recurse: true)
 
 ### What Makes This Senior-Level?
 
-| Aspect | Implementation |
-|--------|----------------|
+| Aspect                     | Implementation                                                      |
+| -------------------------- | ------------------------------------------------------------------- |
 | **Separation of concerns** | Infrastructure (Terraform) ≠ Platform (Argo CD) ≠ Workloads (apps/) |
-| **Idempotency** | All Terraform/Helm resources can be re-applied safely |
-| **Resource limits** | Every component has CPU/memory limits (kind-optimized) |
-| **Observability** | Prometheus metrics enabled on all services, custom alert rules |
-| **Security** | Trivy scanning, pre-commit hooks, RBAC policies (planned) |
-| **Disaster recovery** | Velero architecture planned (Phase 8) |
-| **Documentation** | README, inline comments, module READMEs, TODO roadmap |
-| **CI automation** | Full GitHub Actions workflow with verification steps |
+| **Idempotency**            | All Terraform/Helm resources can be re-applied safely               |
+| **Resource limits**        | Every component has CPU/memory limits (kind-optimized)              |
+| **Observability**          | Prometheus metrics enabled on all services, custom alert rules      |
+| **Security**               | Trivy scanning, pre-commit hooks, RBAC policies (planned)           |
+| **Disaster recovery**      | Velero architecture planned (Phase 8)                               |
+| **Documentation**          | README, inline comments, module READMEs, TODO roadmap               |
+| **CI automation**          | Full GitHub Actions workflow with verification steps                |
 
 ### What's Missing (Intentionally Deferred)
 
@@ -401,6 +409,7 @@ directory: gitops/platform/ (recurse: true)
 ## 11. How to Present in CV
 
 **One-liner:**
+
 > "Production-grade GitOps Internal Developer Platform (IDP) with Terraform/Argo CD, GitHub Actions CI, Prometheus/Grafana observability, Vault secrets management, and Velero DR—deployed on kind/EKS."
 
 **Bullet points:**
@@ -459,15 +468,17 @@ infra/bootstrap/          # Refactored into modules/argocd-bootstrap/
 ### Before First Terraform Apply
 
 1. **Replace placeholder URLs**:
+
    ```bash
    # infra/environments/dev/main.tf
    repo_url = "https://github.com/YOUR_ORG/atlas-idp"
-   
+
    # gitops/bootstrap/root-app.yaml
    repoURL: https://github.com/YOUR_ORG/atlas-idp.git
    ```
 
 2. **Commit all changes to GitHub**:
+
    ```bash
    git add .
    git commit -m "feat: implement Argo CD GitOps bootstrap
@@ -483,11 +494,13 @@ infra/bootstrap/          # Refactored into modules/argocd-bootstrap/
    ```
 
 3. **Trigger GitHub Actions workflow**:
+
    - Navigate to **Actions** tab in GitHub
    - Click **Terraform Deploy KinD** workflow
    - Click **Run workflow** → **Run workflow**
 
 4. **Monitor deployment**:
+
    ```bash
    # Wait for workflow to complete
    # SSH into self-hosted runner or local machine
@@ -496,10 +509,11 @@ infra/bootstrap/          # Refactored into modules/argocd-bootstrap/
    ```
 
 5. **Access Argo CD**:
+
    ```bash
    kubectl -n argocd get secret argocd-initial-admin-secret \
      -o jsonpath='{.data.password}' | base64 -d
-   
+
    open http://localhost:30080
    # Username: admin
    # Password: <from above>
@@ -512,6 +526,7 @@ infra/bootstrap/          # Refactored into modules/argocd-bootstrap/
 ✅ **Argo CD GitOps bootstrap is production-ready.**
 
 The Atlas IDP project now has a fully functional Day-0/Day-1 GitOps foundation:
+
 - Infrastructure layer (Terraform) creates cluster + installs Argo CD
 - GitOps layer (Argo CD) manages all platform services automatically
 - CI/CD layer (GitHub Actions) orchestrates deployment + verification
@@ -521,6 +536,6 @@ The Atlas IDP project now has a fully functional Day-0/Day-1 GitOps foundation:
 
 ---
 
-**Report generated:** 2026-05-23  
-**Engineer:** Senior Platform Engineer / DevOps Architect  
+**Report generated:** 2026-05-23
+**Engineer:** Senior Platform Engineer / DevOps Architect
 **Status:** Phase 3 (GitOps Layer) — ✅ COMPLETE

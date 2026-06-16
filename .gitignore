@@ -64,4 +64,4 @@ clusters/kind/ci/act-runner/cache/*
 clusters/kind/certs/ca*
 
 # Dev certs
-apps/.certs/
+.certs/

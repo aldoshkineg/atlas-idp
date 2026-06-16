@@ -71,6 +71,7 @@ help:
 	@echo ""
 	@echo "CA Certificates:"
 	@echo "  seed-ca           Create dev-ca-secret for cert-manager from clusters/kind/certs/"
+	@echo ""
 
 # --- Infrastructure Management ---
 cluster-up:
@@ -233,4 +234,4 @@ act-ci:
 		--container-options "-v $(PWD)/clusters/kind/ci/act-runner/cache/tf:/opt/terraform/plugin-cache" \
 		--container-options "-v $(PWD)/clusters/kind/ci/act-runner/cache/home:/root/.cache" \
 		-s DEV_CA_CRT="$$(cat clusters/kind/certs/ca.crt)" \
-		-s DEV_CA_KEY="$$(cat clusters/kind/certs/ca.key)"
+		-s DEV_CA_KEY="$$(cat clusters/kind/certs/ca.key)" \

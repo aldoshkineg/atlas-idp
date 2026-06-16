@@ -3,6 +3,7 @@ You are a senior Platform Engineer / Cloud Architect.
 Your task is to design a production-grade cloud-native platform engineering project for a DevOps portfolio (CV-level project).
 
 Context:
+
 - The engineer is experienced and holds Kubernetes expertise (CKA level).
 - The goal is NOT a tutorial or lab, but a realistic platform engineering system.
 - The project must simulate a modern internal developer platform using GitOps principles.
@@ -10,6 +11,7 @@ Context:
 
 Core objective:
 Design a complete, modular, GitOps-driven Kubernetes platform that demonstrates:
+
 - cloud-native architecture thinking
 - Infrastructure as Code maturity
 - GitOps operating model
@@ -22,33 +24,42 @@ Design a complete, modular, GitOps-driven Kubernetes platform that demonstrates:
 TECH STACK (fixed constraints):
 
 Infrastructure as Code:
+
 - Terraform or OpenTofu (modular architecture)
 
 Kubernetes runtime:
+
 - kind (primary execution environment)
 
 GitOps control plane:
+
 - Argo CD
 
 CI/CD:
+
 - GitLab CI pipelines (preferred over GitHub Actions)
 
 Observability:
+
 - Prometheus (with 2 custom alert rules)
 - Grafana
 - Loki (logging layer)
 
 Secrets management:
+
 - HashiCorp Vault
 
 Backup / Disaster Recovery:
+
 - Velero (minimal but functional configuration)
 
 Security (minimal viable production baseline):
+
 - RBAC
 - Trivy image/IaC scanning
 
 Core Kubernetes add-ons:
+
 - gateway-api
 - cert-manager
 - metrics-server
@@ -60,27 +71,32 @@ ARCHITECTURE REQUIREMENTS:
 The system must be structured in clear layers:
 
 1. Infrastructure Layer (Terraform)
+
 - modular design
 - cluster bootstrap
 - infrastructure abstractions (AWS-ready design, even if not deployed)
 - AWS tools and services must also be considered and specified in our project.
 
 2. Kubernetes Runtime Layer
+
 - kind-based cluster
 - reproducible local environment via scripts
 
 3. GitOps Layer
+
 - Argo CD as single source of truth
 - App-of-Apps pattern
 - fully declarative deployments
 
 4. Platform Services Layer
+
 - monitoring (Prometheus + Grafana)
 - logging (Loki)
 - secrets (Vault)
 - backup (Velero)
 
 5. Workloads Layer
+
 - sample applications:
   - backend API
   - worker service
@@ -91,6 +107,7 @@ The system must be structured in clear layers:
   - autoscaling (HPA)
 
 6. CI/CD Layer
+
 - GitLab CI pipelines:
   - terraform validation
   - linting
@@ -131,6 +148,7 @@ NON-FUNCTIONAL REQUIREMENTS:
 OUTPUT EXPECTATIONS:
 
 Provide:
+
 1. Final architecture overview
 2. Layered system explanation
 3. Repository structure

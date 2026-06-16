@@ -8,9 +8,9 @@ metadata:
 spec:
   project: seal
   source:
-    repoURL: https://github.com/aldoshkineg/atlas-idp.git
+    repoURL: https://github.com/aldoshkineg/atlas-idp-seal.git
     targetRevision: HEAD
-    path: apps/charts/seal
+    path: charts/seal
     helm:
       values: |
         vault:

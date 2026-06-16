@@ -71,7 +71,7 @@ echo "=== Create backup ==="
 kubectl apply -f tests/db-backup/backup.yaml
 
 echo "  Waiting for backup to complete..."
-for i in $(seq 1 60); do
+for _ in $(seq 1 60); do
   PHASE=$(kubectl get backup -n "$NS" "$BACKUP_NAME" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
   if [ "$PHASE" = "completed" ]; then
     ok "Backup $BACKUP_NAME completed"

@@ -6,30 +6,81 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
         args: [--allow-multiple-documents]
+      - id: check-json
       - id: check-merge-conflict
+      - id: check-added-large-files
       - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
 
-  - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.96.1
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
     hooks:
-      - id: terraform_fmt
-      - id: terraform_validate
-        args:
-          - --hook-config=--retry-once-with-cleanup=true
-      - id: terraform_docs
-        args:
-          - --hook-config=--path-to-file=README.md
-          - --hook-config=--add-to-existing-file=true
-          - --hook-config=--create-file-if-not-exist=true
+      - id: prettier
+        types_or: [javascript, jsx, ts, tsx, json, markdown]
 
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.35.1
     hooks:
       - id: yamllint
         args: [-c, .yamllint.yml]
+        exclude: |
+          (?x)^(
+            gitops/platform-kind/layers/data/resources/postgres-cluster/backup-secret\.yaml|
+            gitops/platform-kind/layers/data/resources/redis/secret\.yaml|
+            gitops/platform-kind/layers/observability/values/prom-stack\.yaml|
+            gitops/platform-kind/layers/storage/values/minio-values\.yaml|
+            gitops/platform-kind/layers/storage/values/velero-values\.yaml
+          )$|^.*\.enc\.yaml$|templates/
 
-  - repo: https://github.com/aquasecurity/trivy
-    rev: v0.58.1
+  - repo: local
+    hooks:
+      - id: kubeconform
+        name: Kubeconform Validation
+        language: system
+        entry: kubeconform -summary -ignore-missing-schemas
+        files: ^gitops/.*\.(yaml|yml)$
+        exclude: |
+          (?x)^(
+            gitops/platform-kind/layers/data/resources/postgres-cluster/backup-secret\.yaml|
+            gitops/platform-kind/layers/data/resources/redis/secret\.yaml|
+            gitops/platform-kind/layers/observability/values/prom-stack\.yaml|
+            gitops/platform-kind/layers/storage/values/minio-values\.yaml|
+            gitops/platform-kind/layers/storage/values/velero-values\.yaml
+          )$|^.*\.enc\.yaml$|templates/|values/
+
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.106.0
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate
+        args:
+          - --hook-config=--retry-once-with-cleanup=true
+      - id: terraform_tflint
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.8.0-1
+    hooks:
+      - id: shfmt
+        args: [-i, '2', -ci]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks
+
+  - repo: local
     hooks:
       - id: trivy
-        args: [--severity, HIGH,CRITICAL, --exit-code, "1"]
+        name: trivy
+        description: Scan IaC for misconfigurations
+        entry: trivy config --severity HIGH,CRITICAL --exit-code 1 infra/
+        language: system
+        pass_filenames: false
+        always_run: true
