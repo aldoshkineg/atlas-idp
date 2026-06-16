@@ -1,3 +1,23 @@
+locals {
+  cache_configuration_script = <<-EOT
+if [ "${var.enable_cache}" = "true" ]; then
+
+  for node in $(docker ps -q --filter "label=io.x-k8s.kind.cluster=${var.cluster_name}"); do
+    docker exec $node rm -rf /etc/containerd/certs.d/_default/hosts.toml
+    docker exec $node mkdir -p /etc/containerd/certs.d/_default
+    docker exec -i $node sh -c "cat > /etc/containerd/certs.d/_default/hosts.toml" <<EOF
+server = "${var.cache_registry_server}"
+
+[host."${var.cache_host_url}"]
+  capabilities = ${jsonencode(var.cache_host_capabilities)}
+EOF
+
+    docker exec $node systemctl restart containerd
+  done
+fi
+EOT
+}
+
 resource "kind_cluster" "default" {
   count = var.create_cluster ? 1 : 0
 
@@ -22,7 +42,6 @@ resource "kind_cluster" "default" {
       kube_proxy_mode     = var.disable_default_cni ? "none" : "iptables"
     }
 
-    # Control-plane node.
     node {
       role = "control-plane"
 
@@ -45,7 +64,6 @@ resource "kind_cluster" "default" {
       }
     }
 
-    # Worker nodes.
     dynamic "node" {
       for_each = range(var.worker_node_count)
       content {
@@ -55,22 +73,6 @@ resource "kind_cluster" "default" {
   }
 
   provisioner "local-exec" {
-    command = <<-EOT
-if [ "${var.enable_cache}" = "true" ]; then
-
-  for node in $(docker ps -q --filter "label=io.x-k8s.kind.cluster=${var.cluster_name}"); do
-    docker exec $node rm -rf /etc/containerd/certs.d/_default/hosts.toml
-    docker exec $node mkdir -p /etc/containerd/certs.d/_default
-    docker exec -i $node sh -c "cat > /etc/containerd/certs.d/_default/hosts.toml" <<EOF
-server = "${var.cache_registry_server}"
-
-[host."${var.cache_host_url}"]
-  capabilities = ${jsonencode(var.cache_host_capabilities)}
-EOF
-
-    docker exec $node systemctl restart containerd
-  done
-fi
-EOT
+    command = local.cache_configuration_script
   }
 }

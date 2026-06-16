@@ -1,7 +1,99 @@
-# Day-0 Argo CD bootstrap via Helm
-# Creates namespace + deploys Argo CD Helm chart with minimal production-like configuration
+locals {
+  argocd_default_values = {
+    global = {
+      domain = "argocd.local"
+    }
 
-# 1. Create ArgoCD namespace
+    server = {
+      service = {
+        type         = "NodePort"
+        nodePortHttp = 30080
+      }
+      extraArgs = var.insecure_mode ? ["--insecure"] : []
+
+      resources = {
+        limits = {
+          cpu    = "500m"
+          memory = "512Mi"
+        }
+        requests = {
+          cpu    = "250m"
+          memory = "256Mi"
+        }
+      }
+    }
+
+    repoServer = {
+      resources = {
+        limits = {
+          cpu    = "500m"
+          memory = "1500Mi"
+        }
+        requests = {
+          cpu    = "250m"
+          memory = "512Mi"
+        }
+      }
+    }
+
+    controller = {
+      resources = {
+        limits = {
+          cpu    = "1500m"
+          memory = "1Gi"
+        }
+        requests = {
+          cpu    = "750m"
+          memory = "512Mi"
+        }
+      }
+    }
+
+    applicationSet = {
+      enabled = true
+      resources = {
+        limits = {
+          cpu    = "200m"
+          memory = "256Mi"
+        }
+        requests = {
+          cpu    = "100m"
+          memory = "128Mi"
+        }
+      }
+    }
+
+    notifications = {
+      enabled = false
+    }
+
+    dex = {
+      enabled = false
+    }
+
+    redis = {
+      enabled = true
+    }
+    redis-ha = {
+      enabled = false
+    }
+
+    configs = {
+      params = {
+        "reposerver.parallelism.limit" = "2"
+      }
+      repositories = var.repo_url != "" ? {
+        "atlas-idp-repo" = {
+          url   = var.repo_url
+          type  = var.repo_type
+          name  = "atlas-idp"
+          depth = "1"
+        }
+      } : {}
+    }
+  }
+}
+
 resource "kubernetes_namespace" "argocd" {
   count = var.create_namespace ? 1 : 0
 
@@ -15,130 +107,24 @@ resource "kubernetes_namespace" "argocd" {
   }
 }
 
-# 2. Generate random admin password if not provided
 resource "random_password" "argocd_admin" {
   count   = var.admin_password_bcrypt == "" ? 1 : 0
   length  = 16
   special = true
 }
 
-# 3. Deploy Argo CD via Helm
 resource "helm_release" "argocd" {
   name             = "argocd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
   version          = var.argocd_chart_version
   namespace        = var.argocd_namespace
-  create_namespace = false # Already created above
+  create_namespace = false
   wait             = true
-  timeout          = 600 # 10 minutes for initial install
+  timeout          = 600
 
   values = concat(
-    [
-      yamlencode({
-        global = {
-          domain = "argocd.local"
-        }
-
-        # Server configuration
-        server = {
-          service = {
-            type         = "NodePort"
-            nodePortHttp = 30080
-          }
-          # Insecure mode for local dev (no TLS)
-          extraArgs = var.insecure_mode ? ["--insecure"] : []
-
-          # Resource limits for kind
-          resources = {
-            limits = {
-              cpu    = "500m"
-              memory = "512Mi"
-            }
-            requests = {
-              cpu    = "250m"
-              memory = "256Mi"
-            }
-          }
-        }
-
-        # Repo server configuration
-        repoServer = {
-          resources = {
-            limits = {
-              cpu    = "500m"
-              memory = "1500Mi"
-            }
-            requests = {
-              cpu    = "250m"
-              memory = "512Mi"
-            }
-          }
-        }
-
-        # Controller configuration
-        controller = {
-          resources = {
-            limits = {
-              cpu    = "1500m"
-              memory = "1Gi"
-            }
-            requests = {
-              cpu    = "750m"
-              memory = "512Mi"
-            }
-          }
-        }
-
-        # Application controller metrics
-        applicationSet = {
-          enabled = true
-          resources = {
-            limits = {
-              cpu    = "200m"
-              memory = "256Mi"
-            }
-            requests = {
-              cpu    = "100m"
-              memory = "128Mi"
-            }
-          }
-        }
-
-        # Notifications (disabled for minimal install)
-        notifications = {
-          enabled = false
-        }
-
-        # Dex (OAuth, disabled for local)
-        dex = {
-          enabled = false
-        }
-
-        # Redis HA (disabled for kind, using single redis)
-        redis = {
-          enabled = true
-        }
-        redis-ha = {
-          enabled = false
-        }
-
-        # Configure repository credentials and repo-server parallelism
-        configs = {
-          params = {
-            "reposerver.parallelism.limit" = "2"
-          }
-          repositories = var.repo_url != "" ? {
-            "atlas-idp-repo" = {
-              url   = var.repo_url
-              type  = var.repo_type
-              name  = "atlas-idp"
-              depth = "1"
-            }
-          } : {}
-        }
-      })
-    ],
+    [yamlencode(local.argocd_default_values)],
     var.argocd_values_override != "" ? [var.argocd_values_override] : []
   )
 

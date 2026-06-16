@@ -1,4 +1,3 @@
-# Development environment configuration for kind cluster (using tehcyx/kind provider)
 terraform {
   backend "s3" {}
 }
@@ -62,7 +61,6 @@ module "cilium" {
   depends_on = [module.kind_cluster]
 }
 
-# Day-0: Argo CD bootstrap via Helm
 module "argocd_bootstrap" {
   source = "../../modules/argocd-bootstrap"
 
@@ -78,15 +76,12 @@ module "argocd_bootstrap" {
   depends_on = [module.kind_cluster, module.cilium]
 }
 
-# Day-1: Apply root Application CR to kickstart GitOps
 resource "null_resource" "argocd_root_app" {
   provisioner "local-exec" {
     command = <<-EOT
-      # Wait for Argo CD server to be ready
       kubectl wait --for=condition=available deployment/argocd-server \
         -n argocd --timeout=120s --kubeconfig=${module.kind_cluster.kubeconfig_path}
 
-      # Apply root Application
       kubectl apply -f ${path.root}/../../../gitops/bootstrap/root-app.yaml \
         --kubeconfig=${module.kind_cluster.kubeconfig_path}
     EOT
@@ -95,16 +90,6 @@ resource "null_resource" "argocd_root_app" {
   depends_on = [module.argocd_bootstrap]
 }
 
-# Example namespace for testing
-resource "kubernetes_namespace" "check-ns" {
-  metadata {
-    name = "check-ns"
-  }
-
-  depends_on = [module.kind_cluster]
-}
-
-# Outputs
 output "kubeconfig_path" {
   value     = module.kind_cluster.kubeconfig_path
   sensitive = true
