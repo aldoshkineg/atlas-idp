@@ -14,7 +14,7 @@ spec:
       directory:
         recurse: true
         jsonnet: {}
-        exclude: '{README.md,**/values/**,**/resources/**}'
+        exclude: "{README.md,**/values/**,**/resources/**}"
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       path: gitops/workloads/layers

@@ -8,7 +8,7 @@ metadata:
 spec:
   project: platform-kind
   source:
-    repoURL: 'https://kedacore.github.io/charts'
+    repoURL: "https://kedacore.github.io/charts"
     chart: keda
     targetRevision: 2.14.0
     helm:
@@ -76,7 +76,7 @@ spec:
         crds:
           install: true
   destination:
-    server: 'https://kubernetes.default.svc'
+    server: "https://kubernetes.default.svc"
     namespace: keda
   ignoreDifferences:
     - group: apps

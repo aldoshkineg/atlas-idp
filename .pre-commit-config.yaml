@@ -17,21 +17,13 @@ repos:
     rev: v3.1.0
     hooks:
       - id: prettier
-        types_or: [javascript, jsx, ts, tsx, json, markdown]
+        types_or: [javascript, jsx, ts, tsx, json, markdown, yaml]
 
   - repo: https://github.com/adrienverge/yamllint
     rev: v1.35.1
     hooks:
       - id: yamllint
         args: [-c, .yamllint.yml]
-        exclude: |
-          (?x)^(
-            gitops/platform-kind/layers/data/resources/postgres-cluster/backup-secret\.yaml|
-            gitops/platform-kind/layers/data/resources/redis/secret\.yaml|
-            gitops/platform-kind/layers/observability/values/prom-stack\.yaml|
-            gitops/platform-kind/layers/storage/values/minio-values\.yaml|
-            gitops/platform-kind/layers/storage/values/velero-values\.yaml
-          )$|^.*\.enc\.yaml$|templates/
 
   - repo: local
     hooks:
@@ -68,7 +60,7 @@ repos:
     rev: v3.8.0-1
     hooks:
       - id: shfmt
-        args: [-i, '2', -ci]
+        args: [-i, "2", -ci]
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.3
