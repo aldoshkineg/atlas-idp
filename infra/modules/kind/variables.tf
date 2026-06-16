@@ -10,6 +10,12 @@ variable "create_cluster" {
   default     = true
 }
 
+variable "kubeconfig_path" {
+  description = "Path to the kubeconfig file"
+  type        = string
+  default     = "~/.kube/kind"
+}
+
 variable "worker_node_count" {
   description = "Number of worker nodes in the cluster"
   type        = number
@@ -39,31 +45,31 @@ variable "kubernetes_version" {
 }
 
 variable "enable_cache" {
-  description = "Флаг для включения зеркалирования/кэширования через Zot"
+  description = "Enable containerd registry mirroring/cache through Zot"
   type        = bool
   default     = false
 }
 
 variable "cache_registry_server" {
-  description = "Базовый адрес апстрима (сервера) для конфигурации containerd"
+  description = "Upstream registry server URL for containerd"
   type        = string
   default     = "https://zot-registry.local"
 }
 
 variable "cache_host_url" {
-  description = "Адрес локального кэширующего прокси Zot внутри docker-сети"
+  description = "Zot cache proxy URL inside the Docker network"
   type        = string
   default     = "http://kind-zot-registry:5000"
 }
 
 variable "cache_host_capabilities" {
-  description = "Разрешенные операции для containerd при работе с кэшем"
+  description = "Containerd operations allowed for the cache host"
   type        = list(string)
   default     = ["pull", "resolve"]
 }
 
 variable "disable_default_cni" {
-  description = "Отключает kindnet (дефолтный CNI) и kube-proxy — для установки Cilium"
+  description = "Disable kindnet and kube-proxy to install Cilium"
   type        = bool
   default     = false
 }

@@ -1,16 +1,15 @@
-# 1. Создаем кластер KinD (БЕЗ каких-либо extra_mounts для hosts.toml)
 resource "kind_cluster" "default" {
   count = var.create_cluster ? 1 : 0
 
   name            = var.cluster_name
-  kubeconfig_path = pathexpand("~/.kube/kind")
+  kubeconfig_path = pathexpand(var.kubeconfig_path)
   node_image      = var.kubernetes_version != "" ? "kindest/node:${var.kubernetes_version}" : null
 
   kind_config {
     kind        = "Cluster"
     api_version = "kind.x-k8s.io/v1alpha4"
 
-    # Патч, включающий поиск конфигураций в certs.d
+    # Enable containerd registry lookup in certs.d.
     containerd_config_patches = var.enable_cache ? [
       <<-TOML
       [plugins."io.containerd.grpc.v1.cri".registry]
@@ -23,7 +22,7 @@ resource "kind_cluster" "default" {
       kube_proxy_mode     = var.disable_default_cni ? "none" : "iptables"
     }
 
-    # --- Control-plane нода ---
+    # Control-plane node.
     node {
       role = "control-plane"
 
@@ -46,7 +45,7 @@ resource "kind_cluster" "default" {
       }
     }
 
-    # --- Worker ноды ---
+    # Worker nodes.
     dynamic "node" {
       for_each = range(var.worker_node_count)
       content {
@@ -55,35 +54,23 @@ resource "kind_cluster" "default" {
     }
   }
 
-  # 2. Элегантная и надежная доставка конфигурации напрямую через Docker
   provisioner "local-exec" {
     command = <<-EOT
-      if [ "${var.enable_cache}" = "true" ]; then
-        echo "=== Настройка containerd зеркалирования ==="
+if [ "${var.enable_cache}" = "true" ]; then
 
-        # Находим айдишники всех контейнеров нашего кластера через чистый Docker API
-        for node in $(docker ps -q --filter name="${var.cluster_name}-"); do
-          echo "Настраиваем ноду: $node"
-
-          # Жестко сносим ложные папки, если Docker успел их там создать
-          docker exec $node rm -rf /etc/containerd/certs.d/_default/hosts.toml
-
-          # Создаем структуру директорий прямо внутри ноды
-          docker exec $node mkdir -p /etc/containerd/certs.d/_default
-
-          # Заливаем контент напрямую в файл внутри контейнера через стандартный поток ввода
-          docker exec -i $node sh -c "cat > /etc/containerd/certs.d/_default/hosts.toml" << 'EOF'
+  for node in $(docker ps -q --filter "label=io.x-k8s.kind.cluster=${var.cluster_name}"); do
+    docker exec $node rm -rf /etc/containerd/certs.d/_default/hosts.toml
+    docker exec $node mkdir -p /etc/containerd/certs.d/_default
+    docker exec -i $node sh -c "cat > /etc/containerd/certs.d/_default/hosts.toml" <<EOF
 server = "${var.cache_registry_server}"
 
 [host."${var.cache_host_url}"]
   capabilities = ${jsonencode(var.cache_host_capabilities)}
 EOF
 
-          # Перезапускаем containerd внутри этой ноды
-          docker exec $node systemctl restart containerd
-          echo "Нода $node успешно настроена!"
-        done
-      fi
-    EOT
+    docker exec $node systemctl restart containerd
+  done
+fi
+EOT
   }
 }

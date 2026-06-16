@@ -53,7 +53,7 @@ module "kind_cluster" {
 
 ### Using with Kubernetes Provider
 
-The module automatically configures the Kubernetes provider to connect to the created cluster via `~/.kube/config`:
+The module writes the kubeconfig to `~/.kube/kind` by default. Use the exported connection values to configure providers in the root module.
 
 ```hcl
 module "kind_cluster" {
@@ -73,15 +73,15 @@ resource "kubernetes_namespace" "app" {
 
 ## Inputs
 
-| Name                | Description                                              | Type           | Default                      |
-| ------------------- | -------------------------------------------------------- | -------------- | ---------------------------- |
-| cluster_name        | Name of the kind cluster                                 | `string`       | `"kind"`                     |
-| create_cluster      | Whether to create the kind cluster using Terraform       | `bool`         | `true`                       |
-| worker_node_count   | Number of worker nodes in the cluster                    | `number`       | `1`                          |
-| control_plane_nodes | List of control plane node configurations                | `list(object)` | `[{role = "control-plane"}]` |
-| ingress_ready       | Whether to label the control-plane node as ingress-ready | `bool`         | `false`                      |
-| extra_port_mappings | Extra port mappings for the control-plane node           | `list(object)` | `[]`                         |
-| kubernetes_version  | Kubernetes version to use (e.g., v1.27.0)                | `string`       | `""`                         |
+| Name                | Description                                              | Type           | Default          |
+| ------------------- | -------------------------------------------------------- | -------------- | ---------------- |
+| cluster_name        | Name of the kind cluster                                 | `string`       | `"kind"`         |
+| create_cluster      | Whether to create the kind cluster using Terraform       | `bool`         | `true`           |
+| kubeconfig_path     | Path to the kubeconfig file                              | `string`       | `"~/.kube/kind"` |
+| worker_node_count   | Number of worker nodes in the cluster                    | `number`       | `1`              |
+| ingress_ready       | Whether to label the control-plane node as ingress-ready | `bool`         | `false`          |
+| extra_port_mappings | Extra port mappings for the control-plane node           | `list(object)` | `[]`             |
+| kubernetes_version  | Kubernetes version to use (e.g., v1.35.0)                | `string`       | `"v1.35.0"`      |
 
 ### extra_port_mappings Object
 
@@ -95,12 +95,12 @@ object({
 
 ## Outputs
 
-| Name             | Description                                    |
-| ---------------- | ---------------------------------------------- |
-| cluster_name     | Name of the kind cluster                       |
-| kubeconfig_path  | Path to the kubeconfig file (`~/.kube/config`) |
-| cluster_ready    | Indicates if the cluster is ready              |
-| cluster_endpoint | Kubernetes cluster endpoint                    |
+| Name            | Description                                  |
+| --------------- | -------------------------------------------- |
+| cluster_name    | Name of the kind cluster                     |
+| endpoint        | Kubernetes cluster endpoint                  |
+| kubeconfig_path | Path to the kubeconfig file (`~/.kube/kind`) |
+| cluster_ready   | Indicates if the cluster is ready            |
 
 ## Example: Complete Development Setup
 
@@ -129,7 +129,7 @@ resource "kubernetes_manifest" "nginx_ingress" {
 ## Notes
 
 - Uses the `tehcyx/kind` Terraform provider (not shell commands)
-- The kubeconfig is written to `~/.kube/config` by default
+- The kubeconfig is written to `~/.kube/kind` by default
 - When `create_cluster = false`, the module will try to connect to an existing kind cluster
 - The cluster is automatically deleted when `terraform destroy` is run (only if `create_cluster = true`)
 - Port mappings are useful for exposing ingress controllers or services running in the cluster
@@ -139,6 +139,6 @@ resource "kubernetes_manifest" "nginx_ingress" {
 
 If you were using the old version with `null_resource`, note that:
 
-- The kubeconfig is now stored at `~/.kube/config` instead of the module directory
+- The kubeconfig is now stored at `~/.kube/kind` instead of the module directory
 - Configuration is done via Terraform variables instead of a separate kind config file
 - The provider handles cluster lifecycle (create/delete) automatically

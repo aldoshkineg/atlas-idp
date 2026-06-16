@@ -33,7 +33,6 @@ resource "helm_release" "argocd" {
   wait             = true
   timeout          = 600 # 10 minutes for initial install
 
-  # Объединяем базовый конфиг и кастомные оверрайды в один список с помощью concat()
   values = concat(
     [
       yamlencode({
