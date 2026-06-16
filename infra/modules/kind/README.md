@@ -128,7 +128,8 @@ resource "kubernetes_manifest" "nginx_ingress" {
 
 ## Notes
 
-- Uses the `tehcyx/kind` Terraform provider (not shell commands)
+- Uses the `tehcyx/kind` Terraform provider for cluster lifecycle
+- When `enable_cache = true`, configures containerd registry mirroring through a local shell provisioner
 - The kubeconfig is written to `~/.kube/kind` by default
 - When `create_cluster = false`, the module will try to connect to an existing kind cluster
 - The cluster is automatically deleted when `terraform destroy` is run (only if `create_cluster = true`)

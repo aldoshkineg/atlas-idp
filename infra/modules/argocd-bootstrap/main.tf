@@ -1,4 +1,49 @@
+# Argo CD Helm defaults
 locals {
+  argocd_server_resources = {
+    limits = {
+      cpu    = "500m"
+      memory = "512Mi"
+    }
+    requests = {
+      cpu    = "250m"
+      memory = "256Mi"
+    }
+  }
+
+  argocd_repo_server_resources = {
+    limits = {
+      cpu    = "500m"
+      memory = "1500Mi"
+    }
+    requests = {
+      cpu    = "250m"
+      memory = "512Mi"
+    }
+  }
+
+  argocd_controller_resources = {
+    limits = {
+      cpu    = "1500m"
+      memory = "1Gi"
+    }
+    requests = {
+      cpu    = "750m"
+      memory = "512Mi"
+    }
+  }
+
+  argocd_application_set_resources = {
+    limits = {
+      cpu    = "200m"
+      memory = "256Mi"
+    }
+    requests = {
+      cpu    = "100m"
+      memory = "128Mi"
+    }
+  }
+
   argocd_default_values = {
     global = {
       domain = "argocd.local"
@@ -7,60 +52,23 @@ locals {
     server = {
       service = {
         type         = "NodePort"
-        nodePortHttp = 30080
+        nodePortHttp = var.argocd_node_port_http
       }
       extraArgs = var.insecure_mode ? ["--insecure"] : []
-
-      resources = {
-        limits = {
-          cpu    = "500m"
-          memory = "512Mi"
-        }
-        requests = {
-          cpu    = "250m"
-          memory = "256Mi"
-        }
-      }
+      resources = local.argocd_server_resources
     }
 
     repoServer = {
-      resources = {
-        limits = {
-          cpu    = "500m"
-          memory = "1500Mi"
-        }
-        requests = {
-          cpu    = "250m"
-          memory = "512Mi"
-        }
-      }
+      resources = local.argocd_repo_server_resources
     }
 
     controller = {
-      resources = {
-        limits = {
-          cpu    = "1500m"
-          memory = "1Gi"
-        }
-        requests = {
-          cpu    = "750m"
-          memory = "512Mi"
-        }
-      }
+      resources = local.argocd_controller_resources
     }
 
     applicationSet = {
-      enabled = true
-      resources = {
-        limits = {
-          cpu    = "200m"
-          memory = "256Mi"
-        }
-        requests = {
-          cpu    = "100m"
-          memory = "128Mi"
-        }
-      }
+      enabled   = true
+      resources = local.argocd_application_set_resources
     }
 
     notifications = {
@@ -74,11 +82,14 @@ locals {
     redis = {
       enabled = true
     }
-    redis-ha = {
+    "redis-ha" = {
       enabled = false
     }
 
     configs = {
+      secret = {
+        argocdServerAdminPassword = var.admin_password_bcrypt != "" ? var.admin_password_bcrypt : random_password.argocd_admin[0].bcrypt_hash
+      }
       params = {
         "reposerver.parallelism.limit" = "2"
       }

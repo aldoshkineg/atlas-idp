@@ -1,3 +1,4 @@
+# Configuration for Zot cache (if enabled)
 locals {
   cache_configuration_script = <<-EOT
 if [ "${var.enable_cache}" = "true" ]; then

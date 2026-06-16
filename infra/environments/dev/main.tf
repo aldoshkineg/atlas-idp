@@ -2,6 +2,37 @@ terraform {
   backend "s3" {}
 }
 
+variable "root_app_path" {
+  description = "Path to the GitOps root Application manifest"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.root_app_path == "" || can(file(var.root_app_path))
+    error_message = "root_app_path must point to an existing file or be empty to use the default path."
+  }
+}
+
+# Kind API connection for providers
+locals {
+  kind_connection = {
+    host                   = module.kind_cluster.endpoint
+    cluster_ca_certificate = module.kind_cluster.cluster_ca_certificate
+    client_certificate     = module.kind_cluster.client_certificate
+    client_key             = module.kind_cluster.client_key
+  }
+
+  # NodePort and host port contracts
+  ports = {
+    argocd_http = 30080
+    http        = 30081
+    https       = 30444
+  }
+
+  # Root Application manifest path
+  root_app_path = var.root_app_path != "" ? var.root_app_path : "${path.root}/../../../gitops/bootstrap/root-app.yaml"
+}
+
 module "kind_cluster" {
   source = "../../modules/kind"
 
@@ -22,32 +53,40 @@ module "kind_cluster" {
   # Expose ports for NodePort ingress (nginx-gateway-fabric)
   extra_port_mappings = [
     {
-      container_port = 30081
+      container_port = local.ports.http
       host_port      = 80
       protocol       = "TCP"
     },
     {
-      container_port = 30444
+      container_port = local.ports.https
       host_port      = 443
       protocol       = "TCP"
-    }
+    },
   ]
+}
+
+# Root Application manifest exists
+check "root_app_manifest" {
+  assert {
+    condition     = fileexists(local.root_app_path)
+    error_message = "root_app_path must point to an existing root Application manifest."
+  }
 }
 
 # Providers: initialized after kind cluster is ready
 provider "kubernetes" {
-  host                   = module.kind_cluster.endpoint
-  cluster_ca_certificate = module.kind_cluster.cluster_ca_certificate
-  client_certificate     = module.kind_cluster.client_certificate
-  client_key             = module.kind_cluster.client_key
+  host                   = local.kind_connection.host
+  cluster_ca_certificate = local.kind_connection.cluster_ca_certificate
+  client_certificate     = local.kind_connection.client_certificate
+  client_key             = local.kind_connection.client_key
 }
 
 provider "helm" {
   kubernetes {
-    host                   = module.kind_cluster.endpoint
-    cluster_ca_certificate = module.kind_cluster.cluster_ca_certificate
-    client_certificate     = module.kind_cluster.client_certificate
-    client_key             = module.kind_cluster.client_key
+    host                   = local.kind_connection.host
+    cluster_ca_certificate = local.kind_connection.cluster_ca_certificate
+    client_certificate     = local.kind_connection.client_certificate
+    client_key             = local.kind_connection.client_key
   }
 }
 
@@ -64,52 +103,38 @@ module "cilium" {
 module "argocd_bootstrap" {
   source = "../../modules/argocd-bootstrap"
 
-  argocd_namespace     = "argocd"
-  argocd_chart_version = "7.7.5"
-  insecure_mode        = true # HTTP for local dev
-  create_namespace     = true
+  argocd_namespace      = "argocd"
+  argocd_chart_version  = "7.7.5"
+  argocd_node_port_http = local.ports.argocd_http
+  # HTTP for local dev
+  insecure_mode    = true
+  create_namespace = true
 
   # Configure GitHub repository (replace with actual repo URL)
   repo_url  = "https://github.com/aldoshkineg/atlas-idp"
   repo_type = "git"
 
-  depends_on = [module.kind_cluster, module.cilium]
+  depends_on = [
+    module.kind_cluster,
+    module.cilium
+  ]
 }
 
+# Bootstrap root app once; Argo CD owns it after apply
 resource "null_resource" "argocd_root_app" {
+  triggers = {
+    root_app_sha1 = filesha1(local.root_app_path)
+  }
+
   provisioner "local-exec" {
     command = <<-EOT
       kubectl wait --for=condition=available deployment/argocd-server \
         -n argocd --timeout=120s --kubeconfig=${module.kind_cluster.kubeconfig_path}
 
-      kubectl apply -f ${path.root}/../../../gitops/bootstrap/root-app.yaml \
+      kubectl apply -f ${local.root_app_path} \
         --kubeconfig=${module.kind_cluster.kubeconfig_path}
     EOT
   }
 
   depends_on = [module.argocd_bootstrap]
-}
-
-output "kubeconfig_path" {
-  value     = module.kind_cluster.kubeconfig_path
-  sensitive = true
-}
-
-output "cluster_ready" {
-  value = module.kind_cluster.cluster_ready
-}
-
-output "cluster_name" {
-  value = module.kind_cluster.cluster_name
-}
-
-output "argocd_server_url" {
-  description = "Argo CD server URL (NodePort)"
-  value       = module.argocd_bootstrap.argocd_server_url
-}
-
-output "argocd_admin_password" {
-  description = "Argo CD admin password"
-  value       = module.argocd_bootstrap.argocd_admin_password
-  sensitive   = true
 }

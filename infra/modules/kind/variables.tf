@@ -20,6 +20,11 @@ variable "worker_node_count" {
   description = "Number of worker nodes in the cluster"
   type        = number
   default     = 1
+
+  validation {
+    condition     = var.worker_node_count >= 0
+    error_message = "worker_node_count must be zero or greater."
+  }
 }
 
 variable "ingress_ready" {
@@ -36,6 +41,11 @@ variable "extra_port_mappings" {
     protocol       = optional(string, "TCP")
   }))
   default = []
+
+  validation {
+    condition     = alltrue([for mapping in var.extra_port_mappings : contains(["TCP", "UDP", "SCTP"], upper(mapping.protocol))])
+    error_message = "extra_port_mappings.protocol must be one of TCP, UDP or SCTP."
+  }
 }
 
 variable "kubernetes_version" {
