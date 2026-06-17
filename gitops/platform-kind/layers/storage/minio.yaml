@@ -7,47 +7,50 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: "4"
-    argocd.argoproj.io/depends-on: secret-seal-resources
+    argocd.argoproj.io/depends-on: sealed-secrets
   labels:
     app.kubernetes.io/component: platform
     app.kubernetes.io/layer: storage
 spec:
   project: platform-kind
-  source:
-    repoURL: https://charts.min.io/
-    chart: minio
-    targetRevision: 5.4.0
-    helm:
-      releaseName: minio
-      values: |
-        mode: standalone
-        replicas: 1
-        drivesPerNode: 1
-        existingSecret: minio-auth
-        persistence:
-          enabled: true
-          size: 3Gi
-        buckets:
-          - name: k8s-velero-backups
-            policy: none
-            purge: false
-          - name: cnpg-backups
-            policy: none
-            purge: false
-          - name: seal-outputs
-            policy: download
-            purge: false
-        tls:
-          enabled: false
-        service:
-          type: ClusterIP
-          port: 9000
-        consoleService:
-          type: ClusterIP
-          port: 9001
-        resources:
-          requests:
-            memory: 512Mi
+  sources:
+    - repoURL: https://charts.min.io/
+      chart: minio
+      targetRevision: 5.4.0
+      helm:
+        releaseName: minio
+        values: |
+          mode: standalone
+          replicas: 1
+          drivesPerNode: 1
+          existingSecret: minio-auth
+          persistence:
+            enabled: true
+            size: 3Gi
+          buckets:
+            - name: k8s-velero-backups
+              policy: none
+              purge: false
+            - name: cnpg-backups
+              policy: none
+              purge: false
+            - name: seal-outputs
+              policy: download
+              purge: false
+          tls:
+            enabled: false
+          service:
+            type: ClusterIP
+            port: 9000
+          consoleService:
+            type: ClusterIP
+            port: 9001
+          resources:
+            requests:
+              memory: 512Mi
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      path: gitops/platform-kind/layers/storage/resources/minio
   destination:
     server: https://kubernetes.default.svc
     namespace: minio
