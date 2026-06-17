@@ -27,4 +27,6 @@ jobs:
 
       - name: Scan IaC with Trivy
         run: |
-          trivy config --severity HIGH,CRITICAL --exit-code 1 infra/ gitops/ vault/
+          trivy config --severity HIGH,CRITICAL --exit-code 1 infra/
+          trivy config --severity HIGH,CRITICAL --exit-code 1 gitops/
+          trivy config --severity HIGH,CRITICAL --exit-code 1 vault/

@@ -240,7 +240,13 @@ act-build:
 
 act-ci:
 	act -W .github/workflows/ci.yaml \
+		-P self-hosted=act-runner:latest \
+		--pull=false \
 		--container-options "-v $(PWD)/tools/ci/act-runner/cache/tf:/opt/terraform/plugin-cache" \
 		--container-options "-v $(PWD)/tools/ci/act-runner/cache/home:/root/.cache" \
 		-s DEV_CA_CRT="$$(cat security/certs/ca.crt)" \
 		-s DEV_CA_KEY="$$(cat security/certs/ca.key)" \
+		-s VAULT_TOKEN="" \
+		-s VL_MINIO_ROOT_USER="" \
+		-s VL_MINIO_ROOT_PASSWORD="" \
+		-s VL_REDIS_PASSWORD=""
