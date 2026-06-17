@@ -20,8 +20,8 @@ vault)
     https://releases.hashicorp.com/vault/${VERSION}/vault_${VERSION}_linux_amd64.zip \
     -o vault.zip
 
-  unzip -o vault.zip
-  sudo mv vault /usr/local/bin/
+  unzip -p vault.zip vault | sudo tee /usr/local/bin/vault > /dev/null
+  sudo chmod +x /usr/local/bin/vault
   ;;
 
 terraform)
