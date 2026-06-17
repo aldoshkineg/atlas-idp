@@ -20,7 +20,7 @@ vault)
     https://releases.hashicorp.com/vault/${VERSION}/vault_${VERSION}_linux_amd64.zip \
     -o vault.zip
 
-  unzip vault.zip
+  unzip -o vault.zip
   sudo mv vault /usr/local/bin/
   ;;
 
@@ -30,7 +30,7 @@ terraform)
     https://releases.hashicorp.com/terraform/${VERSION}/terraform_${VERSION}_linux_amd64.zip \
     -o terraform.zip
 
-  unzip terraform.zip
+  unzip -o terraform.zip
   sudo mv terraform /usr/local/bin/
   ;;
 
