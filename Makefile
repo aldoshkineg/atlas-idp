@@ -18,7 +18,7 @@ export
 TF_PLUGIN_CACHE_DIR ?= /var/tmp/atlas/plugin-cache
 
 # Local CI / Automation Directories
-LOCAL_RUNNER_DIR ?= clusters/kind/ci/local-runner
+LOCAL_RUNNER_DIR ?= clusters/ci/local-runner
 ACT_RUNNER_DIR   ?= clusters/kind/ci/act-runner
 
 help:

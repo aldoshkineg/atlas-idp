@@ -1,0 +1,7 @@
+# Runtime artifacts (caches, runner data, etc.)
+**/cache/
+**/runner-data/
+**/terraform-cache/
+.env
+.terraform.lock.hcl
+.terraform/
