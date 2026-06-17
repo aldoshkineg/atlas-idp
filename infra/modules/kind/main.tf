@@ -1,7 +1,7 @@
 # Configuration for Zot cache (if enabled)
 locals {
   cache_configuration_script = <<-EOT
-if [ "${var.enable_cache}" = "true" ]; then
+if [ "${var.enable_zot_cache}" = "true" ]; then
 
   for node in $(docker ps -q --filter "label=io.x-k8s.kind.cluster=${var.cluster_name}"); do
     docker exec $node rm -rf /etc/containerd/certs.d/_default/hosts.toml
@@ -31,7 +31,7 @@ resource "kind_cluster" "default" {
     api_version = "kind.x-k8s.io/v1alpha4"
 
     # Enable containerd registry lookup in certs.d.
-    containerd_config_patches = var.enable_cache ? [
+    containerd_config_patches = var.enable_zot_cache ? [
       <<-TOML
       [plugins."io.containerd.grpc.v1.cri".registry]
         config_path = "/etc/containerd/certs.d"

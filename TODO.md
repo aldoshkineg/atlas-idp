@@ -25,7 +25,7 @@
 
 - [x] `infra/modules/kind/` — kind cluster module (tehcyx/kind provider)
   - [x] Control-plane + N workers, ingress-ready label, port mappings
-  - [x] Zot cache registry support via containerd config patch (`enable_cache = true`)
+  - [x] Zot cache registry support via containerd config patch (`enable_zot_cache = true`)
   - [x] Outputs: endpoint, ca_cert, client_cert, client_key, kubeconfig_path
 - [x] `infra/environments/dev/main.tf` — active dev environment wires kind module
 - [x] `infra/environments/aws/` — stub + README (EKS planned)

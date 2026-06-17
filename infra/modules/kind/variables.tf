@@ -54,7 +54,7 @@ variable "kubernetes_version" {
   default     = "v1.35.0"
 }
 
-variable "enable_cache" {
+variable "enable_zot_cache" {
   description = "Enable containerd registry mirroring/cache through Zot"
   type        = bool
   default     = false

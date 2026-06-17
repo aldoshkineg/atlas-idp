@@ -19,7 +19,6 @@ TF_PLUGIN_CACHE_DIR ?= /var/tmp/atlas/plugin-cache
 
 # Local CI / Automation Directories
 LOCAL_RUNNER_DIR ?= clusters/kind/ci/local-runner
-ZOT_DIR          ?= clusters/kind/ci/zot-kind-cache
 ACT_RUNNER_DIR   ?= clusters/kind/ci/act-runner
 
 help:
@@ -37,8 +36,8 @@ help:
 	@echo "  pre-commit        Run pre-commit hooks on all project files"
 	@echo ""
 	@echo "Local CI & Registry Cache Subsystem:"
-	@echo "  ci-cache-up       Deploy/verify Zot local registry proxy cache"
-	@echo "  ci-cache-purge    Wipe the Zot container registry completely"
+	@echo "  ci-cache-up       Deploy Zot cache (via Terraform; delegates to infra-apply)"
+	@echo "  ci-cache-purge    Stop and remove Zot container (cache data preserved)"
 	@echo "  ci-runner-up      Fetch fresh token via 'gh' and start local GitHub runner"
 	@echo "  ci-runner-down    Stop and remove local GitHub runner container"
 	@echo "  ci-runner-status  Check status of local GitHub runner container"
@@ -117,8 +116,8 @@ gitops-bootstrap:
 
 # --- ArgoCD ---
 argocd-login:
-	@chmod +x clusters/kind/ci/argocd-login.sh
-	./clusters/kind/ci/argocd-login.sh
+	@chmod +x clusters/ci/argocd-login.sh
+	./clusters/ci/argocd-login.sh
 
 # --- Vault ---
 vault-seed:
@@ -209,13 +208,13 @@ pre-commit:
 	pre-commit run --all-files
 
 # --- Local CI & Registry Cache Subsystem ---
-ci-cache-up:
-	@chmod +x $(ZOT_DIR)/setup-zot-cache.sh
-	cd $(ZOT_DIR) && ./setup-zot-cache.sh
+# Zot is now managed by Terraform in infra/modules/zot-cache/
+ci-cache-up: infra-apply
 
 ci-cache-purge:
-	@chmod +x $(ZOT_DIR)/setup-zot-cache.sh
-	cd $(ZOT_DIR) && ./setup-zot-cache.sh --purge
+	@echo "--> Stopping and removing Zot container..."
+	-docker rm -f kind-zot-registry 2>/dev/null || true
+	@echo "--> Zot container removed. Cache data preserved at /var/tmp/atlas/zot_cache"
 
 ci-runner-up:
 	@chmod +x $(LOCAL_RUNNER_DIR)/setup-runner.sh

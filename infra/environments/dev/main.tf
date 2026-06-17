@@ -32,6 +32,9 @@ locals {
 
   # Root Application manifest path
   root_app_path = var.root_app_path != "" ? var.root_app_path : "${path.root}/../../../gitops/bootstrap/root-app.yaml"
+
+  # Control Zot registry cache
+  enable_zot_cache = true
 }
 
 module "kind_cluster" {
@@ -46,7 +49,7 @@ module "kind_cluster" {
   ingress_ready = true
 
   # Enable zot mirror repos
-  enable_cache = true
+  enable_zot_cache = local.enable_zot_cache
 
   # Disable kindnet + kube-proxy for Cilium eBPF
   disable_default_cni = true
@@ -64,6 +67,20 @@ module "kind_cluster" {
       protocol       = "TCP"
     },
   ]
+}
+
+# Zot registry cache (pull-through proxy for container images)
+module "zot_cache" {
+  source = "../../modules/zot-cache"
+
+  enable         = local.enable_zot_cache
+  container_name = "kind-zot-registry"
+  port           = 5000
+  network_name   = "kind"
+  cache_dir      = "/var/tmp/atlas/zot_cache/zot-cache-data"
+  config_dir     = "/var/tmp/atlas"
+
+  depends_on = [module.kind_cluster]
 }
 
 # Root Application manifest exists

@@ -14,5 +14,9 @@ terraform {
       source  = "hashicorp/null"
       version = "~> 3.2"
     }
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0"
+    }
   }
 }
