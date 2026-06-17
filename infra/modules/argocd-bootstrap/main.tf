@@ -86,9 +86,6 @@ locals {
     }
 
     configs = {
-      secret = {
-        argocdServerAdminPassword = var.admin_password_bcrypt != "" ? var.admin_password_bcrypt : random_password.argocd_admin[0].bcrypt_hash
-      }
       params = {
         "reposerver.parallelism.limit" = "2"
       }
@@ -115,12 +112,6 @@ resource "kubernetes_namespace" "argocd" {
       "app.kubernetes.io/managed-by" = "terraform"
     }
   }
-}
-
-resource "random_password" "argocd_admin" {
-  count   = var.admin_password_bcrypt == "" ? 1 : 0
-  length  = 16
-  special = true
 }
 
 resource "helm_release" "argocd" {

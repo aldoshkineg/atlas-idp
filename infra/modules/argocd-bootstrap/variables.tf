@@ -28,13 +28,6 @@ variable "insecure_mode" {
   default     = true
 }
 
-variable "admin_password_bcrypt" {
-  description = "BCrypt hash of admin password (optional, generates random if empty)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 variable "repo_url" {
   description = "GitHub repository URL for GitOps source"
   type        = string
