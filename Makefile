@@ -19,7 +19,7 @@ TF_PLUGIN_CACHE_DIR ?= /var/tmp/atlas/plugin-cache
 
 # Local CI / Automation Directories
 LOCAL_RUNNER_DIR ?= clusters/ci/local-runner
-ACT_RUNNER_DIR   ?= clusters/kind/ci/act-runner
+ACT_RUNNER_DIR   ?= clusters/ci/act-runner
 
 help:
 	@echo "Available Targets:"
@@ -235,7 +235,7 @@ act-build:
 
 act-ci:
 	act -W .github/workflows/ci.yaml \
-		--container-options "-v $(PWD)/clusters/kind/ci/act-runner/cache/tf:/opt/terraform/plugin-cache" \
-		--container-options "-v $(PWD)/clusters/kind/ci/act-runner/cache/home:/root/.cache" \
+		--container-options "-v $(PWD)/clusters/ci/act-runner/cache/tf:/opt/terraform/plugin-cache" \
+		--container-options "-v $(PWD)/clusters/ci/act-runner/cache/home:/root/.cache" \
 		-s DEV_CA_CRT="$$(cat clusters/kind/certs/ca.crt)" \
 		-s DEV_CA_KEY="$$(cat clusters/kind/certs/ca.key)" \
