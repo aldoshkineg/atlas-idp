@@ -14,6 +14,9 @@ ENV              ?= dev
 -include .env
 export
 
+# Terraform provider plugin cache
+TF_PLUGIN_CACHE_DIR ?= /var/tmp/atlas/plugin-cache
+
 # Local CI / Automation Directories
 LOCAL_RUNNER_DIR ?= clusters/kind/ci/local-runner
 ZOT_DIR          ?= clusters/kind/ci/zot-kind-cache
@@ -83,10 +86,9 @@ cluster-down:
 cluster-nuke:
 	@echo "--> Force deleting Kind cluster '$(CLUSTER_NAME)'..."
 	kind delete cluster --name $(CLUSTER_NAME)
-	@echo "--> Wiping ALL resources from remote S3 state..."
-	cd infra/environments/dev && terraform init -backend-config=backend-s3.hcl -reconfigure 2>/dev/null && terraform state rm $$(terraform state list 2>/dev/null) 2>/dev/null || true
-	@echo "--> Wiping local Terraform state files for dev environment..."
-	rm -f infra/environments/dev/terraform.tfstate*
+	@echo "--> Wiping local Terraform state..."
+	rm -f /var/tmp/atlas/terraform.tfstate
+	@echo "--> State wiped"
 
 cluster-ci-up:
 	CLUSTER_NAME=$(CI_CLUSTER) ./clusters/scripts/ci-kind-provision.sh
@@ -95,16 +97,18 @@ cluster-ci-down:
 	CLUSTER_NAME=$(CI_CLUSTER) ./clusters/scripts/ci-kind-down.sh
 
 infra-init:
-	cd infra/environments/$(ENV) && terraform init -backend-config=backend-s3.hcl
+	mkdir -p $(TF_PLUGIN_CACHE_DIR)
+	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init
 
 infra-plan:
-	cd infra/environments/$(ENV) && terraform plan
+	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform plan
 
 infra-apply:
 	@echo "--> Running initialization in dev environment..."
-	cd infra/environments/dev && terraform init -backend-config=backend-s3.hcl
+	mkdir -p $(TF_PLUGIN_CACHE_DIR)
+	cd infra/environments/dev && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init
 	@echo "--> Applying infrastructure changes..."
-	cd infra/environments/dev && terraform apply -auto-approve
+	cd infra/environments/dev && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform apply -auto-approve
 	@echo "--> Seeding CA certificate into cluster..."
 	$(MAKE) seed-ca
 
@@ -190,7 +194,8 @@ validate-terraform:
 	@echo "==> Running Terraform format check..."
 	terraform fmt -check -recursive infra/
 	@echo "==> Running Terraform validate..."
-	cd infra/environments/dev && terraform init -backend=false && terraform validate
+	mkdir -p $(TF_PLUGIN_CACHE_DIR)
+	cd infra/environments/dev && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init -backend=false && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform validate
 
 validate-yaml:
 	@echo "==> Running YAML lint..."

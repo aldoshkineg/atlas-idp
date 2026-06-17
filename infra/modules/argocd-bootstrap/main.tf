@@ -51,8 +51,7 @@ locals {
 
     server = {
       service = {
-        type         = "NodePort"
-        nodePortHttp = var.argocd_node_port_http
+        type = "ClusterIP"
       }
       extraArgs = var.insecure_mode ? ["--insecure"] : []
       resources = local.argocd_server_resources

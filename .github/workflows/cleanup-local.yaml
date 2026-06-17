@@ -27,18 +27,12 @@ jobs:
           echo "Deleting KinD cluster..."
           kind delete cluster --name atlas-idp || true
 
-      - name: Wipe all resources from remote state
+      - name: Wipe local state
         run: |
-          echo "Initializing Terraform with remote backend..."
-          terraform init -backend-config=backend-s3.hcl -reconfigure
+          echo "Removing local Terraform state..."
+          rm -f /var/tmp/atlas/terraform.tfstate
 
-          echo "Removing ALL resources from S3 state..."
-          terraform state rm $(terraform state list) 2>/dev/null || true
-
-          echo "Remote state wiped"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          echo "State wiped"
 
       - name: Clean local artifacts
         run: |
@@ -47,6 +41,6 @@ jobs:
             .terraform \
             .terraform.lock.hcl \
             terraform.tfstate* \
-            /var/tmp/atlas-idp-cluster.tfstate
+            /var/tmp/atlas/terraform.tfstate
 
           echo "Cleanup completed"

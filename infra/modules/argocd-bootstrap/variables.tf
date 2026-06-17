@@ -28,17 +28,6 @@ variable "insecure_mode" {
   default     = true
 }
 
-variable "argocd_node_port_http" {
-  description = "NodePort used by Argo CD server for local kind access"
-  type        = number
-  default     = 30080
-
-  validation {
-    condition     = var.argocd_node_port_http >= 30000 && var.argocd_node_port_http <= 32767
-    error_message = "argocd_node_port_http must be a valid Kubernetes NodePort between 30000 and 32767."
-  }
-}
-
 variable "admin_password_bcrypt" {
   description = "BCrypt hash of admin password (optional, generates random if empty)"
   type        = string

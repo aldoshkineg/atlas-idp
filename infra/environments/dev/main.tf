@@ -1,5 +1,7 @@
 terraform {
-  backend "s3" {}
+  backend "local" {
+    path = "/var/tmp/atlas/terraform.tfstate"
+  }
 }
 
 variable "root_app_path" {
@@ -22,11 +24,10 @@ locals {
     client_key             = module.kind_cluster.client_key
   }
 
-  # NodePort and host port contracts
+  # Host port contracts for NodePort ingress (nginx-gateway-fabric)
   ports = {
-    argocd_http = 30080
-    http        = 30081
-    https       = 30444
+    http  = 30081
+    https = 30444
   }
 
   # Root Application manifest path
@@ -103,9 +104,8 @@ module "cilium" {
 module "argocd_bootstrap" {
   source = "../../modules/argocd-bootstrap"
 
-  argocd_namespace      = "argocd"
-  argocd_chart_version  = "7.7.5"
-  argocd_node_port_http = local.ports.argocd_http
+  argocd_namespace     = "argocd"
+  argocd_chart_version = "7.7.5"
   # HTTP for local dev
   insecure_mode    = true
   create_namespace = true
