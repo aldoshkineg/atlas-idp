@@ -1,13 +1,13 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: vault-gateway
+  name: gateway-routes
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: "7"
-    argocd.argoproj.io/depends-on: cert-manager-issuers, gateway-resources, vault-operator
+    argocd.argoproj.io/depends-on: cert-manager-issuers, gateway-resources
   labels:
     app.kubernetes.io/component: platform
     app.kubernetes.io/layer: networking
@@ -16,10 +16,10 @@ spec:
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform-kind/layers/networking/values/vault-resources
+    path: gitops/platform-kind/layers/networking/values/gateway-routes
   destination:
     server: https://kubernetes.default.svc
-    namespace: vault
+    namespace: nginx-gateway-fabric
   ignoreDifferences:
     - group: gateway.networking.k8s.io
       kind: HTTPRoute
