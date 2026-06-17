@@ -57,6 +57,9 @@ tools/ci/act-runner/cache/*
 .aider*
 .continue
 
+# Sealed Secrets pre-generated key (for reproducible encryption)
+.sealed-keys/
+
 # Self-signed CA
 security/certs/ca*
 

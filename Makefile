@@ -116,6 +116,16 @@ infra-apply:
 gitops-bootstrap:
 	./clusters/scripts/bootstrap-gitops.sh
 
+# --- Sealed Secrets ---
+seed-sealed-key:
+	@echo "--> Injecting pre-generated Sealed Secrets key into cluster..."
+	@kubectl create namespace sealed-secrets --dry-run=client -o yaml | kubectl apply -f -
+	@kubectl create secret tls sealed-secrets-key -n sealed-secrets \
+		--cert=.sealed-keys/sealing-cert.pem \
+		--key=.sealed-keys/sealing-key.pem \
+		--dry-run=client -o yaml | kubectl apply -f -
+	@echo "--> Sealed Secrets key injected. Controller will reuse the existing key."
+
 # --- ArgoCD ---
 argocd-login:
 	@chmod +x tools/argocd-login.sh
