@@ -11,5 +11,11 @@ services:
       - RUNNER_TOKEN=${RUNNER_TOKEN}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./runner-data:/_work
-      - ./terraform-cache:/opt/terraform/plugin-cache
+      - github-runner-work:/_work
+      - github-runner-terraform-cache:/opt/terraform/plugin-cache
+
+volumes:
+  github-runner-work:
+    name: github-runner-work
+  github-runner-terraform-cache:
+    name: github-runner-terraform-cache

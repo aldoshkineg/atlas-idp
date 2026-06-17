@@ -55,4 +55,4 @@ docker compose up -d
 
 echo "----------------------------------------"
 echo "Runner deployment initiated successfully!"
-echo "Check status with: docker-compose ps"
+echo "Check status with: docker compose ps"
