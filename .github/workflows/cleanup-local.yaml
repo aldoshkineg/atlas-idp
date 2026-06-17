@@ -22,6 +22,11 @@ jobs:
       - name: Verify kind
         run: kind version
 
+      - name: Remove Zot cache container
+        run: |
+          echo "Removing Zot cache container..."
+          docker rm -f kind-zot-registry 2>/dev/null || true
+
       - name: Delete KinD cluster
         run: |
           echo "Deleting KinD cluster..."
