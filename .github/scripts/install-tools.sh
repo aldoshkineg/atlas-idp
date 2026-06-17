@@ -14,6 +14,16 @@ echo "Installing $TOOL"
 
 case $TOOL in
 
+vault)
+
+  curl -fsSL \
+    https://releases.hashicorp.com/vault/${VERSION}/vault_${VERSION}_linux_amd64.zip \
+    -o vault.zip
+
+  unzip vault.zip
+  sudo mv vault /usr/local/bin/
+  ;;
+
 terraform)
 
   curl -fsSL \

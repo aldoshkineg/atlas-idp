@@ -7,6 +7,7 @@ runs:
     - name: Install required binaries
       shell: bash
       env:
+        VAULT_VERSION: "1.18.0"
         TERRAFORM_VERSION: "1.15.3"
         KUBECTL_VERSION: "1.34.0"
         KIND_VERSION: "0.29.0"
@@ -14,6 +15,7 @@ runs:
         YAMLLINT_VERSION: "1.35.1"
       run: |
         chmod +x .github/scripts/install-tools.sh
+        .github/scripts/install-tools.sh vault $VAULT_VERSION
         .github/scripts/install-tools.sh terraform $TERRAFORM_VERSION
         .github/scripts/install-tools.sh kubectl $KUBECTL_VERSION
         .github/scripts/install-tools.sh kind $KIND_VERSION
@@ -23,6 +25,7 @@ runs:
     - name: Verify tools
       shell: bash
       run: |
+        vault version
         terraform version
         kubectl version --client
         kind version

@@ -1,8 +1,8 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
-	argocd-login vault-seed github-secrets-ca seed-ca \
-	test test-ca-gateway test-vault test-velero test-network-policy test-keda test-db-backup test-undeploy \
+	argocd-login vault-seed vault-update-platform github-secrets-ca seed-ca \
+	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-undeploy \
 	act-build act-ci
 
 CLUSTER_NAME     ?= atlas-idp
@@ -116,16 +116,6 @@ infra-apply:
 gitops-bootstrap:
 	./clusters/scripts/bootstrap-gitops.sh
 
-# --- Sealed Secrets ---
-seed-sealed-key:
-	@echo "--> Injecting pre-generated Sealed Secrets key into cluster..."
-	@kubectl create namespace sealed-secrets --dry-run=client -o yaml | kubectl apply -f -
-	@kubectl create secret tls sealed-secrets-key -n sealed-secrets \
-		--cert=.sealed-keys/sealing-cert.pem \
-		--key=.sealed-keys/sealing-key.pem \
-		--dry-run=client -o yaml | kubectl apply -f -
-	@echo "--> Sealed Secrets key injected. Controller will reuse the existing key."
-
 # --- ArgoCD ---
 argocd-login:
 	@chmod +x tools/argocd-login.sh
@@ -133,7 +123,10 @@ argocd-login:
 
 # --- Vault ---
 vault-seed:
-	./tests/vault/seed.sh
+	./security/vault/seed-platform.sh seed
+
+vault-update-platform:
+	./security/vault/update-platform.sh update
 
 # --- Tests ---
 test-ca-gateway:

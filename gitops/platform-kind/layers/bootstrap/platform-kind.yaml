@@ -17,6 +17,8 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: default
       server: https://kubernetes.default.svc
+    - namespace: external-secrets
+      server: https://kubernetes.default.svc
     - namespace: keda
       server: https://kubernetes.default.svc
     - namespace: kube-system
@@ -37,8 +39,6 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: velero
       server: https://kubernetes.default.svc
-    - namespace: sealed-secrets
-      server: https://kubernetes.default.svc
     - namespace: argocd
       server: https://kubernetes.default.svc
 
@@ -54,6 +54,7 @@ spec:
     - https://github.com/kubernetes-csi/external-snapshotter.git
     - ghcr.io/nginx/charts
     - ghcr.io/bank-vaults/helm-charts
+    - https://charts.external-secrets.io
     - https://kedacore.github.io/charts
     - registry-1.docker.io/bitnamicharts
     - https://cloudnative-pg.github.io/charts
@@ -81,5 +82,7 @@ spec:
       kind: CSIDriver
     - group: storage.k8s.io
       kind: StorageClass
+    - group: external-secrets.io
+      kind: ClusterSecretStore
     - group: ""
       kind: Namespace

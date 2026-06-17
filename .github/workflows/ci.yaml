@@ -27,5 +27,12 @@ jobs:
           dev_ca_crt: ${{ secrets.DEV_CA_CRT }}
           dev_ca_key: ${{ secrets.DEV_CA_KEY }}
 
+      - uses: ./.github/actions/vault-seeds
+        with:
+          vault_token: ${{ secrets.VAULT_TOKEN }}
+          vl_minio_root_user: ${{ secrets.VL_MINIO_ROOT_USER }}
+          vl_minio_root_password: ${{ secrets.VL_MINIO_ROOT_PASSWORD }}
+          vl_redis_password: ${{ secrets.VL_REDIS_PASSWORD }}
+
       - uses: ./.github/actions/terraform-eks
         if: false
