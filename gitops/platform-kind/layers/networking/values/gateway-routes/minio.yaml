@@ -1,0 +1,52 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: minio-cert
+  namespace: nginx-gateway-fabric
+spec:
+  secretName: minio-cert
+  duration: 2160h
+  renewBefore: 360h
+  subject:
+    organizations:
+      - atlas-idp
+  dnsNames:
+    - s3.atlas
+    - console.s3.atlas
+  issuerRef:
+    name: dev-ca-issuer
+    kind: ClusterIssuer
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: minio-route
+  namespace: minio
+spec:
+  parentRefs:
+    - name: platform-gateway
+      namespace: nginx-gateway-fabric
+      sectionName: https-s3
+  hostnames:
+    - s3.atlas
+  rules:
+    - backendRefs:
+        - name: minio
+          port: 9000
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: minio-console-route
+  namespace: minio
+spec:
+  parentRefs:
+    - name: platform-gateway
+      namespace: nginx-gateway-fabric
+      sectionName: https-s3-console
+  hostnames:
+    - console.s3.atlas
+  rules:
+    - backendRefs:
+        - name: minio-console
+          port: 9001
