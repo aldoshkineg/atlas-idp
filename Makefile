@@ -18,14 +18,14 @@ export
 TF_PLUGIN_CACHE_DIR ?= /var/tmp/atlas/plugin-cache
 
 # Local CI / Automation Directories
-LOCAL_RUNNER_DIR ?= clusters/ci/local-runner
-ACT_RUNNER_DIR   ?= clusters/ci/act-runner
+LOCAL_RUNNER_DIR ?= tools/ci/local-runner
+ACT_RUNNER_DIR   ?= tools/ci/act-runner
 
 help:
 	@echo "Available Targets:"
 	@echo "  cluster-up        Create main kind cluster"
 	@echo "  cluster-down      Delete main kind cluster"
-	@echo "  cluster-nuke      Force/Hard delete kind cluster via CLI and wipe local+remote tfstate"
+	@echo "  cluster-nuke      Remove Zot container, delete kind cluster, wipe Terraform state"
 	@echo "  cluster-ci-up     Provision local CI-specific kind cluster"
 	@echo "  cluster-ci-down   Tear down local CI-specific kind cluster"
 	@echo "  infra-init        Terraform init (ENV=$(ENV))"
@@ -72,7 +72,7 @@ help:
 	@echo "  github-secrets-ca  Add root CA cert and key to GitHub secrets (DEV_CA_CRT, DEV_CA_KEY)"
 	@echo ""
 	@echo "CA Certificates:"
-	@echo "  seed-ca           Create dev-ca-secret for cert-manager from clusters/kind/certs/"
+	@echo "  seed-ca           Create dev-ca-secret for cert-manager from security/certs/"
 	@echo ""
 
 # --- Infrastructure Management ---
@@ -83,6 +83,8 @@ cluster-down:
 	./clusters/scripts/destroy-cluster.sh
 
 cluster-nuke:
+	@echo "--> Removing Zot cache container..."
+	-docker rm -f kind-zot-registry
 	@echo "--> Force deleting Kind cluster '$(CLUSTER_NAME)'..."
 	kind delete cluster --name $(CLUSTER_NAME)
 	@echo "--> Wiping local Terraform state..."
@@ -116,8 +118,8 @@ gitops-bootstrap:
 
 # --- ArgoCD ---
 argocd-login:
-	@chmod +x clusters/ci/argocd-login.sh
-	./clusters/ci/argocd-login.sh
+	@chmod +x tools/argocd-login.sh
+	./tools/argocd-login.sh
 
 # --- Vault ---
 vault-seed:
@@ -169,9 +171,9 @@ rbac-delete:
 # --- GitHub Secrets ---
 github-secrets-ca:
 	@echo "--> Adding root CA certificate to GitHub secrets (DEV_CA_CRT)..."
-	gh secret set DEV_CA_CRT < clusters/kind/certs/ca.crt
+	gh secret set DEV_CA_CRT < security/certs/ca.crt
 	@echo "--> Adding root CA key to GitHub secrets (DEV_CA_KEY)..."
-	gh secret set DEV_CA_KEY < clusters/kind/certs/ca.key
+	gh secret set DEV_CA_KEY < security/certs/ca.key
 	@echo "--> CA certificate and key added to GitHub secrets successfully"
 
 seed-ca:
@@ -181,8 +183,8 @@ seed-ca:
 	kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
 	@echo "--> Creating dev-ca-secret in cert-manager namespace..."
 	kubectl create secret tls dev-ca-secret -n cert-manager \
-		--cert=clusters/kind/certs/ca.crt \
-		--key=clusters/kind/certs/ca.key \
+		--cert=security/certs/ca.crt \
+		--key=security/certs/ca.key \
 		--dry-run=client -o yaml | kubectl apply -f -
 	@echo "--> CA secret seeded successfully. ClusterIssuer dev-ca-issuer should become Healthy."
 
@@ -235,7 +237,7 @@ act-build:
 
 act-ci:
 	act -W .github/workflows/ci.yaml \
-		--container-options "-v $(PWD)/clusters/ci/act-runner/cache/tf:/opt/terraform/plugin-cache" \
-		--container-options "-v $(PWD)/clusters/ci/act-runner/cache/home:/root/.cache" \
-		-s DEV_CA_CRT="$$(cat clusters/kind/certs/ca.crt)" \
-		-s DEV_CA_KEY="$$(cat clusters/kind/certs/ca.key)" \
+		--container-options "-v $(PWD)/tools/ci/act-runner/cache/tf:/opt/terraform/plugin-cache" \
+		--container-options "-v $(PWD)/tools/ci/act-runner/cache/home:/root/.cache" \
+		-s DEV_CA_CRT="$$(cat security/certs/ca.crt)" \
+		-s DEV_CA_KEY="$$(cat security/certs/ca.key)" \

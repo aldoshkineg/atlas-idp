@@ -44,16 +44,13 @@ node_modules/
 *.local.yml
 
 # GitHub Actions Runner
-clusters/kind/ci/local-runner/runner-data
-clusters/kind/ci/local-runner/.env
-clusters/kind/ci/local-runner/terraform-cache
-
-# Zot cache images
-clusters/kind/ci/zot-kind-cache/zot-cache-data
+tools/ci/local-runner/runner-data
+tools/ci/local-runner/.env
+tools/ci/local-runner/terraform-cache
 
 # Act runner cache
-clusters/kind/ci/act-runner/cache/*
-!clusters/kind/ci/act-runner/cache/.gitkeep
+tools/ci/act-runner/cache/*
+!tools/ci/act-runner/cache/.gitkeep
 
 # Act secrets
 .secrets
@@ -61,7 +58,7 @@ clusters/kind/ci/act-runner/cache/*
 .continue
 
 # Self-signed CA
-clusters/kind/certs/ca*
+security/certs/ca*
 
 # Dev certs
 .certs/

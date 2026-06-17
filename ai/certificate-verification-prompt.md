@@ -6,8 +6,8 @@ Verify that CA certificates used in this project are properly trusted by the sys
 
 ## Certificate Locations
 
-- Project CA: `clusters/kind/certs/ca.crt`
-- Project CA key: `clusters/kind/certs/ca.key`
+- Project CA: `security/certs/ca.crt`
+- Project CA key: `security/certs/ca.key`
 - System trust store (user-added): `/usr/local/share/ca-certificates/`
 - System trust store (bundled): `/etc/ssl/certs/`
 
@@ -15,10 +15,10 @@ Verify that CA certificates used in this project are properly trusted by the sys
 
 The CA certificate and key are stored as GitHub repository secrets for use in CI/CD:
 
-| Secret       | Source File                  | Created Via                                                                        |
-| ------------ | ---------------------------- | ---------------------------------------------------------------------------------- |
-| `DEV_CA_CRT` | `clusters/kind/certs/ca.crt` | `make github-secrets-ca` → `gh secret set DEV_CA_CRT < clusters/kind/certs/ca.crt` |
-| `DEV_CA_KEY` | `clusters/kind/certs/ca.key` | `make github-secrets-ca` → `gh secret set DEV_CA_KEY < clusters/kind/certs/ca.key` |
+| Secret       | Source File             | Created Via                                                                   |
+| ------------ | ----------------------- | ----------------------------------------------------------------------------- |
+| `DEV_CA_CRT` | `security/certs/ca.crt` | `make github-secrets-ca` → `gh secret set DEV_CA_CRT < security/certs/ca.crt` |
+| `DEV_CA_KEY` | `security/certs/ca.key` | `make github-secrets-ca` → `gh secret set DEV_CA_KEY < security/certs/ca.key` |
 
 **How they are consumed in CI/CD:**
 
@@ -45,7 +45,7 @@ gh secret list
 
 ```bash
 # Get the CA fingerprint
-openssl x509 -in clusters/kind/certs/ca.crt -fingerprint -sha256 -noout
+openssl x509 -in security/certs/ca.crt -fingerprint -sha256 -noout
 
 # Search system trust store for matching fingerprint
 for f in /usr/local/share/ca-certificates/*.crt; do
@@ -55,7 +55,7 @@ for f in /usr/local/share/ca-certificates/*.crt; do
 done
 
 # Or compare directly (if cert might be identical)
-sudo diff /usr/local/share/ca-certificates/<file>.crt clusters/kind/certs/ca.crt
+sudo diff /usr/local/share/ca-certificates/<file>.crt security/certs/ca.crt
 ```
 
 ### 2. Check certificate details (SAN, validity, issuer)
@@ -69,7 +69,7 @@ openssl x509 -in <cert>.crt -subject -issuer -noout
 ### 3. Add CA to system trust store
 
 ```bash
-sudo cp clusters/kind/certs/ca.crt /usr/local/share/ca-certificates/<name>.crt
+sudo cp security/certs/ca.crt /usr/local/share/ca-certificates/<name>.crt
 sudo update-ca-certificates --fresh
 ```
 
@@ -111,8 +111,8 @@ IP.2 = ::1
 openssl genrsa -out /tmp/server.key 2048
 openssl req -new -key /tmp/server.key -out /tmp/server.csr -config openssl-san.cnf
 openssl x509 -req -in /tmp/server.csr \
-  -CA clusters/kind/certs/ca.crt \
-  -CAkey clusters/kind/certs/ca.key \
+  -CA security/certs/ca.crt \
+  -CAkey security/certs/ca.key \
   -CAcreateserial -out /tmp/server.crt \
   -days 365 -sha256 \
   -extensions v3_req -extfile openssl-san.cnf
