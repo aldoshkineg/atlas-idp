@@ -26,7 +26,7 @@ spec:
           existingSecret: minio-auth
           persistence:
             enabled: true
-            size: 3Gi
+            size: 1Gi
           buckets:
             - name: k8s-velero-backups
               policy: none

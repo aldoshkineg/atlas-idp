@@ -45,7 +45,7 @@ spec:
           - ReadWriteOnce
         resources:
           requests:
-            storage: 1Gi
+            storage: 256Mi
 
   # Vault config: kubernetes auth, policies, roles, secrets engine
   externalConfig:
