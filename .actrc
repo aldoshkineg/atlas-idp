@@ -1,6 +1,4 @@
 -P self-hosted=act-runner:latest
--P ubuntu-latest=act-runner:latest
 --container-daemon-socket /var/run/docker.sock
---env-file .env
---secret-file .secrets
+# Requires `make act-build` first; image must exist locally.
 --pull=false

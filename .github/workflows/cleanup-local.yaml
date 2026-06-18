@@ -35,7 +35,7 @@ jobs:
       - name: Wipe local state
         run: |
           echo "Removing local Terraform state..."
-          rm -f /var/tmp/atlas/terraform.tfstate
+          rm -rf /var/tmp/atlas/terraform
 
           echo "State wiped"
 
@@ -46,6 +46,6 @@ jobs:
             .terraform \
             .terraform.lock.hcl \
             terraform.tfstate* \
-            /var/tmp/atlas/terraform.tfstate
+            /var/tmp/atlas/terraform
 
           echo "Cleanup completed"

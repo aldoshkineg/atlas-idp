@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -eo pipefail
 
 TOOL=$1
 VERSION=$2
@@ -57,6 +57,8 @@ trivy)
   curl -sfL \
     https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh |
     sudo sh -s -- -b /usr/local/bin v${VERSION}
+
+  command -v trivy >/dev/null || { echo "trivy install failed"; exit 1; }
 
   ;;
 

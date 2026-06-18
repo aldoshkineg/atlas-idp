@@ -4,7 +4,7 @@ description: "Seed platform secrets into Vault and wait for dependent ArgoCD app
 inputs:
   vault_token:
     description: "Vault token used by CI to seed platform secrets"
-    required: true
+    required: false
   vl_minio_root_user:
     description: "MinIO root user for Vault"
     required: true
@@ -36,9 +36,23 @@ runs:
       run: |
         export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/kind}"
 
+        if [ -z "${VAULT_ADDR:-}" ] && kubectl -n vault get secret vault-unseal-keys >/dev/null 2>&1; then
+          export VAULT_TOKEN="$(kubectl -n vault get secret vault-unseal-keys -o jsonpath='{.data.vault-root}' | base64 -d)"
+          echo "Using Vault root token from vault-unseal-keys"
+        fi
+
+        seed_file="$(mktemp)"
+        trap 'rm -f "$seed_file"' EXIT
+        cat > "$seed_file" <<EOF
+        secret/platform/minio rootUser=${VL_MINIO_ROOT_USER}
+        secret/platform/minio rootPassword=${VL_MINIO_ROOT_PASSWORD}
+        secret/platform/redis redis-password=${VL_REDIS_PASSWORD}
+        EOF
+
         ./security/vault/wait-vault.sh
         ./security/vault/bootstrap-eso-token.sh
-        ./security/vault/seed-platform.sh seed
+        ./security/vault/seed-platform.sh seed "$seed_file"
+        rm -f "$seed_file"
 
     - name: Continue waiting ArgoCD apps
       shell: bash
@@ -63,5 +77,6 @@ runs:
           return 1
         }
 
+        wait_for_argocd_application external-secrets
         wait_for_argocd_application minio
         wait_for_argocd_application redis

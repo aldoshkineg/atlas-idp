@@ -15,7 +15,7 @@ ENV              ?= dev
 export
 
 # Terraform provider plugin cache
-TF_PLUGIN_CACHE_DIR ?= /var/tmp/atlas/plugin-cache
+TF_PLUGIN_CACHE_DIR ?= /var/tmp/atlas/act_cache/tf
 
 # Local CI / Automation Directories
 LOCAL_RUNNER_DIR ?= tools/ci/local-runner
@@ -44,7 +44,7 @@ help:
 	@echo "  ci-runner-logs    Follow logs from the local GitHub runner container"
 	@echo ""
 	@echo "Act (Local CI Runner):"
-	@echo "  act-build         Build custom act runner Docker image"
+	@echo "  act-build         Build custom act runner image (parses action.yml for tool versions)"
 	@echo "  act-ci            Run CI workflow via act"
 	@echo ""
 	@echo "ArgoCD:"
@@ -88,7 +88,7 @@ cluster-nuke:
 	@echo "--> Force deleting Kind cluster '$(CLUSTER_NAME)'..."
 	kind delete cluster --name $(CLUSTER_NAME)
 	@echo "--> Wiping local Terraform state..."
-	rm -f /var/tmp/atlas/terraform.tfstate
+	sudo rm -rf /var/tmp/atlas/terraform
 	@echo "--> State wiped"
 
 cluster-ci-up:
@@ -236,17 +236,7 @@ ci-runner-logs:
 
 # --- Act (Local CI Runner) ---
 act-build:
-	docker build -t act-runner:latest $(ACT_RUNNER_DIR)
+	tools/ci/act-runner/act-runner.sh build
 
 act-ci:
-	act -W .github/workflows/ci.yaml \
-		-P self-hosted=act-runner:latest \
-		--pull=false \
-		--container-options "-v $(PWD)/tools/ci/act-runner/cache/tf:/opt/terraform/plugin-cache" \
-		--container-options "-v $(PWD)/tools/ci/act-runner/cache/home:/root/.cache" \
-		-s DEV_CA_CRT="$$(cat security/certs/ca.crt)" \
-		-s DEV_CA_KEY="$$(cat security/certs/ca.key)" \
-		-s VAULT_TOKEN="" \
-		-s VL_MINIO_ROOT_USER="" \
-		-s VL_MINIO_ROOT_PASSWORD="" \
-		-s VL_REDIS_PASSWORD=""
+	tools/ci/act-runner/act-runner.sh ci

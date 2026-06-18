@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Seed or update Vault KV entries from a path/key/value file.
+
 MODE="${1:-}"
+SEED_FILE="${2:-}"
+
+usage() {
+  echo "Usage: $0 {seed|update} <secrets-file>" >&2
+  echo "secrets-file format: '<vault-path> <key>=<value>'" >&2
+}
 
 if [ "$MODE" != "seed" ] && [ "$MODE" != "update" ]; then
-  echo "Usage: $0 {seed|update}" >&2
+  usage
   exit 1
 fi
 
-require_env() {
-  local name="$1"
-
-  if [ -z "${!name:-}" ]; then
-    echo "$name is required" >&2
-    exit 1
-  fi
-}
-
-require_env VL_MINIO_ROOT_USER
-require_env VL_MINIO_ROOT_PASSWORD
-require_env VL_REDIS_PASSWORD
+if [ -z "$SEED_FILE" ] || [ ! -f "$SEED_FILE" ]; then
+  usage
+  exit 1
+fi
 
 PF_PID=""
 
@@ -29,6 +29,22 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
+
+resolve_vault_token() {
+  if [ -z "${VAULT_ADDR:-}" ] && command -v kubectl >/dev/null 2>&1 && kubectl -n vault get secret vault-unseal-keys >/dev/null 2>&1; then
+    VAULT_TOKEN="$(kubectl -n vault get secret vault-unseal-keys -o jsonpath='{.data.vault-root}' | base64 -d)"
+    export VAULT_TOKEN
+    echo "Using Vault root token from vault-unseal-keys"
+    return 0
+  fi
+
+  if [ -z "${VAULT_TOKEN:-}" ]; then
+    echo "VAULT_TOKEN is required" >&2
+    exit 1
+  fi
+}
+
+resolve_vault_token
 
 if [ -z "${VAULT_ADDR:-}" ]; then
   export VAULT_ADDR="http://127.0.0.1:8200"
@@ -44,41 +60,70 @@ if [ -z "${VAULT_ADDR:-}" ]; then
   done
 fi
 
-export VAULT_TOKEN="${VAULT_TOKEN:?VAULT_TOKEN is required}"
+put_secret() {
+  local path="$1"
+  local key="$2"
+  local value="$3"
 
-put_if_missing() {
-  local key="$1"
-  shift
+  vault kv put "$path" "$key=$value" >/dev/null
+}
 
-  if vault kv get "$key" >/dev/null 2>&1; then
-    echo "Vault key '$key' already exists; skipping seed"
-    return 0
+verify_secret() {
+  local path="$1"
+  local key="$2"
+  local expected="$3"
+  local actual
+
+  actual="$(vault kv get -field="$key" "$path" 2>/dev/null)" || {
+    echo "Vault key '$path' is missing '$key'" >&2
+    return 1
+  }
+
+  if [ "$actual" != "$expected" ]; then
+    echo "Vault key '$path' field '$key' does not match expected value" >&2
+    return 1
   fi
 
-  vault kv put "$key" "$@"
+  echo "Vault key '$path' field '$key' matches"
 }
 
-put_update() {
-  local key="$1"
-  shift
+entries=0
 
-  vault kv put "$key" "$@"
-}
+while IFS= read -r line || [ -n "$line" ]; do
+  line="${line#"${line%%[![:space:]]*}"}"
+  line="${line%"${line##*[![:space:]]}"}"
 
-if [ "$MODE" = "seed" ]; then
-  put_if_missing secret/platform/minio \
-    rootUser="${VL_MINIO_ROOT_USER}" \
-    rootPassword="${VL_MINIO_ROOT_PASSWORD}"
+  [ -n "$line" ] || continue
+  [[ "$line" =~ ^[[:space:]]*# ]] && continue
 
-  put_if_missing secret/platform/redis \
-    redis-password="${VL_REDIS_PASSWORD}"
-else
-  put_update secret/platform/minio \
-    rootUser="${VL_MINIO_ROOT_USER}" \
-    rootPassword="${VL_MINIO_ROOT_PASSWORD}"
+  read -r secret_path pair <<< "$line"
+  key="${pair%%=*}"
+  value="${pair#*=}"
 
-  put_update secret/platform/redis \
-    redis-password="${VL_REDIS_PASSWORD}"
+  if [[ "$line" != *" "* ]] || [[ "$pair" != *"="* ]]; then
+    echo "Invalid secrets-file line: $line" >&2
+    exit 1
+  fi
+
+  if [ -z "$secret_path" ] || [ -z "$key" ] || [ -z "$value" ]; then
+    echo "Invalid secrets-file line: $line" >&2
+    exit 1
+  fi
+
+  entries=$((entries + 1))
+
+  if [ "$MODE" = "seed" ] && vault kv get "$secret_path" >/dev/null 2>&1 && vault kv get -field="$key" "$secret_path" >/dev/null 2>&1; then
+    verify_secret "$secret_path" "$key" "$value"
+    continue
+  fi
+
+  put_secret "$secret_path" "$key" "$value"
+  verify_secret "$secret_path" "$key" "$value"
+done < "$SEED_FILE"
+
+if [ "$entries" -eq 0 ]; then
+  echo "secrets-file is empty: $SEED_FILE" >&2
+  exit 1
 fi
 
 echo "Vault platform secrets are ready"

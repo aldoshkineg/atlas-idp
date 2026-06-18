@@ -30,11 +30,14 @@ runs:
       shell: bash
       working-directory: ./infra/environments/dev
       run: |
-        if ! kind get clusters 2>/dev/null | grep -q "^atlas-idp$"; then
+        mkdir -p /root/.kube
+
+        if kind get clusters 2>/dev/null | grep -q "^atlas-idp$"; then
+          echo "Kind cluster 'atlas-idp' found locally."
+          kind export kubeconfig --name atlas-idp --kubeconfig /root/.kube/kind
+        else
           echo "Kind cluster 'atlas-idp' not found locally. Removing from Terraform state."
           terraform state rm module.kind_cluster.kind_cluster.default[0] 2>/dev/null || true
-        else
-          echo "Kind cluster 'atlas-idp' found locally."
         fi
 
     - name: Terraform Plan
@@ -57,6 +60,8 @@ runs:
       env:
         KUBECONFIG: /root/.kube/kind
       run: |
+        mkdir -p /root/.kube
+        kind export kubeconfig --name atlas-idp --kubeconfig /root/.kube/kind
         kubectl cluster-info
         kubectl get nodes
 
