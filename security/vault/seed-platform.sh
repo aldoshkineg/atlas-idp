@@ -7,11 +7,11 @@ MODE="${1:-}"
 SEED_FILE="${2:-}"
 
 usage() {
-  echo "Usage: $0 {seed|update} <secrets-file>" >&2
+  echo "Usage: $0 {seed|update|verify} <secrets-file>" >&2
   echo "secrets-file format: '<vault-path> <key>=<value>'" >&2
 }
 
-if [ "$MODE" != "seed" ] && [ "$MODE" != "update" ]; then
+if [ "$MODE" != "seed" ] && [ "$MODE" != "update" ] && [ "$MODE" != "verify" ]; then
   usage
   exit 1
 fi
@@ -65,7 +65,7 @@ put_secret() {
   local key="$2"
   local value="$3"
 
-  vault kv put "$path" "$key=$value" >/dev/null
+  vault kv patch "$path" "$key=$value" >/dev/null
 }
 
 verify_secret() {
@@ -112,7 +112,7 @@ while IFS= read -r line || [ -n "$line" ]; do
 
   entries=$((entries + 1))
 
-  if [ "$MODE" = "seed" ] && vault kv get "$secret_path" >/dev/null 2>&1 && vault kv get -field="$key" "$secret_path" >/dev/null 2>&1; then
+  if [ "$MODE" = "verify" ]; then
     verify_secret "$secret_path" "$key" "$value"
     continue
   fi

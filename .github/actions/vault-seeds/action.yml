@@ -1,5 +1,5 @@
 name: Vault Seeds
-description: "Seed platform secrets into Vault and wait for dependent ArgoCD apps"
+description: "Seed platform secrets into Vault"
 
 inputs:
   vault_token:
@@ -14,14 +14,6 @@ inputs:
   vl_redis_password:
     description: "Redis password for Vault"
     required: true
-  argo_timeout:
-    description: "Timeout for each ArgoCD Application wait"
-    required: false
-    default: 900s
-  app_wait_attempts:
-    description: "Attempts to wait for ArgoCD Applications to appear"
-    required: false
-    default: "60"
 
 runs:
   using: composite
@@ -34,7 +26,9 @@ runs:
         VL_MINIO_ROOT_PASSWORD: ${{ inputs.vl_minio_root_password }}
         VL_REDIS_PASSWORD: ${{ inputs.vl_redis_password }}
       run: |
+        echo "===> Resolving Vault token..."
         export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/kind}"
+        unset VAULT_ADDR
 
         if [ -z "${VAULT_ADDR:-}" ] && kubectl -n vault get secret vault-unseal-keys >/dev/null 2>&1; then
           export VAULT_TOKEN="$(kubectl -n vault get secret vault-unseal-keys -o jsonpath='{.data.vault-root}' | base64 -d)"
@@ -49,34 +43,13 @@ runs:
         secret/platform/redis redis-password=${VL_REDIS_PASSWORD}
         EOF
 
+        echo "===> Waiting for Vault availability..."
         ./security/vault/wait-vault.sh
+        echo "===> Creating External Secrets Vault token Secret..."
         ./security/vault/bootstrap-eso-token.sh
+        echo "===> Seeding platform secrets..."
         ./security/vault/seed-platform.sh seed "$seed_file"
+        echo "===> Verifying seeded data..."
+        ./security/vault/seed-platform.sh verify "$seed_file"
         rm -f "$seed_file"
-
-    - name: Continue waiting ArgoCD apps
-      shell: bash
-      env:
-        ARGO_TIMEOUT: ${{ inputs.argo_timeout }}
-        APP_WAIT_ATTEMPTS: ${{ inputs.app_wait_attempts }}
-      run: |
-        export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/kind}"
-
-        wait_for_argocd_application() {
-          local app="$1"
-
-          for _ in $(seq 1 "${APP_WAIT_ATTEMPTS}"); do
-            if kubectl -n argocd get application "$app" >/dev/null 2>&1; then
-              kubectl -n argocd wait --for=condition=Healthy "application/$app" --timeout="${ARGO_TIMEOUT}"
-              return $?
-            fi
-            sleep 10
-          done
-
-          echo "Application '$app' was not created" >&2
-          return 1
-        }
-
-        wait_for_argocd_application external-secrets
-        wait_for_argocd_application minio
-        wait_for_argocd_application redis
+        echo "===> Vault seed complete"
