@@ -52,7 +52,7 @@ if [ -z "${VAULT_ADDR:-}" ]; then
   kubectl -n vault port-forward svc/vault 8200:8200 >/tmp/atlas-idp-vault-port-forward.log 2>&1 &
   PF_PID="$!"
 
-  for _ in $(seq 1 30); do
+  for _ in $(seq 1 10); do
     if vault status >/dev/null 2>&1; then
       break
     fi
@@ -65,7 +65,11 @@ put_secret() {
   local key="$2"
   local value="$3"
 
-  vault kv patch "$path" "$key=$value" >/dev/null
+  if vault kv get "$path" >/dev/null 2>&1; then
+    vault kv patch "$path" "$key=$value" >/dev/null
+  else
+    vault kv put "$path" "$key=$value" >/dev/null
+  fi
 }
 
 verify_secret() {

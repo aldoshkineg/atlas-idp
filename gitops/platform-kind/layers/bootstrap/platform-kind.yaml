@@ -9,6 +9,8 @@ spec:
   description: "Kind-specific platform services (networking, security, observability, storage)"
 
   destinations:
+    - namespace: "*"
+      server: https://kubernetes.default.svc
     - namespace: database
       server: https://kubernetes.default.svc
     - namespace: cert-manager

@@ -87,4 +87,16 @@ runs:
         KUBECONFIG: /root/.kube/kind
       run: |
         kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=180s
+        echo "Waiting for vault-operator to be ready..."
+        deadline=$((SECONDS + 300))
+        until [ "$(kubectl get application vault-operator -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null)" = "Synced" ] && \
+              [ "$(kubectl get application vault-operator -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null)" = "Healthy" ]; do
+          if [ $SECONDS -ge $deadline ]; then
+            echo "Timed out waiting for vault-operator" >&2
+            kubectl get applications -n argocd
+            exit 1
+          fi
+          sleep 5
+        done
+        echo "vault-operator is Synced and Healthy"
         kubectl get applications -n argocd
