@@ -1,6 +1,6 @@
 terraform {
   backend "local" {
-    path = "/var/tmp/atlas/terraform.tfstate"
+    path = "/var/tmp/atlas/terraform/terraform.tfstate"
   }
 }
 

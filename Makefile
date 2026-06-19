@@ -16,6 +16,7 @@ export
 
 # Terraform provider plugin cache
 TF_PLUGIN_CACHE_DIR ?= /var/tmp/atlas/act_cache/tf
+TF_STATE_DIR ?= /var/tmp/atlas/terraform
 
 # Local CI / Automation Directories
 LOCAL_RUNNER_DIR ?= tools/ci/local-runner
@@ -88,7 +89,7 @@ cluster-nuke:
 	@echo "--> Force deleting Kind cluster '$(CLUSTER_NAME)'..."
 	kind delete cluster --name $(CLUSTER_NAME)
 	@echo "--> Wiping local Terraform state..."
-	sudo rm -rf /var/tmp/atlas/terraform
+	sudo rm -rf $(TF_STATE_DIR)
 	@echo "--> State wiped"
 
 cluster-ci-up:
@@ -98,7 +99,7 @@ cluster-ci-down:
 	CLUSTER_NAME=$(CI_CLUSTER) ./clusters/scripts/ci-kind-down.sh
 
 infra-init:
-	mkdir -p $(TF_PLUGIN_CACHE_DIR)
+	mkdir -p $(TF_PLUGIN_CACHE_DIR) $(TF_STATE_DIR)
 	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init
 
 infra-plan:
@@ -106,7 +107,7 @@ infra-plan:
 
 infra-apply:
 	@echo "--> Running initialization in dev environment..."
-	mkdir -p $(TF_PLUGIN_CACHE_DIR)
+	mkdir -p $(TF_PLUGIN_CACHE_DIR) $(TF_STATE_DIR)
 	cd infra/environments/dev && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init
 	@echo "--> Applying infrastructure changes..."
 	cd infra/environments/dev && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform apply -auto-approve

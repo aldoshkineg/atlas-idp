@@ -65,12 +65,15 @@ run_ci() {
     exit 1
   fi
 
-  mkdir -p "$CACHE_DIR/tf" "$CACHE_DIR/home" /var/tmp/atlas
+  mkdir -p "$CACHE_DIR/tf" "$CACHE_DIR/home" /var/tmp/atlas/terraform
+
+  # Copy static zot config to host for Docker bind mount
+  cp "$REPO_ROOT/infra/modules/zot-cache/zot-config.json" /var/tmp/atlas/zot_config.json
 
   source "$REPO_ROOT/.env"
 
   act -W "$REPO_ROOT/.github/workflows/ci.yaml" \
-    --container-options "-v $CACHE_DIR/tf:/opt/terraform/plugin-cache -v $CACHE_DIR/home:/root/.cache -v /var/tmp/atlas:/var/tmp/atlas" \
+    --container-options "-v $CACHE_DIR/tf:/opt/terraform/plugin-cache -v $CACHE_DIR/home:/root -v /var/tmp/atlas/terraform:/var/tmp/atlas/terraform" \
     -s DEV_CA_CRT="$(cat "$REPO_ROOT/security/certs/ca.crt")" \
     -s DEV_CA_KEY="$(cat "$REPO_ROOT/security/certs/ca.key")" \
     -s VAULT_TOKEN="${VAULT_TOKEN:-}" \
