@@ -40,4 +40,4 @@ spec:
       backoff:
         duration: 5s
         factor: 2
-        maxDuration: 3m
+        maxDuration: 30s

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-secrets-legacy
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  note: "Legacy shim to keep the old platform-secrets Application from pruning minio and redis namespaces during the split."
