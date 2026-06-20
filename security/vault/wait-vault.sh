@@ -14,6 +14,12 @@ until kubectl get namespace vault &>/dev/null; do
   sleep 2
 done
 
+echo "Waiting for pod vault-0 in namespace vault..."
+until kubectl -n vault get pod vault-0 &>/dev/null; do
+  [ "$(remaining)" -le 0 ] && echo "Timed out waiting for vault-0 pod" >&2 && exit 1
+  sleep 2
+done
+
 kubectl -n vault wait pod/vault-0 --for=condition=Ready --timeout="$(remaining)s"
 
 kubectl -n vault exec vault-0 -c vault -- vault status -address=http://127.0.0.1:8200 >/dev/null
