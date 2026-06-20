@@ -22,7 +22,7 @@ runs:
       shell: bash
       env:
         VAULT_TOKEN: ${{ inputs.vault_token }}
-        VAULT_WAIT_TOTAL_TIMEOUT: 60
+        VAULT_WAIT_TOTAL_TIMEOUT: 180
         VL_MINIO_ROOT_USER: ${{ inputs.vl_minio_root_user }}
         VL_MINIO_ROOT_PASSWORD: ${{ inputs.vl_minio_root_password }}
         VL_REDIS_PASSWORD: ${{ inputs.vl_redis_password }}
