@@ -24,10 +24,4 @@ kubectl -n vault wait pod/vault-0 --for=condition=Ready --timeout="$(remaining)s
 
 kubectl -n vault exec vault-0 -c vault -- vault status -address=http://127.0.0.1:8200 >/dev/null
 
-echo "Waiting for KV engine at secret/ to be enabled..."
-until kubectl -n vault exec vault-0 -c vault -- vault secrets list -address=http://127.0.0.1:8200 -format=json 2>/dev/null | grep -q '"secret/"'; do
-  [ "$(remaining)" -le 0 ] && echo "Timed out waiting for KV engine" >&2 && exit 1
-  sleep 2
-done
-
 echo "Vault API is ready"
