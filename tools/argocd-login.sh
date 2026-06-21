@@ -2,6 +2,8 @@
 
 set -eo pipefail
 
+kind export kubeconfig --name atlas-idp
+
 ARGOCD_SERVER="argocd.atlas"
 ARGOCD_USER="admin"
 SECRET_NAME="argocd-initial-admin-secret"
