@@ -2,7 +2,11 @@
 
 set -eo pipefail
 
-kind export kubeconfig --name atlas-idp
+echo "==> Exporting kind cluster kubeconfig..."
+if ! kind export kubeconfig --name atlas-idp &>/dev/null; then
+    echo "❌ Error: kind cluster 'atlas-idp' not found or not running." >&2
+    exit 1
+fi
 
 ARGOCD_SERVER="argocd.atlas"
 ARGOCD_USER="admin"
