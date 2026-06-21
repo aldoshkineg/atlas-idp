@@ -15,8 +15,10 @@ fail() { FAIL=$((FAIL+1)); echo "  FAIL: $1"; }
 
 cleanup() {
   echo "=== Cleanup ==="
-  velero restore delete --confirm "$RESTORE_NAME" 2>/dev/null || true
-  velero backup delete --confirm "$BACKUP_NAME" 2>/dev/null || true
+  # Delete restore only if it exists
+  velero restore get "$RESTORE_NAME" >/dev/null 2>&1 && velero restore delete --confirm "$RESTORE_NAME" 2>/dev/null || true
+  # Delete backup only if it exists and is complete
+  velero backup get "$BACKUP_NAME" >/dev/null 2>&1 && velero backup delete --confirm "$BACKUP_NAME" 2>/dev/null || true
   kubectl delete pod -n "$NS" -l "$LABEL" --ignore-not-found --wait=false 2>/dev/null || true
   kubectl delete pvc -n "$NS" -l "$LABEL" --ignore-not-found --wait=false 2>/dev/null || true
   kubectl delete sc csi-hostpath-sc --ignore-not-found 2>/dev/null || true
@@ -64,7 +66,7 @@ fi
 
 echo "=== Verify backup in MinIO ==="
 MC_OUTPUT=$(kubectl exec -n minio deploy/minio -- sh -c "
-  mc alias set local http://127.0.0.1:9000 minioadmin minioadminpassword > /dev/null 2>&1
+  mc alias set local http://127.0.0.1:9000 $$VL_MINIO_ROOT_USER $$VL_MINIO_ROOT_PASSWORD > /dev/null 2>&1
   mc ls local/k8s-velero-backups/ --recursive
 " 2>&1)
 echo "$MC_OUTPUT" | grep -q "$BACKUP_NAME" && {
