@@ -2,6 +2,9 @@
 set -euo pipefail
 
 # Wait until the local Kind Vault instance is ready for seeding.
+# Usage: ./wait-vault.sh
+# Called automatically by CI (.github/actions/vault-seeds) before seeding.
+# Requires: kubectl, a running kind cluster with Vault CR applied.
 
 VAULT_WAIT_TOTAL_TIMEOUT="${VAULT_WAIT_TOTAL_TIMEOUT:-60}"
 deadline=$((SECONDS + VAULT_WAIT_TOTAL_TIMEOUT))

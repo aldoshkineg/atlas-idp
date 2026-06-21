@@ -12,6 +12,12 @@ set -euo pipefail
 #
 # Automatically resolves VAULT_TOKEN from the cluster secret vault-unseal-keys
 # if VAULT_ADDR is not set. Port-forwards to vault service if needed.
+# Usage:
+#   ./seed-platform.sh seed /path/to/secrets-file
+#   ./seed-platform.sh verify /path/to/secrets-file
+# Secrets file format:
+#   secret/platform/myapp  key1=value1
+#   secret/platform/myapp  key2=value2
 
 MODE="${1:-}"
 SEED_FILE="${2:-}"

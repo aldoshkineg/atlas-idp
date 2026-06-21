@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Upload .env variables (VL_*) to GitHub Secrets via gh CLI.
+# Usage:
+#   ENV_FILE=.env GH_REPO=owner/repo ./gh-seeds.sh
+#   GH_REPO=owner/repo ./gh-seeds.sh          # uses repo-root .env by default
+# Requires: gh CLI, authenticated GitHub session.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 ENV_FILE="${ENV_FILE:-${REPO_ROOT}/.env}"
@@ -11,10 +17,10 @@ usage() {
 Usage: ENV_FILE=/path/to/.env [GH_REPO=owner/repo] $0
 
 Loads required GitHub Secrets from an env file and uploads them with gh:
-  VAULT_TOKEN
   VL_MINIO_ROOT_USER
   VL_MINIO_ROOT_PASSWORD
   VL_REDIS_PASSWORD
+  VL_GRAFANA_PASSWORD
 USAGE
 }
 
@@ -30,7 +36,6 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 required_secrets=(
-  VAULT_TOKEN
   VL_MINIO_ROOT_USER
   VL_MINIO_ROOT_PASSWORD
   VL_REDIS_PASSWORD

@@ -2,6 +2,10 @@
 set -euo pipefail
 
 # Create the Kubernetes Secret consumed by External Secrets Operator.
+# Usage: ./bootstrap-eso-token.sh
+# Called automatically by CI (.github/actions/vault-seeds).
+# Creates external-secrets/vault-token from the in-cluster vault-unseal-keys.
+# Requires: kubectl, Vault pod running and unsealed.
 
 resolve_vault_token() {
   if [ -z "${VAULT_ADDR:-}" ] && command -v kubectl >/dev/null 2>&1 && kubectl -n vault get secret vault-unseal-keys >/dev/null 2>&1; then

@@ -1,7 +1,7 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
-	argocd-login vault-seed vault-update-platform github-secrets-ca seed-ca \
+	argocd-login vault-seed vault-seed-from-env github-secrets-ca seed-ca \
 	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-undeploy \
 	act-build act-ci
 
@@ -123,23 +123,13 @@ argocd-login:
 	./tools/argocd-login.sh
 
 # --- Vault ---
+# Read vault-path / key=value from stdin (or file), seed into Vault, verify
 vault-seed:
 	./security/vault/seed-platform.sh seed
 
+# Read mapping + .env, resolve env vars, seed into Vault via port-forward
 vault-seed-from-env:
-	@set -a; . .env 2>/dev/null || true; set +a; \
-	seed_file="$$(mktemp)"; \
-	trap 'rm -f "$$seed_file"' EXIT; \
-	printf '%s\n' \
-		"secret/platform/minio rootUser=$${VL_MINIO_ROOT_USER?}" \
-		"secret/platform/minio rootPassword=$${VL_MINIO_ROOT_PASSWORD?}" \
-		"secret/platform/redis redis-password=$${VL_REDIS_PASSWORD?}" \
-		"secret/platform/grafana admin-password=$${VL_GRAFANA_PASSWORD?}" \
-		> "$$seed_file"; \
-	./security/vault/seed-platform.sh seed "$$seed_file"
-
-vault-update-platform:
-	./security/vault/update-platform.sh update
+	@unset VAULT_ADDR; ./security/vault/seed-from-env.sh
 
 # --- Tests ---
 test-ca-gateway:
