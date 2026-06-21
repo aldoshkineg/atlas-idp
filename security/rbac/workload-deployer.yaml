@@ -60,7 +60,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: workload-deployer
-  namespace: cronjob # kept for legacy; unused
+  namespace: cronjob
   labels:
     app.kubernetes.io/component: rbac
     app.kubernetes.io/part-of: atlas-idp
