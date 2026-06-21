@@ -97,31 +97,6 @@ locals {
           depth = "1"
         }
       } : {}
-      cm = {
-        "resource.customizations.health.external-secrets.io_ExternalSecret" = <<-EOT
-          hs = {}
-          if obj.status ~= nil and obj.status.conditions ~= nil then
-            for i, condition in ipairs(obj.status.conditions) do
-              if condition.type == "Ready" then
-                if condition.status == "True" then
-                  hs.status = "Healthy"
-                  hs.message = condition.message or "synced"
-                elseif condition.status == "False" then
-                  hs.status = "Degraded"
-                  hs.message = condition.message or "sync error"
-                else
-                  hs.status = "Progressing"
-                  hs.message = condition.message or "unknown"
-                end
-                return hs
-              end
-            end
-          end
-          hs.status = "Progressing"
-          hs.message = "waiting for sync"
-          return hs
-        EOT
-      }
     }
   }
 }

@@ -33,5 +33,7 @@ runs:
 
         echo "===> Waiting for Vault availability..."
         ./security/vault/wait-vault.sh
+        echo "===> Creating External Secrets Vault token Secret..."
+        ./security/vault/bootstrap-eso-token.sh
         echo "===> Seeding platform secrets..."
         ./security/vault/seed-from-env.sh
