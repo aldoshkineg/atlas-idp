@@ -29,6 +29,7 @@ prometheus:
         spec:
           accessModes:
             - ReadWriteOnce
+          storageClassName: csi-hostpath-sc
           resources:
             requests:
               storage: 1Gi
@@ -102,6 +103,7 @@ alertmanager:
         spec:
           accessModes:
             - ReadWriteOnce
+          storageClassName: csi-hostpath-sc
           resources:
             requests:
               storage: 256Mi

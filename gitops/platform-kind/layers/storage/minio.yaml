@@ -27,6 +27,7 @@ spec:
           persistence:
             enabled: true
             size: 1Gi
+            storageClass: csi-hostpath-sc
           buckets:
             - name: k8s-velero-backups
               policy: none
