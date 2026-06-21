@@ -8,6 +8,7 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: PruneLast=true
   labels:
     app.kubernetes.io/component: platform
     app.kubernetes.io/layer: networking

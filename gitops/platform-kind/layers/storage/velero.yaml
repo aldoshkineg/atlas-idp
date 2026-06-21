@@ -44,14 +44,8 @@ spec:
               config:
                 region: minio
         credentials:
-          # DEV-ONLY: hardcoded credentials for kind cluster.
-          # Use Vault or external-secrets for production.
           useSecret: true
-          secretContents:
-            cloud: |
-              [default]
-              aws_access_key_id = minioadmin
-              aws_secret_access_key = minioadminpassword
+          existingSecret: velero-aws
         deployNodeAgent: false
   destination:
     server: https://kubernetes.default.svc

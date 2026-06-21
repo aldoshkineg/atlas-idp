@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: keda
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: "8"
 spec:
@@ -63,7 +65,7 @@ spec:
           seccompProfile:
             type: RuntimeDefault
 
-        enableClusterAapiAuthV1beta1: true
+        enableClusterAPIAuthV1beta1: true
 
         logging:
           operator:
@@ -90,3 +92,10 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

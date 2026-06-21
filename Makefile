@@ -126,6 +126,18 @@ argocd-login:
 vault-seed:
 	./security/vault/seed-platform.sh seed
 
+vault-seed-from-env:
+	@set -a; . .env 2>/dev/null || true; set +a; \
+	seed_file="$$(mktemp)"; \
+	trap 'rm -f "$$seed_file"' EXIT; \
+	printf '%s\n' \
+		"secret/platform/minio rootUser=$${VL_MINIO_ROOT_USER?}" \
+		"secret/platform/minio rootPassword=$${VL_MINIO_ROOT_PASSWORD?}" \
+		"secret/platform/redis redis-password=$${VL_REDIS_PASSWORD?}" \
+		"secret/platform/grafana admin-password=$${VL_GRAFANA_PASSWORD?}" \
+		> "$$seed_file"; \
+	./security/vault/seed-platform.sh seed "$$seed_file"
+
 vault-update-platform:
 	./security/vault/update-platform.sh update
 

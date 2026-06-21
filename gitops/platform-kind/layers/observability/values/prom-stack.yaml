@@ -37,7 +37,8 @@ prometheus:
 # Grafana configuration
 grafana:
   enabled: true
-  adminPassword: admin
+  admin:
+    existingSecret: grafana-admin
   service:
     type: NodePort
     nodePort: 30300
@@ -55,7 +56,7 @@ grafana:
   persistence:
     enabled: true
     type: pvc
-    storageClassName: standard
+    storageClassName: csi-hostpath-sc
     accessModes:
       - ReadWriteOnce
     size: 1Gi

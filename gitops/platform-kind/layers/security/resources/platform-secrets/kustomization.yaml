@@ -4,3 +4,6 @@ kind: Kustomization
 resources:
   - minio-external-secret.yaml
   - redis-external-secret.yaml
+  - db-backup-external-secret.yaml
+  - grafana-external-secret.yaml
+  - velero-external-secret.yaml

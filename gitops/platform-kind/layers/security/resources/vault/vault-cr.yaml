@@ -24,7 +24,7 @@ spec:
     ui: true
 
   # Bank-Vaults sidecar image
-  bankVaultsImage: ghcr.io/bank-vaults/bank-vaults:latest
+  bankVaultsImage: ghcr.io/bank-vaults/bank-vaults:v1.33.1
 
   # Store unseal keys in a Kubernetes secret
   unsealConfig:
@@ -40,7 +40,7 @@ spec:
     - metadata:
         name: vault-file
       spec:
-        storageClassName: standard
+        storageClassName: csi-hostpath-sc
         accessModes:
           - ReadWriteOnce
         resources:

@@ -15,10 +15,18 @@ fail() { FAIL=$((FAIL+1)); echo "  FAIL: $1"; }
 cleanup() { :; }
 trap cleanup EXIT
 
+echo "=== Read MinIO credentials from cluster ==="
+MINIO_ROOT_USER=$(kubectl -n minio get secret minio-auth -o jsonpath='{.data.rootUser}' 2>/dev/null | base64 -d)
+MINIO_ROOT_PASSWORD=$(kubectl -n minio get secret minio-auth -o jsonpath='{.data.rootPassword}' 2>/dev/null | base64 -d)
+if [ -z "$MINIO_ROOT_USER" ] || [ -z "$MINIO_ROOT_PASSWORD" ]; then
+  fail "MinIO secret minio-auth not found in namespace minio"
+  exit 1
+fi
+
 echo "=== Clean MinIO bucket (remove stale data from previous runs) ==="
 MINIO_POD=$(kubectl get pod -n minio -l app=minio -o name 2>/dev/null | head -1)
 if [ -n "$MINIO_POD" ]; then
-  kubectl exec -n minio "$MINIO_POD" -- mc alias set myminio http://localhost:9000 minioadmin minioadminpassword > /dev/null 2>&1
+  kubectl exec -n minio "$MINIO_POD" -- mc alias set myminio http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" > /dev/null 2>&1
   kubectl exec -n minio "$MINIO_POD" -- sh -c 'mc rb --force myminio/cnpg-backups 2>/dev/null; mc mb myminio/cnpg-backups' > /dev/null 2>&1
   ok "MinIO bucket cnpg-backups cleaned"
 else
@@ -27,7 +35,9 @@ fi
 
 echo "=== Deploy test resources ==="
 kubectl apply -f tests/db-backup/namespace.yaml
-kubectl apply -f tests/db-backup/backup-secret.yaml
+kubectl create secret generic backup-creds -n "db-backup-test" \
+  --from-literal=ACCESS_KEY_ID="$MINIO_ROOT_USER" \
+  --from-literal=ACCESS_SECRET_KEY="$MINIO_ROOT_PASSWORD"
 kubectl apply -f tests/db-backup/objectstore.yaml
 
 echo "=== Deploy source cluster: $CLUSTER_SRC ==="

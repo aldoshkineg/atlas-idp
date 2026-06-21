@@ -2,6 +2,16 @@
 set -euo pipefail
 
 # Seed or update Vault KV entries from a path/key/value file.
+#
+# Reads a secrets file in format: '<vault-path> <key>=<value>'
+# For each line it writes/patches the key in Vault KV at the given path.
+# Modes:
+#   seed   — create or update entries, then verify
+#   update — same as seed (patch existing or create new)
+#   verify — check that stored values match the file
+#
+# Automatically resolves VAULT_TOKEN from the cluster secret vault-unseal-keys
+# if VAULT_ADDR is not set. Port-forwards to vault service if needed.
 
 MODE="${1:-}"
 SEED_FILE="${2:-}"

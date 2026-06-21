@@ -8,7 +8,7 @@ singleBinary:
       whenUnsatisfiable: ScheduleAnyway
   persistence:
     enabled: true
-    storageClass: standard
+    storageClass: csi-hostpath-sc
     size: 1Gi
 
 backend:
