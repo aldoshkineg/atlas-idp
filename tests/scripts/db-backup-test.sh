@@ -35,9 +35,10 @@ fi
 
 echo "=== Deploy test resources ==="
 kubectl apply -f tests/db-backup/namespace.yaml
-kubectl create secret generic backup-creds -n "db-backup-test" \
+kubectl create secret generic backup-creds -n "$NS" \
   --from-literal=ACCESS_KEY_ID="$MINIO_ROOT_USER" \
-  --from-literal=ACCESS_SECRET_KEY="$MINIO_ROOT_PASSWORD"
+  --from-literal=ACCESS_SECRET_KEY="$MINIO_ROOT_PASSWORD" \
+  --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f tests/db-backup/objectstore.yaml
 
 echo "=== Deploy source cluster: $CLUSTER_SRC ==="
@@ -61,6 +62,7 @@ fi
 
 kubectl exec -n "$NS" "$PRIMARY" -- psql -U postgres -c "
   CREATE TABLE IF NOT EXISTS backup_test (id serial primary key, val text);
+  TRUNCATE backup_test RESTART IDENTITY;
   INSERT INTO backup_test (val) SELECT 'row-' || generate_series FROM generate_series(1, 100);
 " > /dev/null 2>&1 && {
   ok "Inserted 100 rows"

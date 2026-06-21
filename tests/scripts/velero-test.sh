@@ -66,8 +66,8 @@ fi
 
 echo "=== Verify backup in MinIO ==="
 MC_OUTPUT=$(kubectl exec -n minio deploy/minio -- sh -c "
-  mc alias set local http://127.0.0.1:9000 $$VL_MINIO_ROOT_USER $$VL_MINIO_ROOT_PASSWORD > /dev/null 2>&1
-  mc ls local/k8s-velero-backups/ --recursive
+  mc alias set local http://127.0.0.1:9000 \$MINIO_ROOT_USER \$MINIO_ROOT_PASSWORD > /dev/null 2>&1
+  mc ls local/k8s-velero-backups/backups/
 " 2>&1)
 echo "$MC_OUTPUT" | grep -q "$BACKUP_NAME" && {
   ok "Backup data found in MinIO bucket"

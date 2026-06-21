@@ -14,13 +14,5 @@ spec:
         app: keda-fast-test
     spec:
       containers:
-        - name: alpine
-          image: alpine:3.19
-          command: ["sleep", "infinity"]
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 50m
-              memory: 32Mi
+        - name: pause
+          image: registry.k8s.io/pause:3.10

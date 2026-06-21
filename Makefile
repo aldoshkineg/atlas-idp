@@ -138,13 +138,16 @@ test-ca-gateway:
 test-vault:
 	./tests/scripts/vault-test.sh
 
-test: test-ca-gateway test-vault test-network-policy test-velero test-keda test-db-backup test-seal
+test: test-ca-gateway test-vault test-network-policy test-velero test-keda test-redis test-db-backup
 
 test-velero:
 	./tests/scripts/velero-test.sh
 
 test-keda:
 	./tests/scripts/keda-test.sh
+
+test-redis:
+	./tests/scripts/redis-test.sh
 
 test-network-policy:
 	./tests/scripts/network-policy-test.sh
