@@ -1,19 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {{APP}}-infra
+  name: {{APP}}
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "90"
-    argocd.argoproj.io/depends-on: cloudnativepg-operator, cloudnativepg-barman-plugin, minio
+    argocd.argoproj.io/sync-wave: "100"
 spec:
   project: workloads
   source:
-    repoURL: https://github.com/aldoshkineg/atlas-idp.git
-    targetRevision: main
-    path: workloads/{{GROUP}}/{{APP}}
-  directory:
-    recurse: true
+    repoURL: {{REPO_URL}}
+    targetRevision: HEAD
+    path: {{REPO_PATH}}
+    {{REPO_HELM_SETTINGS}}
   destination:
     server: https://kubernetes.default.svc
     namespace: {{NAMESPACE}}

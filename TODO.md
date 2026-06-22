@@ -1,7 +1,5 @@
 # Atlas IDP — Implementation Roadmap
 
-> **Legend:** `[x]` Done · `[ ]` Planned · `[~]` In Progress / Blocked
-
 ---
 
 ## Phase 0 — Repository & Tooling Baseline
@@ -28,15 +26,12 @@
   - [x] Zot cache registry support via containerd config patch (`enable_zot_cache = true`)
   - [x] Outputs: endpoint, ca_cert, client_cert, client_key, kubeconfig_path
 - [x] `infra/environments/dev/main.tf` — active dev environment wires kind module
-- [x] `infra/environments/aws/` — stub + README (EKS planned)
-- [x] AWS module stubs scaffolded: networking, iam, storage, addons, observability
 - [x] `infra/modules/argocd-bootstrap/` — complete Terraform module (Day-0 Helm install)
   - [x] `main.tf`: `helm_release "argocd"` with proper values (NodePort, repo creds)
   - [x] `variables.tf`: kube credentials, argocd_version, repo_url, namespace
   - [x] `versions.tf`: helm ~> 2.14, kubernetes ~> 2.33
 - [x] Wire `module "argocd_bootstrap"` into `infra/environments/dev/main.tf`
 - [x] Wire `null_resource "argocd_root_app"` into `infra/environments/dev/main.tf`
-- [x] Terraform remote state (S3 backend stub for aws env)
 
 ---
 
@@ -121,7 +116,7 @@
   - [x] PodMonitor for Prometheus scrapes metrics (9187), verified `health=up`
   - [x] CNPG Grafana dashboard added via `gnetId: 20417`
   - [x] Backup/restore test: 7/7 PASS (source → backup → recovery → verify 100 rows)
-  - [ ] Switch backup secrets to Vault (`vault/` policies + external-secrets operator to sync k8s Secret)
+  - [x] Switch backup secrets to Vault (`vault/` policies + external-secrets operator to sync k8s Secret)
 
 ### Base
 
@@ -157,7 +152,6 @@
 - [x] Argo CD bootstrap verification step
 - [x] `security.yml` — Trivy image scan on `apps/**` changes
 - [x] `clusters/kind/ci/act-runner/Dockerfile` + `.actrc` + Makefile targets for local CI execution via act
-- [ ] Add `workflow_dispatch` inputs to `ci.yaml`: `action: apply|destroy`, `environment: dev|staging`
 
 ---
 
@@ -176,34 +170,9 @@
 
 ---
 
-## Phase 7 — Workloads Layer (text2pdf Platform)
-
-- [x] App scaffolds exist (`apps/`, `gitops/workloads/layers/`)
-- [ ] **Shared Stateful Backends**
-  - [x] **CloudNativePG 17.6:** Operator 1.29.1, cluster `production-db` (1 instance, csi-hostpath-sc). ScheduledBackup (weekly, WAL archiving via barman-cloud plugin, MinIO `cnpg-backups`). PodMonitor for Prometheus. PG credentials in Vault pending.
-  - [x] **Redis (Bitnami 24.0.8):** Deployed (standalone, persistence 256Mi csi-hostpath-sc, probes, PDB, ServiceMonitor, `redis-exporter` built-in). `[ ]` Enable AOF persistence for queue stability.
-  - [ ] **MinIO:** Create S3 buckets (`text2pdf-inputs`/`outputs`) and setup a 7-day auto-purge lifecycle policy
-- [ ] **backend-api (Go 1.24)**
-  - [ ] Multi-stage non-root Dockerfile, Helm chart, Deployment, Service, HPA, PDB
-  - [ ] REST endpoints (accept `.txt`, upload to MinIO, write metadata to PG, push task ID to Redis)
-  - [ ] Liveness / Readiness / Startup probes, custom `/metrics` and `/healthz` endpoints
-- [ ] **worker (Go 1.24)**
-  - [ ] Queue consumer loop (`BLPOP`), PDF generation (`gofpdf`), state updates in Postgres
-  - [ ] Implement robust Graceful Shutdown to prevent raw process termination during generation
-  - [ ] Apply `topologySpreadConstraints` and expose `/metrics` endpoint
-- [ ] **frontend (Go + HTMX)**
-  - [ ] HTML form with HTMX polling, status updates, PDF download link
-  - [ ] Route traffic using Gateway API `HTTPRoute` resources (bind frontend to `/`, API to `/api`)
-- [ ] **Autoscaling (KEDA)**
-  - [ ] Deploy KEDA `ScaledObject` pointing to the worker deployment triggered by Redis queue length
-  - [ ] Configure **scale-to-zero** (shrink worker pool to 0 replicas when idle) and test scaling thresholds
-- [ ] **GitOps Delivery Pipeline**
-  - [ ] GHA workflows to build all three images, run `helm lint` validation, scan via Trivy, and push to Zot
-  - [ ] Implement automatic image tag updates in the GitOps repo triggering automated ArgoCD sync
-
 ---
 
-## Phase 8 — Disaster Recovery (Velero)
+## Phase 7 — Disaster Recovery (Velero)
 
 - [x] Velero deployed via Argo CD (`gitops/platform-kind/layers/storage/velero.yaml`)
 - [x] Backup storage: MinIO (`http://minio.minio.svc.cluster.local:9000`)
@@ -216,7 +185,7 @@
 
 ---
 
-## Phase 9 — Advanced Application Observability & Tracing
+## Phase 8 — Advanced Application Observability & Tracing
 
 - [ ] **Distributed Tracing Stack**
   - [ ] Deploy **Grafana Tempo** inside the cluster via ArgoCD
@@ -231,11 +200,8 @@
 
 ---
 
-## Phase 10 — Progressive Delivery & Service Mesh
+## Phase 9 — Progressive Delivery
 
-- [ ] **Service Mesh (Linkerd)**
-  - [ ] Deploy Linkerd and inject sidecar proxies across the `workloads` namespace
-  - [ ] Verify zero-config mutual TLS (mTLS) for all internal communication and visualize service topologies
 - [ ] **Progressive Delivery (Argo Rollouts)**
   - [ ] Install Argo Rollouts controller and refactor the `backend-api` deployment into a `Rollout` CRD
   - [ ] Configure a Canary deployment strategy (route 10% traffic to new version, validate via Prometheus metrics, auto-rollback on error spikes)
@@ -244,7 +210,7 @@
 
 ---
 
-## Phase 11 — Developer Experience, Golden Paths & AWS Readiness
+## Phase 10 — Developer Experience & Documentation
 
 - [ ] **Developer Tooling & Golden Path**
   - [ ] Create standardized Go app service and Helm chart templates
@@ -263,36 +229,5 @@
   - [ ] Create `docs/adr/ADR-002-vault-integration.md`
   - [ ] Create `docs/adr/ADR-003-keda-adoption.md`
   - [ ] Create `docs/adr/ADR-004-object-storage-design.md`
-- [ ] **AWS / EKS Readiness Plan**
-  - [ ] EKS module (`infra/modules/eks/`) and IRSA roles module (`infra/modules/iam/`)
-  - [ ] S3 Terraform remote state backend
-  - [ ] Document the local-kind to AWS migration path (maintaining identical GitOps layers)
 
 ---
-
-## Known Issues
-
-- [x] `vault-secrets-webhook` HPA broken — Fixed: added missing `resources.requests.cpu` in container
-- [x] Pod distribution — Fixed: added topologySpreadConstraints to prometheus, grafana, alertmanager, loki
-- [x] `vault-secrets-webhook` MWC CA bundle drift — Fixed: restored ignoreDifferences
-- [x] Bitnami PostgreSQL → CloudNativePG migration — tested backup/restore 7/7 PASS
-- [x] CNPG recovery deprecated `barmanObjectStore` → plugin-based recovery
-
-## Cluster Health
-
-- 3 nodes, all Ready
-- 20 ArgoCD apps, all Synced/Healthy
-- ✅ CNPG backup/restore test: 7/7 PASS (source → backup → recovery → 100 rows verified)
-- ✅ Prometheus scrapes CNPG metrics (`database/production-db` health=up)
-- ⚠️ Orphaned `VolumeSnapshotContent` objects (~10) after snapshot cleanup — no functional impact but noisy `SnapshotDeleteError` events
-
-## Next Sprint Focus
-
-```
-1. [x] Phase 4/Data — separate project database with scheduled backup via CNPG plugin
-2. [ ] Phase 6 — Network Policies: deny-all default per namespace, allow ingress + monitoring
-3. [ ] Phase 6 — ResourceQuota + LimitRange for workloads pool
-4. [x] Phase 7 — Redis deployed (Bitnami, standalone, metrics); [ ] MinIO buckets + lifecycle
-5. [ ] Phase 7 — Deploy KEDA ScaledObject for worker autoscaling (KEDA already installed)
-6. [ ] Phase 4/Data — Vault secret injection for PostgreSQL
-```
