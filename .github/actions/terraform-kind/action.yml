@@ -87,4 +87,33 @@ runs:
         KUBECONFIG: /root/.kube/kind
       run: |
         kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=180s
+
+        echo "=== Waiting for root-app sync (budget 180s) ==="
+        kubectl wait --for=condition=available deployment/argocd-repo-server -n argocd --timeout=120s
+
+        for i in $(seq 1 30); do
+          ERROR=$(kubectl get application root-app -n argocd \
+            -o jsonpath='{.status.conditions[?(@.type=="ComparisonError")].message}' 2>/dev/null)
+          SYNC=$(kubectl get application root-app -n argocd \
+            -o jsonpath='{.status.sync.status}' 2>/dev/null)
+          echo "[$i] sync-status=$SYNC"
+
+          if [ -n "$SYNC" ] && [ -z "$ERROR" ]; then
+            echo "root-app synced successfully"
+            break
+          fi
+
+          if [ -n "$ERROR" ]; then
+            echo "ComparisonError — triggering hard refresh..."
+            kubectl patch application root-app -n argocd --type merge \
+              -p '{"metadata":{"annotations":{"argocd.argoproj.io/refresh":"hard"}}}'
+          fi
+
+          if [ "$i" -eq 30 ]; then
+            echo "TIMEOUT waiting for root-app sync"
+            kubectl describe application root-app -n argocd
+            exit 1
+          fi
+          sleep 6
+        done
         kubectl get applications -n argocd

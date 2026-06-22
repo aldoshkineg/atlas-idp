@@ -7,7 +7,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "90"
     argocd.argoproj.io/depends-on: postgres-cluster,redis,minio,cert-manager
 spec:
-  project: workloads
+  project: platform-kind
   sources:
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: HEAD
