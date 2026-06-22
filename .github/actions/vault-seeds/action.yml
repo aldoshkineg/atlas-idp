@@ -29,9 +29,9 @@ runs:
       run: |
         unset VAULT_ADDR
         export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/kind}"
-        export VAULT_TOKEN="$(kubectl -n vault get secret vault-unseal-keys -o jsonpath='{.data.vault-root}' | base64 -d)"
 
         echo "===> Waiting for Vault availability..."
         ./security/vault/wait-vault.sh
+        export VAULT_TOKEN="$(kubectl -n vault get secret vault-unseal-keys -o jsonpath='{.data.vault-root}' | base64 -d)"
         echo "===> Seeding platform secrets..."
         ./security/vault/seed-from-env.sh
