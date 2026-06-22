@@ -2,12 +2,12 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: seal-alerts
-  namespace: seal
+  namespace: atlas-team-seal
 spec:
   groups:
     - name: seal
       rules:
-        - alert: SEAL_HighErrorRate
+        - alert: ATLAS-TEAM_SEAL_HighErrorRate
           expr: |
             rate(http_requests_total{app="seal", status=~"5.."}[5m]) /
             rate(http_requests_total{app="seal"}[5m]) > 0.05
@@ -15,5 +15,5 @@ spec:
           labels:
             severity: warning
           annotations:
-            summary: "High error rate on Seal API"
+            summary: "High error rate on seal"
             description: "Error rate > 5% for 5 minutes"

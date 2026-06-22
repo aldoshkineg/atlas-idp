@@ -2,7 +2,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: seal
-  namespace: seal
+  namespace: atlas-team-seal
 spec:
   selector:
     matchLabels:
@@ -13,4 +13,4 @@ spec:
       scrapeTimeout: 10s
   namespaceSelector:
     matchNames:
-      - seal
+      - atlas-team-seal

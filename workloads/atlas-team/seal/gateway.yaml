@@ -1,0 +1,29 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: seal-route
+  namespace: atlas-team-seal
+spec:
+  parentRefs:
+    - name: platform-gateway
+      namespace: nginx-gateway-fabric
+      sectionName: https-seal
+  hostnames:
+    - seal.atlas
+  rules:
+    - backendRefs:
+        - name: seal
+          port: 80
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: seal-cert
+  namespace: atlas-team-seal
+spec:
+  secretName: seal-tls
+  issuerRef:
+    name: atlas-ca-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - seal.atlas
