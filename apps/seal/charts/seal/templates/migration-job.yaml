@@ -4,7 +4,8 @@ kind: Job
 metadata:
   name: seal-migration
   annotations:
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "0"
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
   labels: {{- include "seal.labels" (dict "name" "seal-api") | nindent 4 }}
 spec:
