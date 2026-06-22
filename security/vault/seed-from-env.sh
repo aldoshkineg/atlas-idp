@@ -59,10 +59,4 @@ else
   echo "Warning: platform mapping not found: $PLATFORM_MAPPING (skipping)"
 fi
 
-# Auto-discover workload seed mappings
-while IFS= read -r -d '' mapping; do
-  echo "Processing workload mapping: $mapping"
-  process_mapping "$mapping"
-done < <(find "${ROOT_DIR}/workloads" -name 'seed-mapping.conf' -print0 2>/dev/null || true)
-
 exec "$SCRIPT_DIR/seed-platform.sh" seed "$seed_file"
