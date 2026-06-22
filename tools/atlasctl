@@ -229,8 +229,8 @@ cmd_new() {
   [ -z "$GROUP" ] && die "--group is required"
   [ -z "$REPO_URL" ] && die "--repo is required"
 
-  APP_UC="$(echo "$APP" | tr '[:lower:]' '[:upper:]')"
-  GROUP_UC="$(echo "$GROUP" | tr '[:lower:]' '[:upper:]')"
+  APP_UC="$(echo "$APP" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+  GROUP_UC="$(echo "$GROUP" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
   [ -z "$NAMESPACE" ] && NAMESPACE="${GROUP}-${APP}"
   [ -z "$SERVICE_ACCOUNTS" ] && SERVICE_ACCOUNTS="$APP"
 
@@ -360,7 +360,9 @@ cmd_seed() {
   [ "$GROUP" = "$APP" ] && die "Invalid format. Use: <group>/<app>"
 
   local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
-  local PREFIX="VL_${GROUP^^}_${APP^^}"
+  local GROUP_SAFE="${GROUP//-/_}"
+  local APP_SAFE="${APP//-/_}"
+  local PREFIX="VL_${GROUP_SAFE^^}_${APP_SAFE^^}"
 
   if [ "$FORCE" != "true" ]; then
     [ ! -d "$WORKLOAD_DIR" ] && die "Workload not found: $WORKLOAD_DIR"

@@ -7,7 +7,7 @@ spec:
   groups:
     - name: seal
       rules:
-        - alert: ATLAS-TEAM_SEAL_HighErrorRate
+        - alert: ATLAS_TEAM_SEAL_HighErrorRate
           expr: |
             rate(http_requests_total{app="seal", status=~"5.."}[5m]) /
             rate(http_requests_total{app="seal"}[5m]) > 0.05
