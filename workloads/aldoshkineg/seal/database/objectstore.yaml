@@ -1,0 +1,20 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: seal-db-backup
+  namespace: seal
+spec:
+  configuration:
+    destinationPath: s3://cnpg-backups/
+    endpointURL: http://minio.minio.svc.cluster.local:9000
+    s3Credentials:
+      accessKeyId:
+        key: ACCESS_KEY_ID
+        name: seal-db-backup
+      secretAccessKey:
+        key: ACCESS_SECRET_KEY
+        name: seal-db-backup
+    wal:
+      compression: gzip
+      maxParallel: 2
+  retentionPolicy: 7d

@@ -2,6 +2,7 @@
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
 	argocd-login vault-seed vault-seed-from-env github-secrets-ca seed-ca \
+	atlasctl atlasctl-seed atlasctl-list \
 	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-undeploy \
 	act-build act-ci
 
@@ -64,6 +65,11 @@ help:
 	@echo "  test-db-backup       Test CNPG backup/restore to MinIO"
 	@echo "  test-seal            Test Seal deployment (pods, API, documents, gateway)"
 	@echo "  test-undeploy    Remove all test resources"
+	@echo ""
+	@echo "Atlas Workload Management:"
+	@echo "  atlasctl-new    Scaffold a new workload (golden path)"
+	@echo "  atlasctl-seed   Seed workload secrets into Vault"
+	@echo "  atlasctl-list   List all registered workloads"
 	@echo ""
 	@echo "RBAC:"
 	@echo "  rbac-apply        Apply RBAC policies (ClusterRoles, bindings)"
@@ -130,6 +136,24 @@ vault-seed:
 # Read mapping + .env, resolve env vars, seed into Vault via port-forward
 vault-seed-from-env:
 	@unset VAULT_ADDR; ./security/vault/seed-from-env.sh
+
+# --- Atlas Workload Management ---
+atlasctl:
+	@echo "Usage: make atlasctl-{new,seed,list}"
+	@echo "  atlasctl-new  <args>   Create a new workload (via tools/atlasctl)"
+	@echo "  atlasctl-seed          Seed all workload secrets into Vault"
+	@echo "  atlasctl-list          List all registered workloads"
+
+atlasctl-new:
+	@echo "Run: tools/atlasctl new <app> --group <group> --repo <url> [options]"
+	@echo "Example:"
+	@echo "  tools/atlasctl new seal --group aldoshkineg --repo https://github.com/aldoshkineg/atlas-idp-seal.git --repo-path charts/seal --helm --secrets --db --s3 --monitoring"
+
+atlasctl-seed:
+	tools/atlasctl seed
+
+atlasctl-list:
+	tools/atlasctl list
 
 # --- Tests ---
 test-ca-gateway:

@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{APP}}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "100"
+    argocd.argoproj.io/depends-on: {{APP}}-infra
+spec:
+  project: workloads
+  source:
+    repoURL: {{REPO_URL}}
+    targetRevision: HEAD
+    path: {{REPO_PATH}}
+    {{REPO_HELM_SETTINGS}}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{NAMESPACE}}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{APP}}
+  namespace: {{NAMESPACE}}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{APP}}
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 30s
+      scrapeTimeout: 10s
+  namespaceSelector:
+    matchNames:
+      - {{NAMESPACE}}

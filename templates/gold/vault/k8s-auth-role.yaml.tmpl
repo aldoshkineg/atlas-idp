@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-auth-{{GROUP}}-{{APP}}-stub
+  namespace: vault
+data:
+  role: {{GROUP}}-{{APP}}
+  policies: {{GROUP}}-{{APP}}-workloads
+  bound_service_account_names: {{SERVICE_ACCOUNTS}}
+  bound_service_account_namespaces: {{NAMESPACE}}

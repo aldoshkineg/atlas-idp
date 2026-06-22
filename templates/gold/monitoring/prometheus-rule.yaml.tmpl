@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{APP}}-alerts
+  namespace: {{NAMESPACE}}
+spec:
+  groups:
+    - name: {{APP}}
+      rules:
+        - alert: {{GROUP_UC}}_{{APP_UC}}_HighErrorRate
+          expr: |
+            rate(http_requests_total{app="{{APP}}", status=~"5.."}[5m]) /
+            rate(http_requests_total{app="{{APP}}"}[5m]) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High error rate on {{APP}}"
+            description: "Error rate > 5% for 5 minutes"

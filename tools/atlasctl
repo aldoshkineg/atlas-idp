@@ -1,0 +1,381 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# atlasctl — Atlas IDP workload management CLI
+# Usage:
+#   atlasctl new <app> --group <group> --repo <url> [options]
+#   atlasctl seed [--verify]
+#   atlasctl list
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+TEMPLATES_DIR="${REPO_ROOT}/templates/gold"
+
+usage() {
+  cat <<USAGE
+atlasctl — Atlas IDP workload management
+
+Commands:
+  new       Scaffold a new workload (golden path)
+  seed      Seed workload secrets into Vault
+  list      List all registered workloads
+
+atlasctl new <app> --group <group> --repo <url> [options]
+  Required:
+    --group <group>    Team/group name (e.g., aldoshkineg)
+    --repo <url>       Application repository URL
+
+  Options:
+    --namespace <ns>   Kubernetes namespace (default: <group>-<app>)
+    --repo-path <p>    Path within repo for Helm/k8s manifests (default: .)
+    --helm             Use Helm chart (sets helm-specific fields)
+    --helm-values <s>  Inline Helm values string or file path
+    --secrets          Create Vault policy + K8s auth role + seed mapping
+    --db               Create CNPG dedicated database cluster
+    --s3               Create MinIO S3 bucket config + ExternalSecret
+    --monitoring       Create PodMonitor + PrometheusRule
+    --sa <sas>         Service accounts for Vault auth (comma-sep, default: <app>)
+    --yes, -y          Skip confirmation prompt
+
+atlasctl seed [--verify]
+  Scan all workloads/<group>/<app>/vault/seed-mapping.conf files and
+  seed their secrets into Vault via existing seed-platform.sh.
+  --verify  Only check that stored values match, don't write.
+
+atlasctl list
+  List all workloads under workloads/ directory.
+
+Examples:
+  atlasctl new seal --group aldoshkineg --repo https://github.com/aldoshkineg/atlas-idp-seal.git --repo-path charts/seal --helm --secrets --db --s3 --monitoring
+  atlasctl seed
+  atlasctl seed --verify
+USAGE
+}
+
+die() { echo "Error: $*" >&2; exit 1; }
+
+# --- Rendering ---
+render_template() {
+  local src="$1" dst="$2"
+  local content
+  content="$(< "$src")"
+
+  # Replace variables
+  content="${content//"{{APP}}"/$APP}"
+  content="${content//"{{APP_UC}}"/$APP_UC}"
+  content="${content//"{{GROUP}}"/$GROUP}"
+  content="${content//"{{GROUP_UC}}"/$GROUP_UC}"
+  content="${content//"{{NAMESPACE}}"/$NAMESPACE}"
+  content="${content//"{{REPO_URL}}"/$REPO_URL}"
+  content="${content//"{{REPO_PATH}}"/$REPO_PATH}"
+
+  if [ "$HELM" = "true" ]; then
+    local helm_block="    helm:\n      values: |\n$HELM_VALUES_INDENTED"
+    content="${content//"{{REPO_HELM_SETTINGS}}"/$helm_block}"
+  else
+    content="${content//"{{REPO_HELM_SETTINGS}}"/}"
+  fi
+
+  # If content was explicitly provided without trailing newline, add one
+  echo "$content" > "$dst"
+}
+
+prompt_confirm() {
+  local msg="$1"
+  if [ "${SKIP_CONFIRM:-false}" = "true" ]; then
+    return 0
+  fi
+  read -r -p "$msg [y/N] " reply
+  case "$reply" in
+    [yY]|[yY][eE][sS]) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+mkdir_parent() {
+  mkdir -p "$(dirname "$1")"
+}
+
+# --- Command: new ---
+cmd_new() {
+  # Parse args
+  APP=""
+  GROUP=""
+  REPO_URL=""
+  NAMESPACE=""
+  REPO_PATH="."
+  HELM=false
+  HELM_VALUES=""
+  WITH_SECRETS=false
+  WITH_DB=false
+  WITH_S3=false
+  WITH_MONITORING=false
+  SERVICE_ACCOUNTS=""
+  SKIP_CONFIRM=false
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --group) GROUP="$2"; shift 2 ;;
+      --repo) REPO_URL="$2"; shift 2 ;;
+      --namespace) NAMESPACE="$2"; shift 2 ;;
+      --repo-path) REPO_PATH="$2"; shift 2 ;;
+      --helm) HELM=true; shift ;;
+      --helm-values) HELM_VALUES="$2"; shift 2 ;;
+      --secrets) WITH_SECRETS=true; shift ;;
+      --db) WITH_DB=true; shift ;;
+      --s3) WITH_S3=true; shift ;;
+      --monitoring) WITH_MONITORING=true; shift ;;
+      --sa) SERVICE_ACCOUNTS="$2"; shift 2 ;;
+      --yes|-y) SKIP_CONFIRM=true; shift ;;
+      -*|--*) die "Unknown option: $1" ;;
+      *)
+        [ -n "$APP" ] && die "Unexpected argument: $1"
+        APP="$1"
+        shift
+        ;;
+    esac
+  done
+
+  [ -z "$APP" ] && die "App name is required"
+  [ -z "$GROUP" ] && die "--group is required"
+  [ -z "$REPO_URL" ] && die "--repo is required"
+
+  APP_UC="$(echo "$APP" | tr '[:lower:]' '[:upper:]')"
+  GROUP_UC="$(echo "$GROUP" | tr '[:lower:]' '[:upper:]')"
+  [ -z "$NAMESPACE" ] && NAMESPACE="${GROUP}-${APP}"
+
+  local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
+  local GITOPS_DIR="${REPO_ROOT}/gitops/workloads/layers/${GROUP}"
+
+  if [ -d "$WORKLOAD_DIR" ]; then
+    die "Workload already exists: $WORKLOAD_DIR"
+  fi
+
+  # Prepare Helm values
+  local HELM_VALUES_INDENTED=""
+  if [ "$HELM" = "true" ] && [ -n "$HELM_VALUES" ]; then
+    if [ -f "$HELM_VALUES" ]; then
+      HELM_VALUES_INDENTED="$(sed 's/^/        /' "$HELM_VALUES")"
+    else
+      HELM_VALUES_INDENTED="$(echo "$HELM_VALUES" | sed 's/^/        /')"
+    fi
+  fi
+
+  [ -z "$SERVICE_ACCOUNTS" ] && SERVICE_ACCOUNTS="$APP"
+
+  echo "---"
+  echo "Scaffolding new workload:"
+  echo "  App:       $APP"
+  echo "  Group:     $GROUP"
+  echo "  Namespace: $NAMESPACE"
+  echo "  Repo:      $REPO_URL (path: $REPO_PATH)"
+  echo "  Features:  ${WITH_SECRETS:+secrets }${WITH_DB:+db }${WITH_S3:+s3 }${WITH_MONITORING:+monitoring}"
+  echo "---"
+
+  prompt_confirm "Create workload?" || die "Aborted"
+
+  # Create workload directory
+  mkdir -p "$WORKLOAD_DIR"
+
+  # Copy and render templates
+  if [ "$WITH_SECRETS" = "true" ]; then
+    mkdir -p "${WORKLOAD_DIR}/vault"
+    render_template "${TEMPLATES_DIR}/vault/policy.hcl.tmpl" "${WORKLOAD_DIR}/vault/policy.hcl"
+    render_template "${TEMPLATES_DIR}/vault/k8s-auth-role.yaml.tmpl" "${WORKLOAD_DIR}/vault/k8s-auth-role.yaml"
+    render_template "${TEMPLATES_DIR}/vault/seed-mapping.conf.tmpl" "${WORKLOAD_DIR}/vault/seed-mapping.conf"
+    # Fix service accounts in rendered role
+    sed -i "s/{{SERVICE_ACCOUNTS}}/$SERVICE_ACCOUNTS/" "${WORKLOAD_DIR}/vault/k8s-auth-role.yaml"
+    echo "  [vault] Created policy, auth role, seed mapping"
+  fi
+
+  if [ "$WITH_DB" = "true" ]; then
+    mkdir -p "${WORKLOAD_DIR}/database"
+    render_template "${TEMPLATES_DIR}/database/cluster.yaml.tmpl" "${WORKLOAD_DIR}/database/cluster.yaml"
+    render_template "${TEMPLATES_DIR}/database/objectstore.yaml.tmpl" "${WORKLOAD_DIR}/database/objectstore.yaml"
+    render_template "${TEMPLATES_DIR}/database/scheduled-backup.yaml.tmpl" "${WORKLOAD_DIR}/database/scheduled-backup.yaml"
+    render_template "${TEMPLATES_DIR}/database/pod-monitor.yaml.tmpl" "${WORKLOAD_DIR}/database/pod-monitor.yaml"
+    render_template "${TEMPLATES_DIR}/database/external-secret.yaml.tmpl" "${WORKLOAD_DIR}/database/external-secret.yaml"
+    echo "  [db] Created CNPG cluster + backup + monitoring + ExternalSecrets"
+  fi
+
+  if [ "$WITH_S3" = "true" ]; then
+    mkdir -p "${WORKLOAD_DIR}/s3"
+    render_template "${TEMPLATES_DIR}/s3/external-secret.yaml.tmpl" "${WORKLOAD_DIR}/s3/external-secret.yaml"
+    echo "  [s3] Created ExternalSecret for MinIO credentials"
+    echo "  [!s3] Add bucket to gitops/platform-kind/layers/storage/values/minio.yaml manually"
+  fi
+
+  if [ "$WITH_MONITORING" = "true" ]; then
+    mkdir -p "${WORKLOAD_DIR}/monitoring"
+    render_template "${TEMPLATES_DIR}/monitoring/pod-monitor.yaml.tmpl" "${WORKLOAD_DIR}/monitoring/pod-monitor.yaml"
+    if [ "$WITH_DB" != "true" ]; then
+      # Without db, use generic pod monitor in monitoring/
+      render_template "${TEMPLATES_DIR}/monitoring/pod-monitor.yaml.tmpl" "${WORKLOAD_DIR}/monitoring/pod-monitor.yaml"
+    fi
+    render_template "${TEMPLATES_DIR}/monitoring/prometheus-rule.yaml.tmpl" "${WORKLOAD_DIR}/monitoring/prometheus-rule.yaml"
+    echo "  [monitoring] Created PodMonitor + PrometheusRule"
+  fi
+
+  # Create ArgoCD application manifests in workload dir
+  render_template "${TEMPLATES_DIR}/gitops/app.yaml.tmpl" "${WORKLOAD_DIR}/app.yaml"
+  render_template "${TEMPLATES_DIR}/gitops/infra.yaml.tmpl" "${WORKLOAD_DIR}/infra.yaml"
+  echo "  [gitops] Created app.yaml + infra.yaml in workload dir"
+
+  # Create ArgoCD Application CR in gitops/workloads/layers/
+  mkdir -p "$GITOPS_DIR"
+
+  # Create a thin layer app pointing to the workload's app.yaml
+  cat > "${GITOPS_DIR}/${APP}.yaml" <<EOF
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ${GROUP}-${APP}
+  namespace: argocd
+spec:
+  project: workloads
+  source:
+    repoURL: https://github.com/aldoshkineg/atlas-idp.git
+    targetRevision: main
+    path: workloads/${GROUP}/${APP}
+    directory:
+      include: "app.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${NAMESPACE}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+EOF
+
+  # Create infra app layer pointing to infrastructure
+  cat > "${GITOPS_DIR}/${APP}-infra.yaml" <<EOF
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ${GROUP}-${APP}-infra
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "90"
+    argocd.argoproj.io/depends-on: cloudnativepg-operator, cloudnativepg-barman-plugin, minio
+spec:
+  project: workloads
+  source:
+    repoURL: https://github.com/aldoshkineg/atlas-idp.git
+    targetRevision: main
+    path: workloads/${GROUP}/${APP}
+    directory:
+      exclude: "app.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${NAMESPACE}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+EOF
+
+  echo "  [gitops] Created layer Applications in gitops/workloads/layers/${GROUP}/"
+
+  echo ""
+  echo "=== Workload ${GROUP}/${APP} scaffolded ==="
+  echo ""
+  echo "Next steps:"
+  echo "  1. Review and customize the generated files in workloads/${GROUP}/${APP}/"
+  if [ "$WITH_SECRETS" = "true" ]; then
+    echo "  2. Add your env vars to workloads/${GROUP}/${APP}/vault/seed-mapping.conf"
+    echo "  3. Set GitHub Secrets: VL_${GROUP_UC}_${APP_UC}_* variables"
+    echo "  4. Run: atlasctl seed"
+  fi
+  if [ "$WITH_S3" = "true" ]; then
+    echo "  5. Add bucket name to gitops/platform-kind/layers/storage/values/minio.yaml"
+  fi
+  echo "  6. Commit and push to trigger ArgoCD sync"
+}
+
+# --- Command: seed ---
+cmd_seed() {
+  local MODE="seed"
+  [ "${1:-}" = "--verify" ] && MODE="verify"
+
+  local seed_file
+  seed_file="$(mktemp)"
+  trap 'rm -f "$seed_file"' EXIT
+
+  echo "Collecting workload seed mappings..."
+  local count=0
+  while IFS= read -r -d '' mapping; do
+    while IFS= read -r line; do
+      line="${line#"${line%%[![:space:]]*}"}"
+      line="${line%"${line##*[![:space:]]}"}"
+      [ -n "$line" ] || continue
+      [[ "$line" =~ ^[[:space:]]*# ]] && continue
+      echo "$line" >> "$seed_file"
+      count=$((count + 1))
+    done < "$mapping"
+  done < <(find "${REPO_ROOT}/workloads" -name 'seed-mapping.conf' -print0 2>/dev/null || true)
+
+  if [ "$count" -eq 0 ]; then
+    echo "No workload seed mappings found (workloads/*/*/vault/seed-mapping.conf)"
+    echo "Create one with: atlasctl new <app> --group <group> --repo <url> --secrets"
+    exit 0
+  fi
+
+  echo "Found $count entries across workload seed mappings"
+  exec "${REPO_ROOT}/security/vault/seed-platform.sh" "$MODE" "$seed_file"
+}
+
+# --- Command: list ---
+cmd_list() {
+  if [ ! -d "${REPO_ROOT}/workloads" ]; then
+    echo "No workloads found"
+    exit 0
+  fi
+
+  echo "Workloads:"
+  for group_dir in "${REPO_ROOT}/workloads"/*/; do
+    local group
+    group="$(basename "$group_dir")"
+    for app_dir in "$group_dir"*/; do
+      local app
+      app="$(basename "$app_dir")"
+      local features=""
+      [ -f "${app_dir}vault/seed-mapping.conf" ] && features+="secrets "
+      [ -f "${app_dir}database/cluster.yaml" ] && features+="db "
+      [ -d "${app_dir}s3" ] && features+="s3 "
+      [ -f "${app_dir}monitoring/prometheus-rule.yaml" ] && features+="monitoring "
+      [ -z "$features" ] && features="(no infra features)"
+      echo "  ${group}/${app}  [${features}]"
+    done
+  done
+}
+
+# --- Main ---
+[ $# -eq 0 ] && { usage; exit 1; }
+
+CMD="$1"
+shift
+
+case "$CMD" in
+  new) cmd_new "$@" ;;
+  seed) cmd_seed "$@" ;;
+  list) cmd_list "$@" ;;
+  -h|--help) usage ;;
+  *) die "Unknown command: $CMD (use --help for usage)" ;;
+esac

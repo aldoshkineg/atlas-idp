@@ -1,0 +1,4 @@
+# Vault policy for {{APP}} workload (group: {{GROUP}})
+path "secret/workloads/{{GROUP}}/{{APP}}/*" {
+  capabilities = ["read", "list"]
+}

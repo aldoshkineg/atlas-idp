@@ -5,8 +5,9 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "100"
+    argocd.argoproj.io/depends-on: seal-infra
 spec:
-  project: seal
+  project: workloads
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp-seal.git
     targetRevision: HEAD
@@ -14,12 +15,12 @@ spec:
     helm:
       values: |
         vault:
-          enabled: false
+          enabled: true
         secrets:
-          postgresPassword: "XCGeXFlNxVYonmOdFOO7WNlfa04WU6RmRc2K6TatzW35mRFid1RmbDnUSdE7aVXA"
-          redisPassword: "super-secret-redis"
-          minioAccessKey: "minioadmin"
-          minioSecretKey: "minioadminpassword"
+          postgresPassword: ""
+          redisPassword: ""
+          minioAccessKey: ""
+          minioSecretKey: ""
   destination:
     server: https://kubernetes.default.svc
     namespace: seal
