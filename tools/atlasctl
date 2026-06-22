@@ -619,8 +619,9 @@ cmd_enable() {
   CHART_REPO="$(yq eval '.spec.source.repoURL' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "$REPO_URL")"
   CHART_REVISION="$(yq eval '.spec.source.targetRevision' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "$TARGET_REVISION")"
   CHART_PATH="$(yq eval '.spec.source.path' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "")"
-  HAS_HELM=$(yq eval '.spec.source.helm != null' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "false")
   HELM_VALUES_RAW="$(yq eval '.spec.source.helm.values // ""' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "")"
+  HAS_HELM=false
+  [ -n "$HELM_VALUES_RAW" ] && HAS_HELM=true
 
   GITOPS_HELM_VALUES=""
   if [ "$HAS_HELM" = "true" ] && [ -n "$HELM_VALUES_RAW" ]; then

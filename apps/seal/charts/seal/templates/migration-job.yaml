@@ -12,7 +12,6 @@ spec:
   template:
     spec:
       restartPolicy: Never
-      serviceAccountName: seal-api
       containers:
         - name: migrate
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.images.api.repository }}:{{ .Values.images.api.tag }}"

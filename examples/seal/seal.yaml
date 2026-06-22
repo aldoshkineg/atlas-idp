@@ -6,22 +6,23 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "100"
 spec:
-  project: workloads
+  project: seal
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: HEAD
-    path: apps/seal/charts/seal
+    path: apps/charts/seal
     helm:
       values: |
+        vault:
+          enabled: false
         secrets:
-          postgresPassword: "NYYVnO2CmaqTixOI2DcHcLJOhotrsLZb"
-          redisPassword: "oVMTZL9K04F/h9m9qjD/5ozI1ulrD9Yj"
-          minioAccessKey: "3db4574ea1bdf59444459d7feda20d43"
-          minioSecretKey: "jUCsNfRvCC6PXDCfIlVaw352s0VwDUruIFPakYHYeFw="
-
+          postgresPassword: "XCGeXFlNxVYonmOdFOO7WNlfa04WU6RmRc2K6TatzW35mRFid1RmbDnUSdE7aVXA"
+          redisPassword: "super-secret-redis"
+          minioAccessKey: "minioadmin"
+          minioSecretKey: "minioadminpassword"
   destination:
     server: https://kubernetes.default.svc
-    namespace: atlas-team-seal
+    namespace: seal
   syncPolicy:
     automated:
       prune: true

@@ -12,7 +12,13 @@ spec:
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: HEAD
       path: apps/seal/charts/seal
-
+      helm:
+        values: |
+          secrets:
+            postgresPassword: "NYYVnO2CmaqTixOI2DcHcLJOhotrsLZb"
+            redisPassword: "oVMTZL9K04F/h9m9qjD/5ozI1ulrD9Yj"
+            minioAccessKey: "3db4574ea1bdf59444459d7feda20d43"
+            minioSecretKey: "jUCsNfRvCC6PXDCfIlVaw352s0VwDUruIFPakYHYeFw="
     - repoURL: https://github.com/aldoshkineg/atlas-idp
       targetRevision: main
       path: workloads/atlas-team/seal
