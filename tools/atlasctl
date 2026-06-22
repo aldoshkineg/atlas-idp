@@ -112,23 +112,38 @@ render_template() {
   content="${content//"{{NAMESPACE}}"/$NAMESPACE}"
   content="${content//"{{REPO_URL}}"/$REPO_URL}"
   content="${content//"{{REPO_PATH}}"/$REPO_PATH}"
+  content="${content//"{{CHART_REPO}}"/${CHART_REPO:-$REPO_URL}}"
+  content="${content//"{{CHART_REVISION}}"/${CHART_REVISION:-main}}"
+  content="${content//"{{CHART_PATH}}"/${CHART_PATH:-}}"
+  content="${content//"{{TARGET_REVISION}}"/${TARGET_REVISION:-main}}"
 
   if [ -n "${HOSTNAME:-}" ]; then
     content="${content//"{{HOSTNAME}}"/$HOSTNAME}"
   fi
 
-  if [ "$HELM" = "true" ]; then
+  if [ "${HELM:-false}" = "true" ]; then
     local helm_block=$'helm:\n      values: |\n'"$HELM_VALUES_INDENTED"
     content="${content//"{{REPO_HELM_SETTINGS}}"/$helm_block}"
   else
     content="${content//"{{REPO_HELM_SETTINGS}}"/}"
   fi
 
+  if [ -n "${GITOPS_HELM_VALUES:-}" ]; then
+    local gitops_helm_block=$'      helm:\n        values: |\n'"$GITOPS_HELM_VALUES"
+    content="${content//"{{GITOPS_HELM_SETTINGS}}"/$gitops_helm_block}"
+  else
+    content="${content//"{{GITOPS_HELM_SETTINGS}}"/}"
+  fi
+
   if [ -n "${SERVICE_ACCOUNTS:-}" ]; then
     content="${content//"{{SERVICE_ACCOUNTS}}"/$SERVICE_ACCOUNTS}"
   fi
 
-  echo "$content" > "$dst"
+  if [ "$dst" = "-" ]; then
+    echo "$content"
+  else
+    echo "$content" > "$dst"
+  fi
 }
 
 prompt_confirm() {
@@ -565,8 +580,11 @@ cmd_enable() {
   local GROUP="${WORKLOAD%%/*}"
   local APP="${WORKLOAD#*/}"
   [ "$GROUP" = "$APP" ] && die "Invalid format. Use: <group>/<app>"
+  APP_UC="$(echo "$APP" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+  GROUP_UC="$(echo "$GROUP" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
 
   local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
+  local WORKLOAD_GITOPS_FILE="${WORKLOAD_DIR}/gitops-app.yaml"
   local GITOPS_DIR="${REPO_ROOT}/gitops/workloads/${GROUP}"
   local GITOPS_FILE="${GITOPS_DIR}/${APP}.yaml"
   local GW_FILE="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml"
@@ -593,42 +611,21 @@ cmd_enable() {
   REPO_URL="${REPO_URL/#git@github.com:/https:\/\/github.com\/}"
   REPO_URL="${REPO_URL%.git}"
   TARGET_REVISION="$(git -C "${REPO_ROOT}" branch --show-current 2>/dev/null || echo "main")"
+  REPO_PATH=""
+  HELM=false
+  HELM_VALUES_INDENTED=""
 
-  local GITOPS_CONTENT
-  GITOPS_CONTENT=$(cat <<YAML
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: ${GROUP}-${APP}
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "90"
-    argocd.argoproj.io/depends-on: postgres-cluster,redis,minio,cert-manager
-spec:
-  project: workloads
-  source:
-    repoURL: ${REPO_URL}
-    targetRevision: ${TARGET_REVISION}
-    path: workloads/${GROUP}/${APP}
-    directory:
-      recurse: true
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: ${NAMESPACE}
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-    retry:
-      limit: 10
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
-YAML
-)
+  local CHART_REPO CHART_REVISION CHART_PATH HAS_HELM HELM_VALUES_RAW
+  CHART_REPO="$(yq eval '.spec.source.repoURL' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "$REPO_URL")"
+  CHART_REVISION="$(yq eval '.spec.source.targetRevision' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "$TARGET_REVISION")"
+  CHART_PATH="$(yq eval '.spec.source.path' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "")"
+  HAS_HELM=$(yq eval '.spec.source.helm != null' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "false")
+  HELM_VALUES_RAW="$(yq eval '.spec.source.helm.values // ""' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "")"
+
+  GITOPS_HELM_VALUES=""
+  if [ "$HAS_HELM" = "true" ] && [ -n "$HELM_VALUES_RAW" ]; then
+    GITOPS_HELM_VALUES="$(echo "$HELM_VALUES_RAW" | sed 's/^/          /')"
+  fi
 
   echo "---"
   echo "Enabling workload: ${GROUP}/${APP}"
@@ -639,8 +636,9 @@ YAML
 
   if [ "$DRY_RUN" = "true" ]; then
     echo ""
-    echo ">> Would create: ${GITOPS_FILE}"
-    echo "${GITOPS_CONTENT}"
+    echo ">> Would create: ${WORKLOAD_GITOPS_FILE}"
+    echo ">>          →:  ${GITOPS_FILE}"
+    render_template "${TEMPLATES_DIR}/gitops-app.yaml.tmpl" -
 
     if [ "$HAS_GATEWAY" = "true" ]; then
       local GW_HOSTNAME
@@ -661,9 +659,11 @@ YAML
 
   prompt_confirm "Enable this workload?" || die "Aborted"
 
-  mkdir -p "$GITOPS_DIR"
-  echo "$GITOPS_CONTENT" > "$GITOPS_FILE"
-  echo "  [app] Created ${GITOPS_FILE}"
+  mkdir -p "$(dirname "$WORKLOAD_GITOPS_FILE")" "$GITOPS_DIR"
+  render_template "${TEMPLATES_DIR}/gitops-app.yaml.tmpl" "$WORKLOAD_GITOPS_FILE"
+  cp "$WORKLOAD_GITOPS_FILE" "$GITOPS_FILE"
+  echo "  [app] Created ${WORKLOAD_GITOPS_FILE}"
+  echo "  [app] Copied to ${GITOPS_FILE}"
 
   if [ "$HAS_GATEWAY" = "true" ]; then
     local GW_HOSTNAME
@@ -691,6 +691,23 @@ YAML
     if [ "$PUSH" = "true" ]; then
       git -C "${REPO_ROOT}" push
       echo "  [push] Changes pushed"
+
+      if command -v argocd &>/dev/null; then
+        echo "  [argocd] Syncing root-app..."
+        argocd app sync root-app --timeout 120 2>/dev/null || true
+        echo "  [argocd] Waiting for ${GROUP}-${APP}..."
+        for _ in $(seq 1 30); do
+          local ARGO_STATUS
+          ARGO_STATUS="$(argocd app get "${GROUP}-${APP}" -o json 2>/dev/null | yq eval '.status.sync.status' - 2>/dev/null || echo "")"
+          if [ "$ARGO_STATUS" = "Synced" ]; then
+            echo "  [argocd] ${GROUP}-${APP} is Synced"
+            break
+          fi
+          sleep 2
+        done
+      else
+        echo "  (install argocd CLI to auto-sync after push)"
+      fi
     else
       echo "  (use --push to push commits)"
     fi
@@ -734,14 +751,12 @@ cmd_disable() {
   [ "$GROUP" = "$APP" ] && die "Invalid format. Use: <group>/<app>"
 
   local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
+  local WORKLOAD_GITOPS_FILE="${WORKLOAD_DIR}/gitops-app.yaml"
   local GITOPS_DIR="${REPO_ROOT}/gitops/workloads/${GROUP}"
   local GITOPS_FILE="${GITOPS_DIR}/${APP}.yaml"
   local GW_FILE="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml"
 
   [ ! -f "$GITOPS_FILE" ] && die "Not enabled — ${GITOPS_FILE} does not exist"
-  if [ "$KEEP_WORKLOAD" != "true" ]; then
-    [ ! -d "$WORKLOAD_DIR" ] && die "Workload not found: ${WORKLOAD_DIR} (use --keep-workload to skip)"
-  fi
 
   if ! command -v yq &>/dev/null; then
     die "yq is required. Install: https://github.com/mikefarah/yq#install"
@@ -753,6 +768,7 @@ cmd_disable() {
   echo "---"
   echo "Disabling workload: ${GROUP}/${APP}"
   echo "  GitOps file:    ${GITOPS_FILE} (remove)"
+  echo "  Workload dir:   ${WORKLOAD_DIR} (remove)"
   echo "  Gateway patch:  ${HAS_GATEWAY}"
   [ "$KEEP_WORKLOAD" = "true" ] && echo "  Workload dir:   kept (--keep-workload)"
   echo "---"
@@ -763,8 +779,15 @@ cmd_disable() {
     echo "   name: https-${APP}"
     echo ""
     echo ">> Would delete: ${GITOPS_FILE}"
+    if [ "$KEEP_WORKLOAD" != "true" ]; then
+      echo ">> Would delete: ${WORKLOAD_DIR}/"
+    fi
     if [ -d "$GITOPS_DIR" ] && [ -z "$(ls -A "$GITOPS_DIR" 2>/dev/null)" ]; then
       echo ">> Would remove empty: ${GITOPS_DIR}"
+    fi
+    local WORKLOADS_GROUP_DIR="${REPO_ROOT}/workloads/${GROUP}"
+    if [ "$KEEP_WORKLOAD" != "true" ] && [ -d "$WORKLOADS_GROUP_DIR" ] && [ -z "$(ls -A "$WORKLOADS_GROUP_DIR" 2>/dev/null)" ]; then
+      echo ">> Would remove empty: ${WORKLOADS_GROUP_DIR}"
     fi
     echo ""
     echo "DRY RUN — no changes made"
@@ -785,15 +808,26 @@ cmd_disable() {
   fi
 
   rm -f "$GITOPS_FILE"
-  echo "  [app] Removed ${GITOPS_FILE}"
+  echo "  [gitops] Removed ${GITOPS_FILE}"
+
+  if [ "$KEEP_WORKLOAD" != "true" ]; then
+    rm -rf "$WORKLOAD_DIR"
+    echo "  [workload] Removed ${WORKLOAD_DIR}/"
+  fi
 
   if [ -d "$GITOPS_DIR" ] && [ -z "$(ls -A "$GITOPS_DIR" 2>/dev/null)" ]; then
     rmdir "$GITOPS_DIR"
-    echo "  [app] Removed empty directory ${GITOPS_DIR}"
+    echo "  [gitops] Removed empty directory ${GITOPS_DIR}"
+  fi
+
+  local WORKLOADS_GROUP_DIR="${REPO_ROOT}/workloads/${GROUP}"
+  if [ "$KEEP_WORKLOAD" != "true" ] && [ -d "$WORKLOADS_GROUP_DIR" ] && [ -z "$(ls -A "$WORKLOADS_GROUP_DIR" 2>/dev/null)" ]; then
+    rmdir "$WORKLOADS_GROUP_DIR"
+    echo "  [workload] Removed empty directory ${WORKLOADS_GROUP_DIR}"
   fi
 
   if [ "$SYNC" = "true" ]; then
-    git -C "${REPO_ROOT}" add -A "$GITOPS_DIR" 2>/dev/null || true
+    git -C "${REPO_ROOT}" add -A "$GITOPS_DIR" "$WORKLOAD_DIR" 2>/dev/null || true
     git -C "${REPO_ROOT}" add "$GW_FILE"
     git -C "${REPO_ROOT}" commit -m "disable(workloads): remove ${GROUP}/${APP}" || echo "   (nothing to commit)"
 

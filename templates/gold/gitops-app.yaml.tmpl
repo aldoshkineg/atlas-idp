@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: atlas-team-seal
+  name: {{GROUP}}-{{APP}}
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "90"
@@ -9,18 +9,18 @@ metadata:
 spec:
   project: workloads
   sources:
-    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
-      targetRevision: HEAD
-      path: apps/seal/charts/seal
-
-    - repoURL: https://github.com/aldoshkineg/atlas-idp
-      targetRevision: main
-      path: workloads/atlas-team/seal
+    - repoURL: {{CHART_REPO}}
+      targetRevision: {{CHART_REVISION}}
+      path: {{CHART_PATH}}
+{{GITOPS_HELM_SETTINGS}}
+    - repoURL: {{REPO_URL}}
+      targetRevision: {{TARGET_REVISION}}
+      path: workloads/{{GROUP}}/{{APP}}
       directory:
         exclude: "{app.yaml,.secret-seed,gitops-app.yaml,*.tmpl}"
   destination:
     server: https://kubernetes.default.svc
-    namespace: atlas-team-seal
+    namespace: {{NAMESPACE}}
   syncPolicy:
     automated:
       prune: true
