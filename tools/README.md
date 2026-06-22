@@ -103,11 +103,20 @@ atlasctl enable aldoshkineg/seal --sync --push
 
 ## `atlasctl disable`
 
-Удаляет ArgoCD Application и gateway listener.
+Удаляет gateway listener (первым, иначе ArgoCD пересоздаст app), потом удаляет ArgoCD Application CR и пустую групповую папку.
 
 ```bash
+# Предпросмотр
 atlasctl disable aldoshkineg/seal --dry-run
+
+# Отключить
+atlasctl disable aldoshkineg/seal -y
+
+# Отключить + commit + push
 atlasctl disable aldoshkineg/seal -y --sync --push
+
+# Не трогать workloads/ директорию
+atlasctl disable aldoshkineg/seal -y --keep-workload
 ```
 
 ---
@@ -143,5 +152,7 @@ atlasctl enable aldoshkineg/seal --sync --push
 atlasctl status aldoshkineg/seal
 
 # 6. Отключить
-atlasctl disable aldoshkineg/seal -y --sync --push
+atlasctl disable aldoshkineg/seal --dry-run   # просмотр
+atlasctl disable aldoshkineg/seal -y          # отключить
+atlasctl disable aldoshkineg/seal -y --sync --push  # отключить + commit + push
 ```

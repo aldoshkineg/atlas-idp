@@ -1,0 +1,111 @@
+# Default values for seal chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+global:
+  imageRegistry: ghcr.io/atlas-idp
+
+images:
+  api:
+    repository: seal-api
+    tag: dev
+    pullPolicy: IfNotPresent
+  worker:
+    repository: seal-worker
+    tag: dev
+    pullPolicy: IfNotPresent
+  ui:
+    repository: seal-ui
+    tag: dev
+    pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+config:
+  postgres:
+    host: production-db-rw.database.svc.cluster.local
+    port: 5432
+    user: app
+    db: app
+  redis:
+    host: redis-master.redis.svc.cluster.local
+    port: 6379
+  minio:
+    endpoint: minio.minio.svc.cluster.local:9000
+    useSSL: false
+  logLevel: info
+  downloadUrlPrefix: https://s3.atlas
+
+vault:
+  enabled: true
+  role: seal
+  paths:
+    api: kv/data/seal/seal-api
+    worker: kv/data/seal/seal-worker
+    pdfSigner: kv/data/seal/pdf-signer
+    ui: kv/data/seal/seal-ui
+
+service:
+  apiPort: 8080
+  uiPort: 8081
+  workerMetricsPort: 9090
+
+resources:
+  api:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  worker:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  ui:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+keda:
+  enabled: true
+  worker:
+    minReplicaCount: 0
+    maxReplicaCount: 20
+    pollingInterval: 10
+    cooldownPeriod: 60
+    redisAddress: redis-master.redis.svc.cluster.local:6379
+    listName: seal:jobs
+    listLength: "1"
+
+cronjob:
+  enabled: true
+  schedule: "*/5 * * * *"
+  ttlSecondsAfterFinished: 120
+
+migration:
+  enabled: true
+  ttlSecondsAfterFinished: 300
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+
+secrets:
+  postgresPassword: ""
+  redisPassword: ""
+  minioAccessKey: ""
+  minioSecretKey: ""
+
+redisClientLabel: "true"
+
+gateway:
+  enabled: true
+  hostname: seal.atlas
+  sectionName: https-seal

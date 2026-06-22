@@ -1,0 +1,15 @@
+.certs/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.idea/
+.vscode/
+*.swp
+.DS_Store
+dist/
+__pycache__/
+*.pyc
+node_modules/
+.trivycache/

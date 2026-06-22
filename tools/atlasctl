@@ -4,8 +4,11 @@ set -euo pipefail
 # atlasctl — Atlas IDP workload management CLI
 # Usage:
 #   atlasctl new <app> --group <group> --repo <url> [options]
-#   atlasctl seed <group>/<app>
-#   atlasctl list
+#   atlasctl seed <group>/<app> [--dry-run] [--force]
+#   atlasctl enable <group>/<app> [--dry-run] [--sync] [--push]
+#   atlasctl disable <group>/<app> [--dry-run] [--sync] [--push] [--keep-workload]
+#   atlasctl status <group>/<app> [--json]
+#   atlasctl list [--json]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -18,6 +21,9 @@ atlasctl — Atlas IDP workload management
 Commands:
   new       Scaffold a new workload structure
   seed      Provision DB + bucket + write secrets to Vault
+  enable    Enable workload in GitOps
+  disable   Disable workload from GitOps
+  status    Show workload status
   list      List all workloads
 
 atlasctl new <app> --group <group> --repo <url> [options]
@@ -38,8 +44,56 @@ atlasctl new <app> --group <group> --repo <url> [options]
     --sa <sas>         Service accounts for Vault auth (comma-sep, default: <app>)
     --yes, -y          Skip confirmation prompt
 
+atlasctl seed <group>/<app> [options]
+  Provisions PostgreSQL database, MinIO bucket, and writes secrets to Vault.
+
+  Options:
+    --dry-run          Preview changes without executing
+    --force            Skip validation checks
+
+atlasctl enable <group>/<app> [options]
+  Creates ArgoCD Application in gitops/ and adds gateway listener.
+
+  Options:
+    --dry-run          Preview changes without executing
+    --sync             Commit changes to git
+    --push             Push commits to remote (implies --sync)
+    --force            Overwrite existing gitops Application
+    --yes, -y          Skip confirmation prompt
+
+atlasctl disable <group>/<app> [options]
+  Removes gateway listener and ArgoCD Application from gitops/.
+
+  Options:
+    --dry-run          Preview changes without executing
+    --sync             Commit changes to git
+    --push             Push commits to remote (implies --sync)
+    --keep-workload    Keep workloads/<group>/<app>/ directory
+    --yes, -y          Skip confirmation prompt
+
+atlasctl status <group>/<app> [options]
+  Shows workload status (features, enabled, gateway listener).
+
+  Options:
+    --json             Output as JSON
+
+atlasctl list [options]
+  Lists all workloads with features and enabled status.
+
+  Options:
+    --json             Output as JSON
+
 Examples:
   atlasctl new seal --group aldoshkineg --repo https://github.com/aldoshkineg/atlas-idp-seal.git --repo-path charts/seal --helm --secrets --ingress --monitoring
+  atlasctl seed aldoshkineg/seal
+  atlasctl seed aldoshkineg/seal --dry-run
+  atlasctl enable aldoshkineg/seal --dry-run
+  atlasctl enable aldoshkineg/seal --sync --push
+  atlasctl disable aldoshkineg/seal -y --sync --push
+  atlasctl status aldoshkineg/seal
+  atlasctl status aldoshkineg/seal --json
+  atlasctl list
+  atlasctl list --json
 USAGE
 }
 
@@ -70,7 +124,6 @@ render_template() {
     content="${content//"{{REPO_HELM_SETTINGS}}"/}"
   fi
 
-  # Replace remaining {{SERVICE_ACCOUNTS}} after rendering (for k8s-auth-role)
   if [ -n "${SERVICE_ACCOUNTS:-}" ]; then
     content="${content//"{{SERVICE_ACCOUNTS}}"/$SERVICE_ACCOUNTS}"
   fi
@@ -89,6 +142,46 @@ prompt_confirm() {
     *) return 1 ;;
   esac
 }
+
+# --- Utility: kubectl exec ---
+kexec() {
+  kubectl exec "$@" 2>/dev/null || true
+}
+
+# --- Utility: vault cmd inside vault-0 pod ---
+vault0() {
+  kubectl exec -n vault vault-0 -- vault "$@" 2>/dev/null || true
+}
+
+# --- Utility: read K8s secret key ---
+ksecret() {
+  kubectl get secret -n "$1" "$2" -o jsonpath="{.data.$3}" 2>/dev/null | base64 -d || echo ""
+}
+
+# --- Detect features in a workload directory ---
+detect_features() {
+  local dir="$1"
+  local features=""
+  [ -f "${dir}.secret-seed" ] || [ -f "${dir}vault/policy.hcl" ] && features+="secrets "
+  [ -f "${dir}gateway.yaml" ] && features+="gateway "
+  [ -f "${dir}monitoring/prometheus-rule.yaml" ] && features+="monitoring "
+  [ -d "${dir}autoscaling" ] && features+="keda "
+  [ -d "${dir}rollouts" ] && features+="rollouts "
+  echo "$features"
+}
+
+# --- Color helpers ---
+color() {
+  local code="$1" text="$2"
+  if [ -t 1 ]; then
+    echo -e "\033[${code}m${text}\033[0m"
+  else
+    echo "$text"
+  fi
+}
+green()  { color "0;32" "$1"; }
+yellow() { color "0;33" "$1"; }
+red()    { color "0;31" "$1"; }
 
 # --- Command: new ---
 cmd_new() {
@@ -147,7 +240,6 @@ cmd_new() {
     die "Workload already exists: $WORKLOAD_DIR"
   fi
 
-  # Prepare Helm values
   local HELM_VALUES_INDENTED=""
   if [ "$HELM" = "true" ] && [ -n "$HELM_VALUES" ]; then
     if [ -f "$HELM_VALUES" ]; then
@@ -157,10 +249,8 @@ cmd_new() {
     fi
   fi
 
-  # Default hostname for ingress
   HOSTNAME="${APP}.atlas"
 
-  # Collect features string for display
   local FEATURES=""
   $WITH_SECRETS && FEATURES+="secrets "
   $WITH_INGRESS && FEATURES+="ingress "
@@ -181,21 +271,16 @@ cmd_new() {
 
   mkdir -p "$WORKLOAD_DIR"
 
-  # --- Always: app.yaml ---
   render_template "${TEMPLATES_DIR}/app.yaml.tmpl" "${WORKLOAD_DIR}/app.yaml"
   echo "  [app.yaml] Created"
 
-  # --- With --secrets: vault/ + secrets.yaml + .secret-seed ---
   if [ "$WITH_SECRETS" = "true" ]; then
     mkdir -p "${WORKLOAD_DIR}/vault"
-
     render_template "${TEMPLATES_DIR}/vault/policy.hcl.tmpl" "${WORKLOAD_DIR}/vault/policy.hcl"
     render_template "${TEMPLATES_DIR}/vault/k8s-auth-role.yaml.tmpl" "${WORKLOAD_DIR}/vault/k8s-auth-role.yaml"
     render_template "${TEMPLATES_DIR}/vault/seed-mapping.conf.tmpl" "${WORKLOAD_DIR}/vault/seed-mapping.conf"
-
     render_template "${TEMPLATES_DIR}/secrets.yaml.tmpl" "${WORKLOAD_DIR}/secrets.yaml"
 
-    # Generate .secret-seed with random passwords
     local DB_PASS S3_ACCESS S3_SECRET REDIS_PASS
     DB_PASS=$(openssl rand -base64 24 2>/dev/null || echo "changeme")
     S3_ACCESS=$(openssl rand -hex 16 2>/dev/null || echo "changeme")
@@ -212,17 +297,14 @@ VL_${GROUP_UC}_${APP_UC}_S3_ACCESS_KEY=${S3_ACCESS}
 VL_${GROUP_UC}_${APP_UC}_S3_SECRET_KEY=${S3_SECRET}
 VL_${GROUP_UC}_${APP_UC}_REDIS_PASSWORD=${REDIS_PASS}
 EOF
-
     echo "  [secrets] Created vault/ + secrets.yaml + .secret-seed"
   fi
 
-  # --- With --ingress: gateway.yaml ---
   if [ "$WITH_INGRESS" = "true" ]; then
     render_template "${TEMPLATES_DIR}/gateway.yaml.tmpl" "${WORKLOAD_DIR}/gateway.yaml"
     echo "  [gateway] Created gateway.yaml (HTTPRoute + Certificate)"
   fi
 
-  # --- With --monitoring: monitoring/ ---
   if [ "$WITH_MONITORING" = "true" ]; then
     mkdir -p "${WORKLOAD_DIR}/monitoring"
     render_template "${TEMPLATES_DIR}/monitoring/pod-monitor.yaml.tmpl" "${WORKLOAD_DIR}/monitoring/pod-monitor.yaml"
@@ -230,17 +312,13 @@ EOF
     echo "  [monitoring] Created PodMonitor + PrometheusRule"
   fi
 
-  # --- With --keda: autoscaling/ ---
   if [ "$WITH_KEDA" = "true" ]; then
     mkdir -p "${WORKLOAD_DIR}/autoscaling"
-    # TODO: create scaled-object.yaml.tmpl
     echo "  [keda] Created autoscaling/ (template pending)"
   fi
 
-  # --- With --rollouts: rollouts/ ---
   if [ "$WITH_ROLLOUTS" = "true" ]; then
     mkdir -p "${WORKLOAD_DIR}/rollouts"
-    # TODO: create rollout.yaml.tmpl
     echo "  [rollouts] Created rollouts/ (template pending)"
   fi
 
@@ -258,37 +336,646 @@ EOF
 
 # --- Command: seed ---
 cmd_seed() {
-  echo "TODO: atlasctl seed — provisioning DB + bucket + Vault"
-  echo "Usage: atlasctl seed <group>/<app>"
-  exit 1
+  local FORCE=false
+  local DRY_RUN=false
+  local WORKLOAD=""
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --force) FORCE=true; shift ;;
+      --dry-run) DRY_RUN=true; shift ;;
+      -*|--*) die "Unknown option: $1" ;;
+      *)
+        [ -n "$WORKLOAD" ] && die "Unexpected argument: $1"
+        WORKLOAD="$1"
+        shift
+        ;;
+    esac
+  done
+
+  [ -z "$WORKLOAD" ] && die "Usage: atlasctl seed <group>/<app> [--dry-run] [--force]"
+
+  local GROUP="${WORKLOAD%%/*}"
+  local APP="${WORKLOAD#*/}"
+  [ "$GROUP" = "$APP" ] && die "Invalid format. Use: <group>/<app>"
+
+  local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
+  local PREFIX="VL_${GROUP^^}_${APP^^}"
+
+  if [ "$FORCE" != "true" ]; then
+    [ ! -d "$WORKLOAD_DIR" ] && die "Workload not found: $WORKLOAD_DIR"
+    [ ! -f "${WORKLOAD_DIR}/.secret-seed" ] && die ".secret-seed not found at ${WORKLOAD_DIR}/.secret-seed"
+    [ ! -f "${WORKLOAD_DIR}/vault/seed-mapping.conf" ] && die "vault/seed-mapping.conf not found"
+  fi
+
+  if [ -f "${WORKLOAD_DIR}/.secret-seed" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "${WORKLOAD_DIR}/.secret-seed"
+    set +a
+  fi
+
+  local db_pass_var="${PREFIX}_DB_PASSWORD"
+  local s3_key_var="${PREFIX}_S3_ACCESS_KEY"
+  local s3_secret_var="${PREFIX}_S3_SECRET_KEY"
+  local redis_pass_var="${PREFIX}_REDIS_PASSWORD"
+
+  local DB_PASSWORD="${!db_pass_var:-}"
+  local S3_ACCESS_KEY="${!s3_key_var:-}"
+  local S3_SECRET_KEY="${!s3_secret_var:-}"
+  local REDIS_PASSWORD="${!redis_pass_var:-}"
+
+  if [ "$FORCE" != "true" ]; then
+    [ -z "$DB_PASSWORD" ] && die "${db_pass_var} is empty in .secret-seed"
+    [ -z "$S3_ACCESS_KEY" ] && die "${s3_key_var} is empty in .secret-seed"
+    [ -z "$S3_SECRET_KEY" ] && die "${s3_secret_var} is empty in .secret-seed"
+    [ -z "$REDIS_PASSWORD" ] && die "${redis_pass_var} is empty in .secret-seed"
+  fi
+
+  local DB_USERNAME="$APP"
+  local DB_NAME="$APP"
+  local DB_HOST="production-db-rw.database.svc.cluster.local"
+  local DB_PORT="5432"
+  local S3_ENDPOINT="http://minio.minio.svc.cluster.local:9000"
+  local S3_BUCKET="workloads/${GROUP}/${APP}"
+  local REDIS_HOST="redis.redis.svc.cluster.local"
+  local REDIS_PORT="6379"
+  local VAULT_PATH="secret/workloads/${GROUP}/${APP}"
+
+  local MINIO_ROOT_USER MINIO_ROOT_PASSWORD PLATFORM_REDIS_PASSWORD
+  MINIO_ROOT_USER="$(ksecret minio minio-auth rootUser)"
+  MINIO_ROOT_PASSWORD="$(ksecret minio minio-auth rootPassword)"
+  PLATFORM_REDIS_PASSWORD="$(ksecret redis redis-auth redis-password)"
+
+  echo "---"
+  echo "Seeding workload: ${GROUP}/${APP}"
+  echo "  Namespace:      ${GROUP}-${APP}"
+  echo "  DB:             ${DB_HOST}/${DB_NAME} (user: ${DB_USERNAME})"
+  echo "  S3:             ${S3_ENDPOINT}/${S3_BUCKET}"
+  echo "  Redis:          ${REDIS_HOST}:${REDIS_PORT}"
+  echo "  Vault:          ${VAULT_PATH}"
+  echo "---"
+
+  [ "$DRY_RUN" = "true" ] && { echo ""; echo "DRY RUN — no changes made"; return 0; }
+
+  prompt_confirm "Seed this workload?" || die "Aborted"
+
+  echo ""
+  echo ">> PostgreSQL: creating database and user..."
+  local DB_EXISTS
+  DB_EXISTS="$(kexec -n database production-db-1 -- psql -t -c "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" 2>/dev/null | tr -d ' ')"
+  if [ "$DB_EXISTS" = "1" ]; then
+    echo "   Database '${DB_NAME}' already exists — skipping CREATE DATABASE"
+  else
+    kexec -n database production-db-1 -- psql -c "CREATE DATABASE ${DB_NAME};" && echo "   Database '${DB_NAME}' created"
+  fi
+
+  local USER_EXISTS
+  USER_EXISTS="$(kexec -n database production-db-1 -- psql -t -c "SELECT 1 FROM pg_roles WHERE rolname='${DB_USERNAME}'" 2>/dev/null | tr -d ' ')"
+  if [ "$USER_EXISTS" = "1" ]; then
+    echo "   User '${DB_USERNAME}' already exists — skipping CREATE USER"
+    kexec -n database production-db-1 -- psql -c "ALTER USER ${DB_USERNAME} WITH PASSWORD '${DB_PASSWORD}';" && echo "   User '${DB_USERNAME}' password updated"
+  else
+    kexec -n database production-db-1 -- psql -c "CREATE USER ${DB_USERNAME} WITH PASSWORD '${DB_PASSWORD}';" && echo "   User '${DB_USERNAME}' created"
+  fi
+  kexec -n database production-db-1 -- psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USERNAME};" && echo "   Privileges granted"
+
+  echo ""
+  echo ">> MinIO: creating bucket and user..."
+  local MC_ALIAS="atlas-seed"
+  kexec -n minio minio-0 -- mc alias set "${MC_ALIAS}" http://localhost:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"
+
+  local BUCKET_EXISTS
+  BUCKET_EXISTS="$(kexec -n minio minio-0 -- mc stat "${MC_ALIAS}/${S3_BUCKET}" 2>&1 || true)"
+  if echo "$BUCKET_EXISTS" | grep -q "Object does not exist\|does not exist"; then
+    kexec -n minio minio-0 -- mc mb "${MC_ALIAS}/${S3_BUCKET}" && echo "   Bucket '${S3_BUCKET}' created"
+  else
+    echo "   Bucket '${S3_BUCKET}' already exists — skipping"
+  fi
+
+  local MINIO_USER_EXISTS
+  MINIO_USER_EXISTS="$(kexec -n minio minio-0 -- mc admin user list "${MC_ALIAS}" 2>/dev/null | grep -c "${S3_ACCESS_KEY}" || true)"
+  if [ "$MINIO_USER_EXISTS" -gt 0 ]; then
+    echo "   MinIO user '${S3_ACCESS_KEY}' already exists — updating secret key"
+    kexec -n minio minio-0 -- mc admin user update "${MC_ALIAS}" "${S3_ACCESS_KEY}" "${S3_SECRET_KEY}"
+  else
+    kexec -n minio minio-0 -- mc admin user add "${MC_ALIAS}" "${S3_ACCESS_KEY}" "${S3_SECRET_KEY}" && echo "   MinIO user '${S3_ACCESS_KEY}' created"
+  fi
+  kexec -n minio minio-0 -- mc admin policy set "${MC_ALIAS}" readwrite user="${S3_ACCESS_KEY}"
+
+  echo ""
+  echo ">> Vault: writing secrets to ${VAULT_PATH}..."
+  local USE_LOCAL_VAULT=false
+  if command -v vault &>/dev/null && [ -n "${VAULT_ADDR:-}" ]; then
+    USE_LOCAL_VAULT=true
+  fi
+
+  local VAULT_DATA
+  VAULT_DATA=$(cat <<DATA
+db_username=${DB_USERNAME}
+db_password=${DB_PASSWORD}
+db_host=${DB_HOST}
+db_port=${DB_PORT}
+db_name=${DB_NAME}
+s3_access_key=${S3_ACCESS_KEY}
+s3_secret_key=${S3_SECRET_KEY}
+s3_endpoint=${S3_ENDPOINT}
+s3_bucket=${S3_BUCKET}
+redis_password=${PLATFORM_REDIS_PASSWORD}
+redis_host=${REDIS_HOST}
+redis_port=${REDIS_PORT}
+DATA
+)
+
+  if [ -f "${WORKLOAD_DIR}/.secret-seed" ]; then
+    while IFS='' read -r line; do
+      [ -z "$line" ] && continue
+      [[ "$line" == \#* ]] && continue
+      local line_name="${line%%=*}"
+      local line_value="${line#*=}"
+      if [[ "$line_name" == ${PREFIX}_* ]]; then
+        local suffix="${line_name#${PREFIX}_}"
+        case "$suffix" in
+          DB_PASSWORD|S3_ACCESS_KEY|S3_SECRET_KEY|REDIS_PASSWORD) continue ;;
+        esac
+        VAULT_DATA="${VAULT_DATA}
+${suffix,,}=${line_value}"
+      fi
+    done < "${WORKLOAD_DIR}/.secret-seed"
+  fi
+
+  if [ "$USE_LOCAL_VAULT" = "true" ]; then
+    # shellcheck disable=SC2086
+    vault kv put "${VAULT_PATH}" $VAULT_DATA
+    echo "   Secrets written via local vault CLI"
+  else
+    local VAULT_OK
+    VAULT_OK="$(vault0 status 2>&1 | head -1 || true)"
+    if echo "$VAULT_OK" | grep -q "Sealed\|not initialized\|Error"; then
+      echo "   WARNING: Vault is not accessible via kubectl exec vault-0"
+      echo "   Set VAULT_ADDR + VAULT_TOKEN and ensure vault CLI is installed"
+      echo "   Then run: vault kv put ${VAULT_PATH} ${VAULT_DATA//$'\n'/ }"
+      echo ""
+      echo "   Secrets NOT written to Vault. Continuing with database/bucket only."
+    else
+      local VAULT_ARGS=()
+      while IFS='=' read -r key val; do
+        [ -z "$key" ] && continue
+        VAULT_ARGS+=("${key}=${val}")
+      done <<< "$VAULT_DATA"
+      vault0 kv put "${VAULT_PATH}" "${VAULT_ARGS[@]}" && echo "   Secrets written to ${VAULT_PATH}"
+    fi
+  fi
+
+  echo ""
+  echo "=== Seed complete for ${GROUP}/${APP} ==="
+  echo ""
+  echo "Next step: atlasctl enable ${GROUP}/${APP} [--sync]"
+}
+
+# --- Command: enable ---
+cmd_enable() {
+  local WORKLOAD=""
+  local DRY_RUN=false
+  local SYNC=false
+  local PUSH=false
+  local FORCE=false
+  SKIP_CONFIRM=false
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run) DRY_RUN=true; shift ;;
+      --sync) SYNC=true; shift ;;
+      --push) PUSH=true; shift ;;
+      --force) FORCE=true; shift ;;
+      --yes|-y) SKIP_CONFIRM=true; shift ;;
+      -*|--*) die "Unknown option: $1" ;;
+      *)
+        [ -n "$WORKLOAD" ] && die "Unexpected argument: $1"
+        WORKLOAD="$1"
+        shift
+        ;;
+    esac
+  done
+
+  [ -z "$WORKLOAD" ] && die "Usage: atlasctl enable <group>/<app> [--dry-run] [--sync] [--push] [--force] [-y]"
+
+  local GROUP="${WORKLOAD%%/*}"
+  local APP="${WORKLOAD#*/}"
+  [ "$GROUP" = "$APP" ] && die "Invalid format. Use: <group>/<app>"
+
+  local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
+  local GITOPS_DIR="${REPO_ROOT}/gitops/workloads/${GROUP}"
+  local GITOPS_FILE="${GITOPS_DIR}/${APP}.yaml"
+  local GW_FILE="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml"
+
+  if [ "$FORCE" != "true" ]; then
+    [ ! -d "$WORKLOAD_DIR" ] && die "Workload not found: $WORKLOAD_DIR"
+    [ ! -f "${WORKLOAD_DIR}/app.yaml" ] && die "app.yaml not found in ${WORKLOAD_DIR}"
+    [ -f "$GITOPS_FILE" ] && die "Already enabled at ${GITOPS_FILE} (use --force to overwrite)"
+  fi
+
+  if ! command -v yq &>/dev/null; then
+    die "yq is required. Install: https://github.com/mikefarah/yq#install"
+  fi
+
+  local NAMESPACE
+  NAMESPACE="$(yq eval '.spec.destination.namespace' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || true)"
+  [ -z "$NAMESPACE" ] && NAMESPACE="${GROUP}-${APP}"
+
+  local HAS_GATEWAY=false
+  [ -f "${WORKLOAD_DIR}/gateway.yaml" ] && HAS_GATEWAY=true
+
+  local REPO_URL TARGET_REVISION
+  REPO_URL="$(git -C "${REPO_ROOT}" remote get-url origin 2>/dev/null || echo "https://github.com/aldoshkineg/atlas-idp.git")"
+  REPO_URL="${REPO_URL/#git@github.com:/https:\/\/github.com\/}"
+  REPO_URL="${REPO_URL%.git}"
+  TARGET_REVISION="$(git -C "${REPO_ROOT}" branch --show-current 2>/dev/null || echo "main")"
+
+  local GITOPS_CONTENT
+  GITOPS_CONTENT=$(cat <<YAML
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ${GROUP}-${APP}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "90"
+    argocd.argoproj.io/depends-on: postgres-cluster,redis,minio,cert-manager
+spec:
+  project: workloads
+  source:
+    repoURL: ${REPO_URL}
+    targetRevision: ${TARGET_REVISION}
+    path: workloads/${GROUP}/${APP}
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${NAMESPACE}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+YAML
+)
+
+  echo "---"
+  echo "Enabling workload: ${GROUP}/${APP}"
+  echo "  Namespace:      ${NAMESPACE}"
+  echo "  GitOps file:    ${GITOPS_FILE}"
+  echo "  Gateway patch:  ${HAS_GATEWAY}"
+  echo "---"
+
+  if [ "$DRY_RUN" = "true" ]; then
+    echo ""
+    echo ">> Would create: ${GITOPS_FILE}"
+    echo "${GITOPS_CONTENT}"
+
+    if [ "$HAS_GATEWAY" = "true" ]; then
+      local GW_HOSTNAME
+      GW_HOSTNAME="$(yq eval 'select(.kind == "HTTPRoute") | .spec.hostnames[0]' "${WORKLOAD_DIR}/gateway.yaml" 2>/dev/null | head -1 || echo "${APP}.atlas")"
+      echo ""
+      echo ">> Would add listener to: ${GW_FILE}"
+      echo "   name: https-${APP}"
+      echo "   hostname: ${GW_HOSTNAME}"
+      echo "   certificateRefs: [${APP}-cert]"
+    fi
+
+    echo ""
+    echo "DRY RUN — no changes made"
+    $PUSH && echo "(--push ignored in dry-run)"
+    $SYNC && echo "(--sync ignored in dry-run)"
+    return 0
+  fi
+
+  prompt_confirm "Enable this workload?" || die "Aborted"
+
+  mkdir -p "$GITOPS_DIR"
+  echo "$GITOPS_CONTENT" > "$GITOPS_FILE"
+  echo "  [app] Created ${GITOPS_FILE}"
+
+  if [ "$HAS_GATEWAY" = "true" ]; then
+    local GW_HOSTNAME
+    GW_HOSTNAME="$(yq eval 'select(.kind == "HTTPRoute") | .spec.hostnames[0]' "${WORKLOAD_DIR}/gateway.yaml" 2>/dev/null | head -1 || echo "${APP}.atlas")"
+
+    local LISTENER_EXISTS
+    LISTENER_EXISTS="$(yq eval ".spec.listeners[] | select(.name == \"https-${APP}\")" "$GW_FILE" 2>/dev/null || true)"
+    if [ -n "$LISTENER_EXISTS" ]; then
+      echo "  [gateway] Listener 'https-${APP}' already exists — skipping"
+    else
+      local YQ_EXPR
+      YQ_EXPR='.spec.listeners += [{"name": "https-'"${APP}"'", "port": 443, "protocol": "HTTPS", "hostname": "'"${GW_HOSTNAME}"'", "allowedRoutes": {"namespaces": {"from": "All"}}, "tls": {"mode": "Terminate", "certificateRefs": [{"name": "'"${APP}"'-cert"}]}}]'
+      yq eval -i "$YQ_EXPR" "$GW_FILE"
+      echo "  [gateway] Added listener 'https-${APP}' (${GW_HOSTNAME})"
+    fi
+  fi
+
+  if [ "$SYNC" = "true" ]; then
+    git -C "${REPO_ROOT}" add "${GITOPS_FILE}"
+    if [ "$HAS_GATEWAY" = "true" ]; then
+      git -C "${REPO_ROOT}" add "$GW_FILE"
+    fi
+    git -C "${REPO_ROOT}" commit -m "enable(workloads): promote ${GROUP}/${APP}" || echo "   (nothing to commit)"
+
+    if [ "$PUSH" = "true" ]; then
+      git -C "${REPO_ROOT}" push
+      echo "  [push] Changes pushed"
+    else
+      echo "  (use --push to push commits)"
+    fi
+  fi
+
+  echo ""
+  echo "=== Enable complete for ${GROUP}/${APP} ==="
+  echo ""
+  echo "Next step: atlasctl status ${GROUP}/${APP}"
+}
+
+# --- Command: disable ---
+cmd_disable() {
+  local WORKLOAD=""
+  local DRY_RUN=false
+  local SYNC=false
+  local PUSH=false
+  local KEEP_WORKLOAD=false
+  SKIP_CONFIRM=false
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run) DRY_RUN=true; shift ;;
+      --sync) SYNC=true; shift ;;
+      --push) PUSH=true; shift ;;
+      --keep-workload) KEEP_WORKLOAD=true; shift ;;
+      --yes|-y) SKIP_CONFIRM=true; shift ;;
+      -*|--*) die "Unknown option: $1" ;;
+      *)
+        [ -n "$WORKLOAD" ] && die "Unexpected argument: $1"
+        WORKLOAD="$1"
+        shift
+        ;;
+    esac
+  done
+
+  [ -z "$WORKLOAD" ] && die "Usage: atlasctl disable <group>/<app> [--dry-run] [--sync] [--push] [--keep-workload] [-y]"
+
+  local GROUP="${WORKLOAD%%/*}"
+  local APP="${WORKLOAD#*/}"
+  [ "$GROUP" = "$APP" ] && die "Invalid format. Use: <group>/<app>"
+
+  local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
+  local GITOPS_DIR="${REPO_ROOT}/gitops/workloads/${GROUP}"
+  local GITOPS_FILE="${GITOPS_DIR}/${APP}.yaml"
+  local GW_FILE="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml"
+
+  [ ! -f "$GITOPS_FILE" ] && die "Not enabled — ${GITOPS_FILE} does not exist"
+  if [ "$KEEP_WORKLOAD" != "true" ]; then
+    [ ! -d "$WORKLOAD_DIR" ] && die "Workload not found: ${WORKLOAD_DIR} (use --keep-workload to skip)"
+  fi
+
+  if ! command -v yq &>/dev/null; then
+    die "yq is required. Install: https://github.com/mikefarah/yq#install"
+  fi
+
+  local HAS_GATEWAY=false
+  [ -f "${WORKLOAD_DIR}/gateway.yaml" ] && HAS_GATEWAY=true
+
+  echo "---"
+  echo "Disabling workload: ${GROUP}/${APP}"
+  echo "  GitOps file:    ${GITOPS_FILE} (remove)"
+  echo "  Gateway patch:  ${HAS_GATEWAY}"
+  [ "$KEEP_WORKLOAD" = "true" ] && echo "  Workload dir:   kept (--keep-workload)"
+  echo "---"
+
+  if [ "$DRY_RUN" = "true" ]; then
+    echo ""
+    echo ">> Would remove listener from: ${GW_FILE}"
+    echo "   name: https-${APP}"
+    echo ""
+    echo ">> Would delete: ${GITOPS_FILE}"
+    if [ -d "$GITOPS_DIR" ] && [ -z "$(ls -A "$GITOPS_DIR" 2>/dev/null)" ]; then
+      echo ">> Would remove empty: ${GITOPS_DIR}"
+    fi
+    echo ""
+    echo "DRY RUN — no changes made"
+    $PUSH && echo "(--push ignored in dry-run)"
+    $SYNC && echo "(--sync ignored in dry-run)"
+    return 0
+  fi
+
+  prompt_confirm "Disable this workload?" || die "Aborted"
+
+  local LISTENER_EXISTS
+  LISTENER_EXISTS="$(yq eval ".spec.listeners[] | select(.name == \"https-${APP}\")" "$GW_FILE" 2>/dev/null || true)"
+  if [ -n "$LISTENER_EXISTS" ]; then
+    yq eval -i "del(.spec.listeners[] | select(.name == \"https-${APP}\"))" "$GW_FILE"
+    echo "  [gateway] Removed listener 'https-${APP}'"
+  else
+    echo "  [gateway] Listener 'https-${APP}' not found — skipping"
+  fi
+
+  rm -f "$GITOPS_FILE"
+  echo "  [app] Removed ${GITOPS_FILE}"
+
+  if [ -d "$GITOPS_DIR" ] && [ -z "$(ls -A "$GITOPS_DIR" 2>/dev/null)" ]; then
+    rmdir "$GITOPS_DIR"
+    echo "  [app] Removed empty directory ${GITOPS_DIR}"
+  fi
+
+  if [ "$SYNC" = "true" ]; then
+    git -C "${REPO_ROOT}" add -A "$GITOPS_DIR" 2>/dev/null || true
+    git -C "${REPO_ROOT}" add "$GW_FILE"
+    git -C "${REPO_ROOT}" commit -m "disable(workloads): remove ${GROUP}/${APP}" || echo "   (nothing to commit)"
+
+    if [ "$PUSH" = "true" ]; then
+      git -C "${REPO_ROOT}" push
+      echo "  [push] Changes pushed"
+    else
+      echo "  (use --push to push commits)"
+    fi
+  fi
+
+  echo ""
+  echo "=== Disable complete for ${GROUP}/${APP} ==="
+}
+
+# --- Command: status ---
+cmd_status() {
+  local WORKLOAD=""
+  local JSON=false
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --json) JSON=true; shift ;;
+      -*|--*) die "Unknown option: $1" ;;
+      *)
+        [ -n "$WORKLOAD" ] && die "Unexpected argument: $1"
+        WORKLOAD="$1"
+        shift
+        ;;
+    esac
+  done
+
+  [ -z "$WORKLOAD" ] && die "Usage: atlasctl status <group>/<app> [--json]"
+
+  local GROUP="${WORKLOAD%%/*}"
+  local APP="${WORKLOAD#*/}"
+  [ "$GROUP" = "$APP" ] && die "Invalid format. Use: <group>/<app>"
+
+  local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
+  local GITOPS_FILE="${REPO_ROOT}/gitops/workloads/${GROUP}/${APP}.yaml"
+  local GW_FILE="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml"
+
+  [ ! -d "$WORKLOAD_DIR" ] && die "Workload not found: ${WORKLOAD_DIR}"
+
+  # --- Gather data ---
+  local NAMESPACE=""
+  [ -f "${WORKLOAD_DIR}/app.yaml" ] && NAMESPACE="$(yq eval '.spec.destination.namespace' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || true)"
+  [ -z "$NAMESPACE" ] && NAMESPACE="${GROUP}-${APP}"
+
+  local FEATURES
+  FEATURES="$(detect_features "${WORKLOAD_DIR}/")"
+  [ -z "$FEATURES" ] && FEATURES="none"
+
+  local ENABLED=false
+  [ -f "$GITOPS_FILE" ] && ENABLED=true
+
+  local GW_LISTENER=false
+  if [ -f "$GW_FILE" ] && command -v yq &>/dev/null; then
+    local CHECK
+    CHECK="$(yq eval ".spec.listeners[] | select(.name == \"https-${APP}\")" "$GW_FILE" 2>/dev/null || true)"
+    [ -n "$CHECK" ] && GW_LISTENER=true
+  fi
+
+  local ARGOCD_SYNC=""
+  if command -v argocd &>/dev/null; then
+    ARGOCD_SYNC="$(argocd app get "${GROUP}-${APP}" -o json 2>/dev/null | yq eval '.status.sync.status' - 2>/dev/null || echo "")"
+  fi
+
+  # --- Output ---
+  if [ "$JSON" = "true" ]; then
+    cat <<JSON
+{
+  "name": "${GROUP}/${APP}",
+  "namespace": "${NAMESPACE}",
+      "features": [$(echo "$FEATURES" | xargs | sed 's/ /", "/g' | sed 's/^/"/;s/$/"/')],
+  "enabled": ${ENABLED},
+  "gateway_listener": ${GW_LISTENER},
+  "argocd_sync": $( [ -n "$ARGOCD_SYNC" ] && echo "\"${ARGOCD_SYNC}\"" || echo null )
+}
+JSON
+  else
+    echo "=== ${GROUP}/${APP} ==="
+    echo "  Namespace:      ${NAMESPACE}"
+    echo "  Features:       ${FEATURES}"
+    if [ "$ENABLED" = "true" ]; then
+      echo "  Enabled:        $(green "yes")"
+    else
+      echo "  Enabled:        $(yellow "no")"
+    fi
+    if [ "$GW_LISTENER" = "true" ]; then
+      echo "  Gateway:        $(green "yes")"
+    else
+      echo "  Gateway:        $(yellow "no")"
+    fi
+    if [ -n "$ARGOCD_SYNC" ]; then
+      case "$ARGOCD_SYNC" in
+        Synced)    echo "  ArgoCD Sync:    $(green "${ARGOCD_SYNC}")" ;;
+        OutOfSync) echo "  ArgoCD Sync:    $(red "${ARGOCD_SYNC}")" ;;
+        *)         echo "  ArgoCD Sync:    ${ARGOCD_SYNC}" ;;
+      esac
+    fi
+  fi
 }
 
 # --- Command: list ---
 cmd_list() {
+  local JSON=false
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --json) JSON=true; shift ;;
+      -*|--*) die "Unknown option: $1" ;;
+      *) die "Unexpected argument: $1" ;;
+    esac
+  done
+
   if [ ! -d "${REPO_ROOT}/workloads" ]; then
-    echo "No workloads found"
+    if [ "$JSON" = "true" ]; then
+      echo "[]"
+    else
+      echo "No workloads found"
+    fi
     exit 0
   fi
 
-  echo "Workloads:"
+  local GW_FILE="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml"
+  local FIRST=true
+
+  if [ "$JSON" = "true" ]; then
+    echo "["
+  else
+    echo "Workloads:"
+  fi
+
   for group_dir in "${REPO_ROOT}/workloads"/*/; do
     [ ! -d "$group_dir" ] && continue
     local group
     group="$(basename "$group_dir")"
     for app_dir in "$group_dir"*/; do
       [ ! -d "$app_dir" ] && continue
+      [ ! -f "${app_dir}app.yaml" ] && continue
       local app
       app="$(basename "$app_dir")"
-      local features=""
-      [ -f "${app_dir}.secret-seed" ] && features+="secrets "
-      [ -f "${app_dir}gateway.yaml" ] && features+="gateway "
-      [ -f "${app_dir}monitoring/prometheus-rule.yaml" ] && features+="monitoring "
-      [ -d "${app_dir}autoscaling" ] && features+="keda "
-      [ -d "${app_dir}rollouts" ] && features+="rollouts "
-      [ -z "$features" ] && features="(no features)"
-      echo "  ${group}/${app}  [${features}]"
+
+      local features
+      features="$(detect_features "$app_dir")"
+      [ -z "$features" ] && features="none"
+
+      local enabled=false
+      [ -f "${REPO_ROOT}/gitops/workloads/${group}/${app}.yaml" ] && enabled=true
+
+      local gw_listener=false
+      if [ -f "$GW_FILE" ] && command -v yq &>/dev/null; then
+        local CHECK
+        CHECK="$(yq eval ".spec.listeners[] | select(.name == \"https-${app}\")" "$GW_FILE" 2>/dev/null || true)"
+        [ -n "$CHECK" ] && gw_listener=true
+      fi
+
+      if [ "$JSON" = "true" ]; then
+        $FIRST || echo ","
+        FIRST=false
+        cat <<JSON
+    {
+      "name": "${group}/${app}",
+      "features": [$(echo "$features" | xargs | sed 's/ /", "/g' | sed 's/^/"/;s/$/"/')],
+      "enabled": ${enabled},
+      "gateway_listener": ${gw_listener}
+    }
+JSON
+      else
+        local status_icon
+        if [ "$enabled" = "true" ]; then
+          status_icon="$(green "✓")"
+        else
+          status_icon="$(yellow "○")"
+        fi
+        echo "  ${status_icon} ${group}/${app}  [${features}]"
+      fi
     done
   done
+
+  if [ "$JSON" = "true" ]; then
+    echo "]"
+  fi
 }
 
 # --- Main ---
@@ -300,11 +987,10 @@ shift
 case "$CMD" in
   new) cmd_new "$@" ;;
   seed) cmd_seed "$@" ;;
+  enable) cmd_enable "$@" ;;
+  disable) cmd_disable "$@" ;;
+  status) cmd_status "$@" ;;
   list) cmd_list "$@" ;;
-  enable|disable|status)
-    echo "TODO: atlasctl $CMD — not yet implemented"
-    exit 1
-    ;;
   -h|--help) usage ;;
   *) die "Unknown command: $CMD (use --help for usage)" ;;
 esac

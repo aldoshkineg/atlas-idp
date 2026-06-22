@@ -1,0 +1,23 @@
+{{- if .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: seal-worker
+  labels: {{- include "seal.labels" (dict "name" "seal-worker") | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: seal-worker
+  minReplicaCount: {{ .Values.keda.worker.minReplicaCount }}
+  maxReplicaCount: {{ .Values.keda.worker.maxReplicaCount }}
+  pollingInterval: {{ .Values.keda.worker.pollingInterval }}
+  cooldownPeriod: {{ .Values.keda.worker.cooldownPeriod }}
+  triggers:
+    - type: redis-list
+      metadata:
+        address: {{ .Values.keda.worker.redisAddress }}
+        listName: {{ .Values.keda.worker.listName }}
+        listLength: "{{ .Values.keda.worker.listLength }}"
+        enableTLS: "false"
+      authenticationRef:
+        name: keda-redis-auth
+{{- end }}

@@ -1,0 +1,187 @@
+version: "3"
+
+tasks:
+
+  # ────────────────────────────────────────────
+  # Default
+  # ────────────────────────────────────────────
+
+  default:
+    cmd: go-task --list
+
+  # ────────────────────────────────────────────
+  # Docker Compose (tests/integration)
+  # ────────────────────────────────────────────
+
+  dc-up:
+    desc: Start full stack (postgres, redis, minio, seal-api, seal-worker)
+    dir: tests/integration
+    cmds:
+      - docker compose up -d
+
+  dc-down:
+    desc: Stop and remove all containers
+    dir: tests/integration
+    cmds:
+      - docker compose down
+
+  dc-logs:
+    desc: Follow container logs
+    dir: tests/integration
+    cmds:
+      - docker compose logs -f
+
+  dc-ps:
+    desc: List running containers
+    dir: tests/integration
+    cmds:
+      - docker compose ps
+
+  dc-restart:
+    desc: Restart all containers
+    dir: tests/integration
+    cmds:
+      - docker compose restart
+
+  # ────────────────────────────────────────────
+  # Certificates
+  # ────────────────────────────────────────────
+
+  gen-certs:
+    desc: Generate self-signed certs for local dev signing (needed by run-worker)
+    cmds:
+      - mkdir -p .certs
+      - >-
+        openssl req -x509 -newkey rsa:2048
+        -keyout .certs/tls.key -out .certs/tls.crt
+        -days 365 -nodes
+        -subj "/CN=seal-worker-dev/O=Atlas IDP Local"
+      - chmod 644 .certs/tls.crt .certs/tls.key
+
+  # ────────────────────────────────────────────
+  # Run Services on Host (requires dc-up)
+  # ────────────────────────────────────────────
+
+  run-api:
+    desc: Start seal API on host (requires dc-up)
+    dir: seal-api
+    cmds:
+      - go run ./cmd
+    env:
+      POSTGRES_PASSWORD: seal
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadminpassword
+      DOWNLOAD_URL_PREFIX: http://localhost:9000
+
+  run-worker:
+    desc: Start seal worker on host (requires dc-up, gen-certs)
+    dir: seal-worker
+    cmds:
+      - go run ./cmd
+    env:
+      SIGN_CERT_PATH: '{{.TASKFILE_DIR}}/.certs/tls.crt'
+      SIGN_KEY_PATH: '{{.TASKFILE_DIR}}/.certs/tls.key'
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadminpassword
+
+  run-frontend:
+    desc: Start seal UI on host (requires dc-up + run-api)
+    dir: seal-ui
+    cmds:
+      - go run ./cmd
+    env:
+      BACKEND_API_URL: http://localhost:8080
+
+  # ────────────────────────────────────────────
+  # Testing (all Go modules)
+  # ────────────────────────────────────────────
+
+  test:
+    desc: Run all unit tests in all modules
+    cmds:
+      - cd seal-api && go test ./... -race -shuffle=on -count=1
+      - cd seal-worker && go test ./... -race -shuffle=on -count=1
+      - cd seal-ui && go test ./... -race -shuffle=on -count=1
+
+  test-integration:
+    desc: Run Go integration tests in both modules (requires dc-up)
+    cmds:
+      - cd seal-api && go test ./... -tags=integration -race -shuffle=on -count=1
+      - cd seal-worker && go test ./... -tags=integration -race -shuffle=on -count=1
+
+  test-infra:
+    desc: Run infrastructure smoke tests (curl against docker compose)
+    dir: tests/integration
+    cmds:
+      - ./test-infra.sh
+
+  # ────────────────────────────────────────────
+  # Lint / Vet / Validate (both Go modules)
+  # ────────────────────────────────────────────
+
+  lint:
+    desc: Run golangci-lint in all modules
+    cmds:
+      - cd seal-api && golangci-lint run ./...
+      - cd seal-worker && golangci-lint run ./...
+      - cd seal-ui && golangci-lint run ./...
+
+  vet:
+    desc: Run go vet in all modules
+    cmds:
+      - cd seal-api && go vet ./...
+      - cd seal-worker && go vet ./...
+      - cd seal-ui && go vet ./...
+
+  validate:
+    desc: Run lint, vet, and unit tests
+    cmds:
+      - task: lint
+      - task: vet
+      - task: test
+
+  # ────────────────────────────────────────────
+  # Build (Docker images)
+  # ────────────────────────────────────────────
+
+  build-api:
+    desc: Build seal-api Docker image
+    cmds:
+      - docker buildx build --load -t ghcr.io/atlas-idp/seal-api:dev ./seal-api
+
+  build-worker:
+    desc: Build seal-worker Docker image
+    cmds:
+      - docker buildx build --load -t ghcr.io/atlas-idp/seal-worker:dev ./seal-worker
+
+  build-frontend:
+    desc: Build seal-ui Docker image
+    cmds:
+      - docker buildx build --load -t ghcr.io/atlas-idp/seal-ui:dev ./seal-ui
+
+  build-all:
+    desc: Build all Docker images
+    cmds:
+      - task: build-api
+      - task: build-worker
+      - task: build-frontend
+
+  kind-load:
+    desc: Load dev images into kind cluster
+    deps:
+      - build-all
+    cmds:
+      - kind load docker-image ghcr.io/atlas-idp/seal-api:dev
+      - kind load docker-image ghcr.io/atlas-idp/seal-worker:dev
+      - kind load docker-image ghcr.io/atlas-idp/seal-ui:dev
+
+  # ────────────────────────────────────────────
+  # Cleanup
+  # ────────────────────────────────────────────
+
+  clean:
+    desc: Stop compose, remove .certs, and clean go build cache
+    cmds:
+      - task: dc-down
+      - rm -rf .certs
+      - go clean -cache

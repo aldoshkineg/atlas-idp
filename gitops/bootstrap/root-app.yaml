@@ -16,10 +16,10 @@ spec:
         exclude: "{README.md,**/values/**,**/resources/**}"
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
-      path: gitops/workloads/layers
+      path: gitops/workloads
       directory:
         recurse: true
-        exclude: "README.md"
+        exclude: "{README.md,.gitkeep}"
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
