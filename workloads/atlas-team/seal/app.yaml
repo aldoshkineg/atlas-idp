@@ -23,7 +23,9 @@ spec:
           ui:
             tag: v0.25.0
         vault:
-          enabled: true
+          enabled: false
+        secrets:
+          create: false
   destination:
     server: https://kubernetes.default.svc
     namespace: atlas-team-seal
