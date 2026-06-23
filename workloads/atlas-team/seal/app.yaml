@@ -13,12 +13,17 @@ spec:
     path: apps/seal/charts/seal
     helm:
       values: |
-        secrets:
-          postgresPassword: "NYYVnO2CmaqTixOI2DcHcLJOhotrsLZb"
-          redisPassword: "oVMTZL9K04F/h9m9qjD/5ozI1ulrD9Yj"
-          minioAccessKey: "3db4574ea1bdf59444459d7feda20d43"
-          minioSecretKey: "jUCsNfRvCC6PXDCfIlVaw352s0VwDUruIFPakYHYeFw="
-
+        global:
+          imageRegistry: ghcr.io/aldoshkineg
+        images:
+          api:
+            tag: v0.25.0
+          worker:
+            tag: v0.25.0
+          ui:
+            tag: v0.25.0
+        vault:
+          enabled: true
   destination:
     server: https://kubernetes.default.svc
     namespace: atlas-team-seal
