@@ -271,11 +271,14 @@ cmd_new() {
   fi
 
   local HELM_VALUES_INDENTED=""
+  local GITOPS_HELM_VALUES=""
   if [ "$HELM" = "true" ] && [ -n "$HELM_VALUES" ]; then
     if [ -f "$HELM_VALUES" ]; then
       HELM_VALUES_INDENTED="$(sed 's/^/        /' "$HELM_VALUES")"
+      GITOPS_HELM_VALUES="$(sed 's/^/          /' "$HELM_VALUES")"
     else
       HELM_VALUES_INDENTED="$(echo "$HELM_VALUES" | sed 's/^/        /')"
+      GITOPS_HELM_VALUES="$(echo "$HELM_VALUES" | sed 's/^/          /')"
     fi
   fi
 
@@ -660,7 +663,6 @@ cmd_enable() {
   GROUP_UC="$(echo "$GROUP" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
 
   local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
-  local WORKLOAD_GITOPS_FILE="${WORKLOAD_DIR}/gitops-app.yaml"
   local GITOPS_DIR="${REPO_ROOT}/gitops/workloads/${GROUP}"
   local GITOPS_FILE="${GITOPS_DIR}/${APP}.yaml"
   local GW_FILE="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml"
@@ -682,27 +684,10 @@ cmd_enable() {
   local HAS_GATEWAY=false
   [ -f "${WORKLOAD_DIR}/gateway.yaml" ] && HAS_GATEWAY=true
 
-  local REPO_URL TARGET_REVISION
+  local REPO_URL
   REPO_URL="$(git -C "${REPO_ROOT}" remote get-url origin 2>/dev/null || echo "https://github.com/aldoshkineg/atlas-idp.git")"
   REPO_URL="${REPO_URL/#git@github.com:/https:\/\/github.com\/}"
   REPO_URL="${REPO_URL%.git}"
-  TARGET_REVISION="$(git -C "${REPO_ROOT}" branch --show-current 2>/dev/null || echo "main")"
-  REPO_PATH=""
-  HELM=false
-  HELM_VALUES_INDENTED=""
-
-  local CHART_REPO CHART_REVISION CHART_PATH HAS_HELM HELM_VALUES_RAW
-  CHART_REPO="$(yq eval '.spec.source.repoURL' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "$REPO_URL")"
-  CHART_REVISION="$(yq eval '.spec.source.targetRevision' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "$TARGET_REVISION")"
-  CHART_PATH="$(yq eval '.spec.source.path' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "")"
-  HELM_VALUES_RAW="$(yq eval '.spec.source.helm.values // ""' "${WORKLOAD_DIR}/app.yaml" 2>/dev/null || echo "")"
-  HAS_HELM=false
-  [ -n "$HELM_VALUES_RAW" ] && HAS_HELM=true
-
-  GITOPS_HELM_VALUES=""
-  if [ "$HAS_HELM" = "true" ] && [ -n "$HELM_VALUES_RAW" ]; then
-    GITOPS_HELM_VALUES="$(echo "$HELM_VALUES_RAW" | sed 's/^/          /')"
-  fi
 
   echo "---"
   echo "Enabling workload: ${GROUP}/${APP}"
@@ -713,9 +698,7 @@ cmd_enable() {
 
   if [ "$DRY_RUN" = "true" ]; then
     echo ""
-    echo ">> Would create: ${WORKLOAD_GITOPS_FILE}"
-    echo ">>          →:  ${GITOPS_FILE}"
-    render_template "${TEMPLATES_DIR}/gitops-app.yaml.tmpl" -
+    echo ">> Would copy ${WORKLOAD_DIR}/app.yaml → ${GITOPS_FILE}"
 
     if [ "$HAS_GATEWAY" = "true" ]; then
       local GW_HOSTNAME
@@ -736,10 +719,8 @@ cmd_enable() {
 
   prompt_confirm "Enable this workload?" || die "Aborted"
 
-  mkdir -p "$(dirname "$WORKLOAD_GITOPS_FILE")" "$GITOPS_DIR"
-  render_template "${TEMPLATES_DIR}/gitops-app.yaml.tmpl" "$WORKLOAD_GITOPS_FILE"
-  cp "$WORKLOAD_GITOPS_FILE" "$GITOPS_FILE"
-  echo "  [app] Created ${WORKLOAD_GITOPS_FILE}"
+  mkdir -p "$GITOPS_DIR"
+  cp "${WORKLOAD_DIR}/app.yaml" "$GITOPS_FILE"
   echo "  [app] Copied to ${GITOPS_FILE}"
 
   if [ "$HAS_GATEWAY" = "true" ]; then
@@ -827,7 +808,6 @@ cmd_disable() {
   [ "$GROUP" = "$APP" ] && die "Invalid format. Use: <group>/<app>"
 
   local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
-  local WORKLOAD_GITOPS_FILE="${WORKLOAD_DIR}/gitops-app.yaml"
   local GITOPS_DIR="${REPO_ROOT}/gitops/workloads/${GROUP}"
   local GITOPS_FILE="${GITOPS_DIR}/${APP}.yaml"
   local GW_FILE="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml"

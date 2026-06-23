@@ -1,17 +1,24 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {{APP}}
+  name: {{GROUP}}-{{APP}}
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "100"
+    argocd.argoproj.io/sync-wave: "90"
+    argocd.argoproj.io/depends-on: postgres-cluster,redis,minio,cert-manager
 spec:
   project: workloads
-  source:
-    repoURL: {{REPO_URL}}
-    targetRevision: main
-    path: {{REPO_PATH}}
-    {{REPO_HELM_SETTINGS}}
+  sources:
+    - repoURL: {{CHART_REPO}}
+      targetRevision: {{CHART_REVISION}}
+      path: {{CHART_PATH}}
+{{GITOPS_HELM_SETTINGS}}
+    - repoURL: {{REPO_URL}}
+      targetRevision: {{TARGET_REVISION}}
+      path: workloads/{{GROUP}}/{{APP}}
+      directory:
+        recurse: true
+        exclude: "{app.yaml,.secret-seed,vault/*,*.tmpl}"
   destination:
     server: https://kubernetes.default.svc
     namespace: {{NAMESPACE}}
