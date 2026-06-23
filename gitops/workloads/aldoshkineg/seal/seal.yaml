@@ -27,9 +27,9 @@ spec:
           enabled: false
         secrets:
           postgresPassword: "MyzuMb6B1plUW0Tbkze7Xe25npzwQ6Uyym3OuFPf7QSgGKbvV5ennoHgPtFyDvGf"
-          redisPassword: "oVMTZL9K04F/h9m9qjD/5ozI1ulrD9Yj"
-          minioAccessKey: "minioadmin"
-          minioSecretKey: "minioadminpassword"
+          redisPassword: "e5f2190c315c1afedf9809e7611a1d9d685a17a601966d1d6451a5a6fc93208c"
+          minioAccessKey: "atlas-minio-admin"
+          minioSecretKey: "3f9c62b0351ec216ed239c607a31147371a56c3fe65585cb72fe2447d586976e"
   destination:
     server: https://kubernetes.default.svc
     namespace: seal
