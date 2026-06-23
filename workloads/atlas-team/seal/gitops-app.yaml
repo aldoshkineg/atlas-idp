@@ -29,6 +29,7 @@ spec:
       targetRevision: main
       path: workloads/atlas-team/seal
       directory:
+        recurse: true
         exclude: "{app.yaml,.secret-seed,gitops-app.yaml,vault/*,*.tmpl}"
   destination:
     server: https://kubernetes.default.svc

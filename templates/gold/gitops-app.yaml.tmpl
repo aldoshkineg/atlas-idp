@@ -17,6 +17,7 @@ spec:
       targetRevision: {{TARGET_REVISION}}
       path: workloads/{{GROUP}}/{{APP}}
       directory:
+        recurse: true
         exclude: "{app.yaml,.secret-seed,gitops-app.yaml,vault/*,*.tmpl}"
   destination:
     server: https://kubernetes.default.svc
