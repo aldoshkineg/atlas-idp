@@ -375,11 +375,13 @@ cmd_seed() {
   local FORCE=false
   local DRY_RUN=false
   local WORKLOAD=""
+  SKIP_CONFIRM=false
 
   while [ $# -gt 0 ]; do
     case "$1" in
       --force) FORCE=true; shift ;;
       --dry-run) DRY_RUN=true; shift ;;
+      -y|--yes) SKIP_CONFIRM=true; shift ;;
       -*|--*) die "Unknown option: $1" ;;
       *)
         [ -n "$WORKLOAD" ] && die "Unexpected argument: $1"
@@ -456,7 +458,7 @@ cmd_seed() {
 
   [ "$DRY_RUN" = "true" ] && { echo ""; echo "DRY RUN — no changes made"; return 0; }
 
-  prompt_confirm "Seed this workload?" || die "Aborted"
+  $SKIP_CONFIRM || prompt_confirm "Seed this workload?" || die "Aborted"
 
   echo ""
   echo ">> PostgreSQL: creating database and user..."
