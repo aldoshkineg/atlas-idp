@@ -1,4 +1,4 @@
-# Vault policy for seal workload (group: atlas-team)
-path "secret/workloads/atlas-team/seal/*" {
+# Vault policy for seal workload (group: atlasteam)
+path "secret/workloads/atlasteam/seal/*" {
   capabilities = ["read", "list"]
 }
