@@ -3,20 +3,20 @@ kind: Deployment
 metadata:
   name: seal-worker
   labels:
-    { { - include "seal.labels" (dict "name" "seal-worker") | nindent 4 } }
+    {{- include "seal.labels" (dict "name" "seal-worker") | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "130"
 spec:
-  replicas: { { .Values.replicaCount } }
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       app.kubernetes.io/name: seal-worker
-      app.kubernetes.io/instance: { { .Release.Name } }
+      app.kubernetes.io/instance: {{ .Release.Name }}
   template:
     metadata:
       labels:
         app.kubernetes.io/name: seal-worker
-        app.kubernetes.io/instance: { { .Release.Name } }
+        app.kubernetes.io/instance: {{ .Release.Name }}
         redis-client: "{{ .Values.redisClientLabel }}"
       annotations:
         argocd.argoproj.io/sync-wave: "130"
@@ -25,10 +25,10 @@ spec:
       containers:
         - name: seal-worker
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.images.worker.repository }}:{{ .Values.images.worker.tag }}"
-          imagePullPolicy: { { .Values.images.worker.pullPolicy } }
+          imagePullPolicy: {{ .Values.images.worker.pullPolicy }}
           ports:
             - name: metrics
-              containerPort: { { .Values.service.workerMetricsPort } }
+              containerPort: {{ .Values.service.workerMetricsPort }}
               protocol: TCP
           envFrom:
             - configMapRef:
@@ -48,7 +48,7 @@ spec:
               port: metrics
             initialDelaySeconds: 5
             periodSeconds: 10
-          resources: { { toYaml .Values.resources.worker | nindent 12 } }
+          resources: {{ toYaml .Values.resources.worker | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
