@@ -24,7 +24,13 @@ spec:
             ui:
               tag: v0.25.0
           vault:
-            enabled: true
+            enabled: false
+          secrets:
+            create: false
+          config:
+            postgres:
+              user: seal
+              db: seal
     - repoURL: https://github.com/aldoshkineg/atlas-idp
       targetRevision: main
       path: workloads/atlas-team/seal
