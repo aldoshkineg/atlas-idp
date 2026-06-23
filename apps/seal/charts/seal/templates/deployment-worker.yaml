@@ -16,41 +16,8 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         redis-client: "{{ .Values.redisClientLabel }}"
       annotations:
-        {{- if .Values.vault.enabled }}
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "{{ .Values.vault.role }}"
-        vault.hashicorp.com/agent-inject-secret-config: "{{ .Values.vault.paths.worker }}"
-        vault.hashicorp.com/agent-inject-template-config: |
-          {{`{{- with secret "`}}{{ .Values.vault.paths.worker }}{{`" -}}`}}
-          export MINIO_ACCESS_KEY="{{`{{ .Data.data.minio_access_key }}`}}"
-          export MINIO_SECRET_KEY="{{`{{ .Data.data.minio_secret_key }}`}}"
-          export REDIS_PASSWORD="{{`{{ .Data.data.redis_password }}`}}"
-          {{`{{- end }}`}}
-        vault.hashicorp.com/agent-inject-secret-tls-crt: "{{ .Values.vault.paths.pdfSigner }}"
-        vault.hashicorp.com/agent-inject-template-tls-crt: |
-          {{`{{- with secret "`}}{{ .Values.vault.paths.pdfSigner }}{{`" -}}`}}
-          {{`{{ .Data.data.cert }}`}}
-          {{`{{- end }}`}}
-        vault.hashicorp.com/agent-inject-secret-tls-key: "{{ .Values.vault.paths.pdfSigner }}"
-        vault.hashicorp.com/agent-inject-template-tls-key: |
-          {{`{{- with secret "`}}{{ .Values.vault.paths.pdfSigner }}{{`" -}}`}}
-          {{`{{ .Data.data.key }}`}}
-          {{`{{- end }}`}}
-        {{- end }}
     spec:
       serviceAccountName: seal-worker
-      securityContext:
-        runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
-      {{- if .Values.vault.enabled }}
-      initContainers:
-        - name: vault-agent
-          image: hashicorp/vault:latest
-          args:
-            - agent
-            - -config=/etc/vault/config.hcl
-      {{- end }}
       containers:
         - name: seal-worker
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.images.worker.repository }}:{{ .Values.images.worker.tag }}"

@@ -36,15 +36,6 @@ config:
   logLevel: info
   downloadUrlPrefix: https://s3.atlas
 
-vault:
-  enabled: true
-  role: seal
-  paths:
-    api: kv/data/seal/seal-api
-    worker: kv/data/seal/seal-worker
-    pdfSigner: kv/data/seal/pdf-signer
-    ui: kv/data/seal/seal-ui
-
 service:
   apiPort: 8080
   uiPort: 8081
