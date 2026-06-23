@@ -14,6 +14,15 @@ spec:
     path: apps/seal/charts/seal
     helm:
       values: |
+        global:
+          imageRegistry: ghcr.io/aldoshkineg
+        images:
+          api:
+            tag: v0.25.0
+          worker:
+            tag: v0.25.0
+          ui:
+            tag: v0.25.0
         vault:
           enabled: false
         secrets:

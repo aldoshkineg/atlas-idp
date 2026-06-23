@@ -137,8 +137,19 @@ Pre-commit runs on every commit:
 - **MinIO:** bucket `cnpg-backups`, endpoint `http://minio.minio.svc.cluster.local:9000`, creds `minioadmin`/`minioadminpassword`
 - **Next commit removes** all backup CRs from gitops; infra cluster will run as plain PostgreSQL without plugins.
 
-### Seal Project Moved
+### Seal Project
 
-- Seal (apps/) has been extracted to a separate repository: **aldoshkineg/atlas-idp-seal**
-- See `atlas-idp-seal` for Seal architecture, task runner commands, PDF signing, and infra tests.
-- ArgoCD Application in `gitops/workloads/layers/seal/seal.yaml` now points to the new repo.
+- **Repo:** `aldoshkineg/atlas-idp-seal` (extracted; ArgoCD Application in `gitops/workloads/layers/seal/seal.yaml` points there)
+- **Images on GHCR:** `ghcr.io/aldoshkineg/seal-{api,worker,ui}` — all three have `v0.25.0` and `0.2.0-alpha`; seal-api/seal-worker also have `latest`
+- **Build:** `go-task -t apps/seal/Taskfile.yml build-all` (local `docker buildx`), `push-images` (tag `:dev` → `ghcr.io/aldoshkineg/*:v0.25.0` + push)
+- **CI workflow:** `.github/workflows/seal-docker-publish.yml` — triggers on push main/push tag `v*`/PR main; uses `type=ref,event=tag` preserving `v` prefix
+- **act issues:** parallel matrix jobs fail (Docker context canceled); use `go-task act-build` for sequential builds
+- **Task CLI:** `task` a distrobox wrapper — use `go-task` directly
+- **Credentials in `.env`:** `GITHUB_TOKEN=ghp_...` (repo, workflow, write:packages, delete:packages)
+
+### kind Deployments (seal namespace)
+
+- 3 pods: `seal-api`, `seal-worker`, `seal-ui` — all running with `ghcr.io/aldoshkineg/*:v0.25.0`
+- **seal-api** exposed on 8080; needs Postgres (`production-db-rw.database.svc:5432`, user `app`/`MyzuMb6...`), Redis (`redis-master.redis.svc:6379`, pw `e5f2190c...`), MinIO (`minio.minio.svc:9000`, admin creds from Vault)
+- **seal-worker** needs Redis + MinIO
+- **seal-ui** exposed on 3000; no env vars

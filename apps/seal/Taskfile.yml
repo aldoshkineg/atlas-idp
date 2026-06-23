@@ -166,6 +166,23 @@ tasks:
       - task: build-worker
       - task: build-frontend
 
+  act-build:
+    desc: Build all images via act (GitHub Actions locally)
+    cmds:
+      - task: act-build-service
+        vars: {SERVICE: seal-api}
+      - task: act-build-service
+        vars: {SERVICE: seal-worker}
+      - task: act-build-service
+        vars: {SERVICE: seal-ui}
+
+  act-build-service:
+    internal: true
+    silent: true
+    dir: ../..
+    cmds:
+      - act workflow_dispatch -W .github/workflows/seal-docker-publish.yml --secret-file .env --matrix "service:{{.SERVICE}}"
+
   kind-load:
     desc: Load dev images into kind cluster
     deps:
@@ -174,6 +191,33 @@ tasks:
       - kind load docker-image ghcr.io/atlas-idp/seal-api:dev
       - kind load docker-image ghcr.io/atlas-idp/seal-worker:dev
       - kind load docker-image ghcr.io/atlas-idp/seal-ui:dev
+
+  push-images:
+    desc: Tag dev images and push to GHCR (tag from current git commit)
+    vars:
+      TAG:
+        sh: git describe --tags --abbrev=0 2>/dev/null || echo "dev"
+    cmds:
+      - |
+        echo "Pushing as ghcr.io/aldoshkineg/seal-*:{{.TAG}}"
+        TOKEN=$(grep '^GITHUB_TOKEN=' ../../.env | head -1 | cut -d= -f2)
+        echo "$TOKEN" | docker login ghcr.io -u aldoshkineg --password-stdin
+      - task: push-image
+        vars: {SERVICE: seal-api, TAG: '{{.TAG}}'}
+      - task: push-image
+        vars: {SERVICE: seal-worker, TAG: '{{.TAG}}'}
+      - task: push-image
+        vars: {SERVICE: seal-ui, TAG: '{{.TAG}}'}
+
+  push-image:
+    internal: true
+    silent: true
+    vars:
+      TAG: '{{.TAG | default "dev"}}'
+    cmds:
+      - |
+        docker tag ghcr.io/atlas-idp/{{.SERVICE}}:dev ghcr.io/aldoshkineg/{{.SERVICE}}:{{.TAG}}
+        docker push ghcr.io/aldoshkineg/{{.SERVICE}}:{{.TAG}}
 
   # ────────────────────────────────────────────
   # Cleanup
