@@ -2,10 +2,10 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: dev-ca-issuer
+  name: atlas-ca-issuer
 spec:
   ca:
-    secretName: dev-ca-secret
+    secretName: atlas-ca-secret
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -22,5 +22,5 @@ spec:
   dnsNames:
     - test-ca.atlas
   issuerRef:
-    name: dev-ca-issuer
+    name: atlas-ca-issuer
     kind: ClusterIssuer

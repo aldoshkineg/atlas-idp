@@ -14,7 +14,7 @@ spec:
     - s3.atlas
     - console.s3.atlas
   issuerRef:
-    name: dev-ca-issuer
+    name: atlas-ca-issuer
     kind: ClusterIssuer
 ---
 apiVersion: gateway.networking.k8s.io/v1

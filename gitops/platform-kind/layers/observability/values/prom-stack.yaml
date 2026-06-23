@@ -130,5 +130,5 @@ prometheusOperator:
     certManager:
       enabled: true
       issuerRef:
-        name: dev-ca-issuer
+        name: atlas-ca-issuer
         kind: ClusterIssuer

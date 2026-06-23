@@ -13,7 +13,7 @@ spec:
   dnsNames:
     - vault.atlas
   issuerRef:
-    name: dev-ca-issuer
+    name: atlas-ca-issuer
     kind: ClusterIssuer
 ---
 apiVersion: gateway.networking.k8s.io/v1

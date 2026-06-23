@@ -1,0 +1,20 @@
+# {{APP}}
+
+Managed by **atlasctl** — [Atlas IDP](https://github.com/aldoshkineg/atlas-idp) workload management CLI.
+
+- **Group:** `{{GROUP}}`
+- **Namespace:** `{{NAMESPACE}}`
+- **Repository:** {{REPO_URL}}
+
+## Commands
+
+```bash
+# Enable workload (create ArgoCD Application + gateway listener)
+atlasctl enable {{GROUP}}/{{APP}}
+
+# Disable workload (remove from GitOps, keep directory)
+atlasctl disable {{GROUP}}/{{APP}}
+
+# Delete workload directory (only after disable)
+atlasctl delete {{GROUP}}/{{APP}}
+```

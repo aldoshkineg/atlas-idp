@@ -10,7 +10,7 @@ spec:
   project: workloads
   sources:
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
-      targetRevision: HEAD
+      targetRevision: main
       path: apps/seal/charts/seal
       helm:
         values: |

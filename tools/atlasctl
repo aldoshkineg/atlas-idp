@@ -352,6 +352,9 @@ EOF
     echo "  [rollouts] Created rollouts/ (template pending)"
   fi
 
+  render_template "${TEMPLATES_DIR}/README.md.tmpl" "${WORKLOAD_DIR}/README.md"
+  echo "  [README.md] Created"
+
   echo ""
   echo "=== Workload ${GROUP}/${APP} scaffolded ==="
   echo ""
