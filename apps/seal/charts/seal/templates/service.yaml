@@ -2,14 +2,14 @@ apiVersion: v1
 kind: Service
 metadata:
   name: seal-api
-  labels: {{- include "seal.labels" (dict "name" "seal-api") | nindent 4 }}
+  labels: { { - include "seal.labels" (dict "name" "seal-api") | nindent 4 } }
 spec:
   selector:
     app.kubernetes.io/name: seal-api
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/instance: { { .Release.Name } }
   ports:
     - name: http
-      port: {{ .Values.service.apiPort }}
+      port: { { .Values.service.apiPort } }
       targetPort: http
       protocol: TCP
 ---
@@ -17,14 +17,15 @@ apiVersion: v1
 kind: Service
 metadata:
   name: seal-worker
-  labels: {{- include "seal.labels" (dict "name" "seal-worker") | nindent 4 }}
+  labels:
+    { { - include "seal.labels" (dict "name" "seal-worker") | nindent 4 } }
 spec:
   selector:
     app.kubernetes.io/name: seal-worker
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/instance: { { .Release.Name } }
   ports:
     - name: metrics
-      port: {{ .Values.service.workerMetricsPort }}
+      port: { { .Values.service.workerMetricsPort } }
       targetPort: metrics
       protocol: TCP
 ---
@@ -32,13 +33,13 @@ apiVersion: v1
 kind: Service
 metadata:
   name: seal-ui
-  labels: {{- include "seal.labels" (dict "name" "seal-ui") | nindent 4 }}
+  labels: { { - include "seal.labels" (dict "name" "seal-ui") | nindent 4 } }
 spec:
   selector:
     app.kubernetes.io/name: seal-ui
-    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/instance: { { .Release.Name } }
   ports:
     - name: http
-      port: {{ .Values.service.uiPort }}
+      port: { { .Values.service.uiPort } }
       targetPort: http
       protocol: TCP

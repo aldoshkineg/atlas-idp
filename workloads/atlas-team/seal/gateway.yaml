@@ -11,9 +11,20 @@ spec:
   hostnames:
     - seal.atlas
   rules:
-    - backendRefs:
-        - name: seal
-          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/
+      backendRefs:
+        - name: seal-api
+          port: 8080
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: seal-ui
+          port: 8081
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate

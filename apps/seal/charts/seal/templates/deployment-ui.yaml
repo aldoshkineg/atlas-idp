@@ -2,18 +2,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: seal-ui
-  labels: {{- include "seal.labels" (dict "name" "seal-ui") | nindent 4 }}
+  labels: { { - include "seal.labels" (dict "name" "seal-ui") | nindent 4 } }
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: { { .Values.replicaCount } }
   selector:
     matchLabels:
       app.kubernetes.io/name: seal-ui
-      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/instance: { { .Release.Name } }
   template:
     metadata:
       labels:
         app.kubernetes.io/name: seal-ui
-        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/instance: { { .Release.Name } }
       annotations:
         argocd.argoproj.io/sync-wave: "130"
     spec:
@@ -21,10 +21,10 @@ spec:
       containers:
         - name: seal-ui
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.images.ui.repository }}:{{ .Values.images.ui.tag }}"
-          imagePullPolicy: {{ .Values.images.ui.pullPolicy }}
+          imagePullPolicy: { { .Values.images.ui.pullPolicy } }
           ports:
             - name: http
-              containerPort: {{ .Values.service.uiPort }}
+              containerPort: { { .Values.service.uiPort } }
               protocol: TCP
           envFrom:
             - configMapRef:
@@ -42,7 +42,7 @@ spec:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
-          resources: {{ toYaml .Values.resources.ui | nindent 12 }}
+          resources: { { toYaml .Values.resources.ui | nindent 12 } }
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

@@ -8,13 +8,13 @@ Accepted
 
 The task is to implement:
 
-* safe canary releases
-* gradual traffic shifting
-* rollback capability
-* observability (logs/metrics)
-* GitOps integration (Argo CD)
-* use of Gateway API (Gateway API)
-* NGINX Gateway Fabric as the data plane
+- safe canary releases
+- gradual traffic shifting
+- rollback capability
+- observability (logs/metrics)
+- GitOps integration (Argo CD)
+- use of Gateway API (Gateway API)
+- NGINX Gateway Fabric as the data plane
 
 ## Solution Options
 
@@ -30,16 +30,16 @@ Git → Argo CD → Rollout → ReplicaSets → Service → Gateway
 
 #### Mechanism
 
-* Rollout creates ReplicaSets
-* Manages traffic weights and rollout steps
-* Executes pause/analysis phases
-* Can automatically increase traffic
-* Supports automatic rollback
+- Rollout creates ReplicaSets
+- Manages traffic weights and rollout steps
+- Executes pause/analysis phases
+- Can automatically increase traffic
+- Supports automatic rollback
 
 #### Requirements
 
-* Integration with a traffic router (Istio / NGINX Ingress / Traefik, etc.)
-* Or fallback to replica-based canary
+- Integration with a traffic router (Istio / NGINX Ingress / Traefik, etc.)
+- Or fallback to replica-based canary
 
 ### Option B — Gateway API + GitOps (Selected Approach)
 
@@ -49,10 +49,10 @@ Git → Argo CD → Deployments + HTTPRoute → Gateway → Traffic
 
 #### Mechanism
 
-* Two Deployments (stable/canary)
-* One Service (or minimal abstraction layer)
-* Traffic is controlled via HTTPRoute weights
-* Weight changes are done via Git commits
+- Two Deployments (stable/canary)
+- One Service (or minimal abstraction layer)
+- Traffic is controlled via HTTPRoute weights
+- Weight changes are done via Git commits
 
 ## Comparison
 
@@ -60,8 +60,8 @@ Git → Argo CD → Deployments + HTTPRoute → Gateway → Traffic
 
 | Criteria                  | Argo Rollouts | Gateway API GitOps |
 | ------------------------- | ------------- | ------------------ |
-| Automated weight shifting | ✔             | ✖                  |
-| Manual control            | ✔             | ✔                  |
+| Automated weight shifting | ✔            | ✖                 |
+| Manual control            | ✔            | ✔                 |
 | Transparency              | Medium        | High               |
 | Vendor lock-in            | Medium        | Low                |
 
@@ -69,9 +69,9 @@ Git → Argo CD → Deployments + HTTPRoute → Gateway → Traffic
 
 | Criteria               | Argo Rollouts | Gateway API GitOps |
 | ---------------------- | ------------- | ------------------ |
-| Pause/steps            | ✔             | ✖                  |
-| Metrics analysis       | ✔             | ✖                  |
-| Auto rollback          | ✔             | ✖                  |
+| Pause/steps            | ✔            | ✖                 |
+| Metrics analysis       | ✔            | ✖                 |
+| Auto rollback          | ✔            | ✖                 |
 | Git as source of truth | Partial       | Full               |
 
 ### Architectural Complexity
@@ -84,13 +84,14 @@ Git → Argo CD → Deployments + HTTPRoute → Gateway → Traffic
 
 ### Gateway API Compatibility
 
-* Rollouts:
-  * partial / limited integration
-  * depends on supported traffic routers
+- Rollouts:
 
-* Gateway API GitOps:
-  * native model
-  * HTTPRoute is the source of truth
+  - partial / limited integration
+  - depends on supported traffic routers
+
+- Gateway API GitOps:
+  - native model
+  - HTTPRoute is the source of truth
 
 ## Key Architectural Difference
 
@@ -114,22 +115,22 @@ Argo CD applies desired state
 
 The system already includes:
 
-* Argo CD
-* Gateway API
-* NGINX Gateway Fabric
+- Argo CD
+- Gateway API
+- NGINX Gateway Fabric
 
 Adding Rollouts would:
 
-* increase number of controllers
-* duplicate traffic management logic
+- increase number of controllers
+- duplicate traffic management logic
 
 ### Single Source of Truth
 
 Gateway API approach ensures:
 
-* HTTPRoute is the only source of truth for traffic
-* no hidden control logic in a rollout controller
-* fully reproducible state via Git
+- HTTPRoute is the only source of truth for traffic
+- no hidden control logic in a rollout controller
+- fully reproducible state via Git
 
 ### Release Transparency
 
@@ -142,23 +143,23 @@ commit:
 
 is:
 
-* audit-friendly
-* reviewable
-* rollbackable via git revert
+- audit-friendly
+- reviewable
+- rollbackable via git revert
 
 ### Operational Simplicity
 
 There is no:
 
-* rollout controller state machine
-* internal step engine
-* analysis templates
+- rollout controller state machine
+- internal step engine
+- analysis templates
 
 Instead there are:
 
-* Kubernetes objects
-* Git commits
-* Argo CD synchronization
+- Kubernetes objects
+- Git commits
+- Argo CD synchronization
 
 ## Final Architecture
 
@@ -194,8 +195,8 @@ canary: 0–10%
 
 ### Step 2 — Observation
 
-* logs
-* metrics (Prometheus / OpenTelemetry)
+- logs
+- metrics (Prometheus / OpenTelemetry)
 
 ### Step 3 — Progressive traffic shift
 
@@ -205,8 +206,8 @@ canary: 0–10%
 
 ### Step 4 — Promotion
 
-* canary becomes stable
-* old version is removed
+- canary becomes stable
+- old version is removed
 
 ## Final Decision Statement
 
@@ -216,16 +217,16 @@ canary: 0–10%
 
 ### Rationale:
 
-* reduced number of control-plane components
-* fully declarative Git-based workflow
-* native compatibility with Gateway API
-* no need for an additional rollout controller
-* transparent and reproducible release lifecycle
-* sufficient functionality for canary deployments via traffic splitting and observation
+- reduced number of control-plane components
+- fully declarative Git-based workflow
+- native compatibility with Gateway API
+- no need for an additional rollout controller
+- transparent and reproducible release lifecycle
+- sufficient functionality for canary deployments via traffic splitting and observation
 
 ## Conclusion
 
-* Argo Rollouts is a release orchestration controller
-* Gateway API + GitOps is a declarative traffic management model
+- Argo Rollouts is a release orchestration controller
+- Gateway API + GitOps is a declarative traffic management model
 
 In this architecture, the second approach is preferred due to its simplicity, transparency, and native compatibility with the existing stack (Argo CD + Gateway API + NGINX Gateway Fabric).

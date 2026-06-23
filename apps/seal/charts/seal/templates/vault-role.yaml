@@ -2,7 +2,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: seal-vault-config
-  labels: {{- include "seal.labels" (dict "name" "seal") | nindent 4 }}
+  labels: { { - include "seal.labels" (dict "name" "seal") | nindent 4 } }
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -12,7 +12,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: seal-vault-config
-  labels: {{- include "seal.labels" (dict "name" "seal") | nindent 4 }}
+  labels: { { - include "seal.labels" (dict "name" "seal") | nindent 4 } }
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role

@@ -3,6 +3,7 @@
 > **Legend:** `[x]` Done · `[ ]` Planned · `[~]` In Progress / Blocked
 
 > **Архитектурное решение:**
+>
 > - Один общий CNPG `production-db` кластер на все workloads. Каждому проекту — своя БД
 > - Один общий Redis на весь кластер
 > - Один общий MinIO на весь кластер
@@ -69,14 +70,14 @@ templates/gold/
 
 ## Команды atlasctl
 
-| Команда | Что делает | Флаги |
-|---------|------------|-------|
-| `atlasctl new <app> --group <g>` | Создаёт `workloads/<group>/<app>/` + шаблоны | `--repo`, `--path`, `--helm`, `--db`, `--s3`, `--redis`, `--monitoring`, `--ingress`, `--keda`, `--rollouts` |
-| `atlasctl seed <group>/<app>` | Провиженинг DB + bucket + Vault | `--force` (пропустить валидацию), `--dry-run` |
-| `atlasctl enable <group>/<app>` | Создаёт gitops Application + gateway listener | `--sync`, `--push`, `--dry-run`, `--force`, `-y` |
-| `atlasctl disable <group>/<app>` | Удаляет gitops Application + gateway listener | `--sync`, `--push`, `--dry-run`, `--keep-workload`, `-y` |
-| `atlasctl status <group>/<app>` | Статус workload | `--json` |
-| `atlasctl list` | Список всех workloads | `--json` |
+| Команда                          | Что делает                                    | Флаги                                                                                                        |
+| -------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `atlasctl new <app> --group <g>` | Создаёт `workloads/<group>/<app>/` + шаблоны  | `--repo`, `--path`, `--helm`, `--db`, `--s3`, `--redis`, `--monitoring`, `--ingress`, `--keda`, `--rollouts` |
+| `atlasctl seed <group>/<app>`    | Провиженинг DB + bucket + Vault               | `--force` (пропустить валидацию), `--dry-run`                                                                |
+| `atlasctl enable <group>/<app>`  | Создаёт gitops Application + gateway listener | `--sync`, `--push`, `--dry-run`, `--force`, `-y`                                                             |
+| `atlasctl disable <group>/<app>` | Удаляет gitops Application + gateway listener | `--sync`, `--push`, `--dry-run`, `--keep-workload`, `-y`                                                     |
+| `atlasctl status <group>/<app>`  | Статус workload                               | `--json`                                                                                                     |
+| `atlasctl list`                  | Список всех workloads                         | `--json`                                                                                                     |
 
 ---
 

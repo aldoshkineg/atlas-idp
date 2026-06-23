@@ -3,10 +3,10 @@ name: Seal - Build and Publish Docker Images
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
   pull_request:
     branches: [main]
-    paths: ['apps/seal/**']
+    paths: ["apps/seal/**"]
   workflow_dispatch:
 
 env:

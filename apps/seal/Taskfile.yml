@@ -1,7 +1,6 @@
 version: "3"
 
 tasks:
-
   # ────────────────────────────────────────────
   # Default
   # ────────────────────────────────────────────
@@ -79,8 +78,8 @@ tasks:
     cmds:
       - go run ./cmd
     env:
-      SIGN_CERT_PATH: '{{.TASKFILE_DIR}}/.certs/tls.crt'
-      SIGN_KEY_PATH: '{{.TASKFILE_DIR}}/.certs/tls.key'
+      SIGN_CERT_PATH: "{{.TASKFILE_DIR}}/.certs/tls.crt"
+      SIGN_KEY_PATH: "{{.TASKFILE_DIR}}/.certs/tls.key"
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadminpassword
 
@@ -170,11 +169,11 @@ tasks:
     desc: Build all images via act (GitHub Actions locally)
     cmds:
       - task: act-build-service
-        vars: {SERVICE: seal-api}
+        vars: { SERVICE: seal-api }
       - task: act-build-service
-        vars: {SERVICE: seal-worker}
+        vars: { SERVICE: seal-worker }
       - task: act-build-service
-        vars: {SERVICE: seal-ui}
+        vars: { SERVICE: seal-ui }
 
   act-build-service:
     internal: true
@@ -203,11 +202,11 @@ tasks:
         TOKEN=$(grep '^GITHUB_TOKEN=' ../../.env | head -1 | cut -d= -f2)
         echo "$TOKEN" | docker login ghcr.io -u aldoshkineg --password-stdin
       - task: push-image
-        vars: {SERVICE: seal-api, TAG: '{{.TAG}}'}
+        vars: { SERVICE: seal-api, TAG: "{{.TAG}}" }
       - task: push-image
-        vars: {SERVICE: seal-worker, TAG: '{{.TAG}}'}
+        vars: { SERVICE: seal-worker, TAG: "{{.TAG}}" }
       - task: push-image
-        vars: {SERVICE: seal-ui, TAG: '{{.TAG}}'}
+        vars: { SERVICE: seal-ui, TAG: "{{.TAG}}" }
 
   push-image:
     internal: true

@@ -1,6 +1,10 @@
 ---
 extends: default
 
+ignore: |
+  apps/seal/charts/seal/templates/
+  apps/seal/Taskfile.yml
+
 rules:
   line-length:
     max: 140
