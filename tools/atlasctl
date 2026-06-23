@@ -871,6 +871,9 @@ cmd_disable() {
     if [ "$PUSH" = "true" ]; then
       git -C "${REPO_ROOT}" push
       echo "  [push] Changes pushed"
+
+      kubectl delete application "${GROUP}-${APP}" -n argocd --wait=false 2>/dev/null || \
+        echo "  [kubectl] Application already pruned by ArgoCD"
     else
       echo "  (use --push to push commits)"
     fi
