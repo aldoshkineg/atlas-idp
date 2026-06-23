@@ -872,6 +872,8 @@ cmd_disable() {
       git -C "${REPO_ROOT}" push
       echo "  [push] Changes pushed"
 
+      kubectl patch application "${GROUP}-${APP}" -n argocd -p \
+        '{"metadata":{"finalizers":["resources-finalizer.argocd.argoproj.io"]}}' --type=merge 2>/dev/null || true
       kubectl delete application "${GROUP}-${APP}" -n argocd --wait=false 2>/dev/null || \
         echo "  [kubectl] Application already pruned by ArgoCD"
     else
