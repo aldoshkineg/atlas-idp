@@ -23,7 +23,7 @@ spec:
               tag: v0.25.0
             ui:
               tag: v0.25.0
-          gateway:
+          vault:
             enabled: false
           secrets:
             create: false
