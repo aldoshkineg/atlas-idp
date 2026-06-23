@@ -28,10 +28,8 @@ data:
   MINIO_ENDPOINT: "{{ .Values.config.minio.endpoint }}"
   MINIO_USE_SSL: "{{ .Values.config.minio.useSSL }}"
   WORKER_POLL_INTERVAL_MS: "1000"
-{{- if .Values.vault.enabled }}
   SIGN_CERT_PATH: "/vault/secrets/tls.crt"
   SIGN_KEY_PATH: "/vault/secrets/tls.key"
-{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap

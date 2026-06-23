@@ -27,6 +27,8 @@ spec:
             enabled: false
           secrets:
             create: false
+          keda:
+            enabled: false
           config:
             postgres:
               user: seal

@@ -98,7 +98,6 @@ serviceMonitor:
   interval: 15s
 
 secrets:
-  create: true
   postgresPassword: ""
   redisPassword: ""
   minioAccessKey: ""

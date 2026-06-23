@@ -6,7 +6,8 @@ set -euo pipefail
 #   atlasctl new <app> --group <group> --repo <url> [options]
 #   atlasctl seed <group>/<app> [--dry-run] [--force]
 #   atlasctl enable <group>/<app> [--dry-run] [--sync] [--push]
-#   atlasctl disable <group>/<app> [--dry-run] [--sync] [--push] [--keep-workload]
+#   atlasctl disable <group>/<app> [--dry-run] [--sync] [--push]
+#   atlasctl delete <group>/<app> [--dry-run] [-y]
 #   atlasctl status <group>/<app> [--json]
 #   atlasctl list [--json]
 
@@ -23,6 +24,7 @@ Commands:
   seed      Provision DB + bucket + write secrets to Vault
   enable    Enable workload in GitOps
   disable   Disable workload from GitOps
+  delete    Delete workload directory (only if not enabled)
   status    Show workload status
   list      List all workloads
 
@@ -63,12 +65,20 @@ atlasctl enable <group>/<app> [options]
 
 atlasctl disable <group>/<app> [options]
   Removes gateway listener and ArgoCD Application from gitops/.
+  Does NOT delete the workloads/<group>/<app>/ directory.
 
   Options:
     --dry-run          Preview changes without executing
     --sync             Commit changes to git
     --push             Push commits to remote (implies --sync)
-    --keep-workload    Keep workloads/<group>/<app>/ directory
+    --yes, -y          Skip confirmation prompt
+
+atlasctl delete <group>/<app> [options]
+  Deletes the workloads/<group>/<app>/ directory.
+  Refuses if the workload is still enabled (has gitops file).
+
+  Options:
+    --dry-run          Preview changes without executing
     --yes, -y          Skip confirmation prompt
 
 atlasctl status <group>/<app> [options]
@@ -90,6 +100,8 @@ Examples:
   atlasctl enable aldoshkineg/seal --dry-run
   atlasctl enable aldoshkineg/seal --sync --push
   atlasctl disable aldoshkineg/seal -y --sync --push
+  atlasctl delete aldoshkineg/seal --dry-run
+  atlasctl delete aldoshkineg/seal -y
   atlasctl status aldoshkineg/seal
   atlasctl status aldoshkineg/seal --json
   atlasctl list
@@ -165,7 +177,10 @@ kexec() {
 
 # --- Utility: vault cmd inside vault-0 pod ---
 vault0() {
-  kubectl exec -n vault vault-0 -- vault "$@" 2>/dev/null || true
+  local VAULT_TOKEN
+  VAULT_TOKEN="$(kubectl get secret -n vault vault-unseal-keys -o jsonpath='{.data.vault-root}' 2>/dev/null | base64 -d || true)"
+  [ -z "$VAULT_TOKEN" ] && return 1
+  kubectl exec -n vault vault-0 -- env VAULT_TOKEN="${VAULT_TOKEN}" VAULT_ADDR=http://127.0.0.1:8200 vault "$@" 2>/dev/null || true
 }
 
 # --- Utility: read K8s secret key ---
@@ -415,7 +430,7 @@ cmd_seed() {
   local DB_PORT="5432"
   local S3_ENDPOINT="http://minio.minio.svc.cluster.local:9000"
   local S3_BUCKET="workloads/${GROUP}/${APP}"
-  local REDIS_HOST="redis.redis.svc.cluster.local"
+  local REDIS_HOST="redis-master.redis.svc.cluster.local"
   local REDIS_PORT="6379"
   local VAULT_PATH="secret/workloads/${GROUP}/${APP}"
 
@@ -456,36 +471,35 @@ cmd_seed() {
     kexec -n database production-db-1 -- psql -c "CREATE USER ${DB_USERNAME} WITH PASSWORD '${DB_PASSWORD}';" && echo "   User '${DB_USERNAME}' created"
   fi
   kexec -n database production-db-1 -- psql -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USERNAME};" && echo "   Privileges granted"
+  kexec -n database production-db-1 -- psql -d "${DB_NAME}" -c "GRANT ALL ON SCHEMA public TO ${DB_USERNAME};" && echo "   Schema privileges granted"
 
   echo ""
   echo ">> MinIO: creating bucket and user..."
+  local MINIO_POD
+  MINIO_POD="$(kubectl get pod -n minio -l app=minio -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo 'minio-0')"
   local MC_ALIAS="atlas-seed"
-  kexec -n minio minio-0 -- mc alias set "${MC_ALIAS}" http://localhost:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"
+  kexec -n minio "${MINIO_POD}" -- mc alias set "${MC_ALIAS}" http://localhost:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}"
 
   local BUCKET_EXISTS
-  BUCKET_EXISTS="$(kexec -n minio minio-0 -- mc stat "${MC_ALIAS}/${S3_BUCKET}" 2>&1 || true)"
+  BUCKET_EXISTS="$(kexec -n minio "${MINIO_POD}" -- mc stat "${MC_ALIAS}/${S3_BUCKET}" 2>&1 || true)"
   if echo "$BUCKET_EXISTS" | grep -q "Object does not exist\|does not exist"; then
-    kexec -n minio minio-0 -- mc mb "${MC_ALIAS}/${S3_BUCKET}" && echo "   Bucket '${S3_BUCKET}' created"
+    kexec -n minio "${MINIO_POD}" -- mc mb "${MC_ALIAS}/${S3_BUCKET}" && echo "   Bucket '${S3_BUCKET}' created"
   else
     echo "   Bucket '${S3_BUCKET}' already exists — skipping"
   fi
 
   local MINIO_USER_EXISTS
-  MINIO_USER_EXISTS="$(kexec -n minio minio-0 -- mc admin user list "${MC_ALIAS}" 2>/dev/null | grep -c "${S3_ACCESS_KEY}" || true)"
+  MINIO_USER_EXISTS="$(kexec -n minio "${MINIO_POD}" -- mc admin user list "${MC_ALIAS}" 2>/dev/null | grep -c "${S3_ACCESS_KEY}" || true)"
   if [ "$MINIO_USER_EXISTS" -gt 0 ]; then
     echo "   MinIO user '${S3_ACCESS_KEY}' already exists — updating secret key"
-    kexec -n minio minio-0 -- mc admin user update "${MC_ALIAS}" "${S3_ACCESS_KEY}" "${S3_SECRET_KEY}"
+    kexec -n minio "${MINIO_POD}" -- mc admin user update "${MC_ALIAS}" "${S3_ACCESS_KEY}" "${S3_SECRET_KEY}"
   else
-    kexec -n minio minio-0 -- mc admin user add "${MC_ALIAS}" "${S3_ACCESS_KEY}" "${S3_SECRET_KEY}" && echo "   MinIO user '${S3_ACCESS_KEY}' created"
+    kexec -n minio "${MINIO_POD}" -- mc admin user add "${MC_ALIAS}" "${S3_ACCESS_KEY}" "${S3_SECRET_KEY}" && echo "   MinIO user '${S3_ACCESS_KEY}' created"
   fi
-  kexec -n minio minio-0 -- mc admin policy set "${MC_ALIAS}" readwrite user="${S3_ACCESS_KEY}"
+  kexec -n minio "${MINIO_POD}" -- mc admin policy set "${MC_ALIAS}" readwrite user="${S3_ACCESS_KEY}"
 
   echo ""
   echo ">> Vault: writing secrets to ${VAULT_PATH}..."
-  local USE_LOCAL_VAULT=false
-  if command -v vault &>/dev/null && [ -n "${VAULT_ADDR:-}" ]; then
-    USE_LOCAL_VAULT=true
-  fi
 
   local VAULT_DATA
   VAULT_DATA=$(cat <<DATA
@@ -521,26 +535,32 @@ ${suffix,,}=${line_value}"
     done < "${WORKLOAD_DIR}/.secret-seed"
   fi
 
-  if [ "$USE_LOCAL_VAULT" = "true" ]; then
-    # shellcheck disable=SC2086
-    vault kv put "${VAULT_PATH}" $VAULT_DATA
-    echo "   Secrets written via local vault CLI"
-  else
-    local VAULT_OK
-    VAULT_OK="$(vault0 status 2>&1 | head -1 || true)"
-    if echo "$VAULT_OK" | grep -q "Sealed\|not initialized\|Error"; then
-      echo "   WARNING: Vault is not accessible via kubectl exec vault-0"
-      echo "   Set VAULT_ADDR + VAULT_TOKEN and ensure vault CLI is installed"
+  local VAULT_WRITTEN=false
+  local VAULT_ROOT_TOKEN
+  VAULT_ROOT_TOKEN="$(kubectl get secret -n vault vault-unseal-keys -o jsonpath='{.data.vault-root}' 2>/dev/null | base64 -d || true)"
+  if [ -n "$VAULT_ROOT_TOKEN" ]; then
+    local VAULT_ARGS=()
+    while IFS='=' read -r key val; do
+      [ -z "$key" ] && continue
+      VAULT_ARGS+=("${key}=${val}")
+    done <<< "$VAULT_DATA"
+    if vault0 kv put "${VAULT_PATH}" "${VAULT_ARGS[@]}"; then
+      echo "   Secrets written to ${VAULT_PATH} via vault-0 pod"
+      VAULT_WRITTEN=true
+    fi
+  fi
+
+  if [ "$VAULT_WRITTEN" != "true" ]; then
+    if command -v vault &>/dev/null && [ -n "${VAULT_ADDR:-}" ]; then
+      vault kv put "${VAULT_PATH}" $VAULT_DATA
+      echo "   Secrets written via local vault CLI"
+      VAULT_WRITTEN=true
+    else
+      echo "   WARNING: Vault is not accessible via vault-0 pod or local CLI"
+      echo "   Set VAULT_ADDR + VAULT_TOKEN and install vault CLI"
       echo "   Then run: vault kv put ${VAULT_PATH} ${VAULT_DATA//$'\n'/ }"
       echo ""
       echo "   Secrets NOT written to Vault. Continuing with database/bucket only."
-    else
-      local VAULT_ARGS=()
-      while IFS='=' read -r key val; do
-        [ -z "$key" ] && continue
-        VAULT_ARGS+=("${key}=${val}")
-      done <<< "$VAULT_DATA"
-      vault0 kv put "${VAULT_PATH}" "${VAULT_ARGS[@]}" && echo "   Secrets written to ${VAULT_PATH}"
     fi
   fi
 
@@ -726,7 +746,6 @@ cmd_disable() {
   local DRY_RUN=false
   local SYNC=false
   local PUSH=false
-  local KEEP_WORKLOAD=false
   SKIP_CONFIRM=false
 
   while [ $# -gt 0 ]; do
@@ -734,7 +753,7 @@ cmd_disable() {
       --dry-run) DRY_RUN=true; shift ;;
       --sync) SYNC=true; shift ;;
       --push) PUSH=true; shift ;;
-      --keep-workload) KEEP_WORKLOAD=true; shift ;;
+      --keep-workload) echo "  (--keep-workload is now default, ignored)" ; shift ;;
       --yes|-y) SKIP_CONFIRM=true; shift ;;
       -*|--*) die "Unknown option: $1" ;;
       *)
@@ -745,7 +764,7 @@ cmd_disable() {
     esac
   done
 
-  [ -z "$WORKLOAD" ] && die "Usage: atlasctl disable <group>/<app> [--dry-run] [--sync] [--push] [--keep-workload] [-y]"
+  [ -z "$WORKLOAD" ] && die "Usage: atlasctl disable <group>/<app> [--dry-run] [--sync] [--push] [-y]"
 
   local GROUP="${WORKLOAD%%/*}"
   local APP="${WORKLOAD#*/}"
@@ -769,9 +788,8 @@ cmd_disable() {
   echo "---"
   echo "Disabling workload: ${GROUP}/${APP}"
   echo "  GitOps file:    ${GITOPS_FILE} (remove)"
-  echo "  Workload dir:   ${WORKLOAD_DIR} (remove)"
+  echo "  Workload dir:   ${WORKLOAD_DIR} (kept)"
   echo "  Gateway patch:  ${HAS_GATEWAY}"
-  [ "$KEEP_WORKLOAD" = "true" ] && echo "  Workload dir:   kept (--keep-workload)"
   echo "---"
 
   if [ "$DRY_RUN" = "true" ]; then
@@ -780,15 +798,8 @@ cmd_disable() {
     echo "   name: https-${APP}"
     echo ""
     echo ">> Would delete: ${GITOPS_FILE}"
-    if [ "$KEEP_WORKLOAD" != "true" ]; then
-      echo ">> Would delete: ${WORKLOAD_DIR}/"
-    fi
     if [ -d "$GITOPS_DIR" ] && [ -z "$(ls -A "$GITOPS_DIR" 2>/dev/null)" ]; then
       echo ">> Would remove empty: ${GITOPS_DIR}"
-    fi
-    local WORKLOADS_GROUP_DIR="${REPO_ROOT}/workloads/${GROUP}"
-    if [ "$KEEP_WORKLOAD" != "true" ] && [ -d "$WORKLOADS_GROUP_DIR" ] && [ -z "$(ls -A "$WORKLOADS_GROUP_DIR" 2>/dev/null)" ]; then
-      echo ">> Would remove empty: ${WORKLOADS_GROUP_DIR}"
     fi
     echo ""
     echo "DRY RUN — no changes made"
@@ -811,24 +822,13 @@ cmd_disable() {
   rm -f "$GITOPS_FILE"
   echo "  [gitops] Removed ${GITOPS_FILE}"
 
-  if [ "$KEEP_WORKLOAD" != "true" ]; then
-    rm -rf "$WORKLOAD_DIR"
-    echo "  [workload] Removed ${WORKLOAD_DIR}/"
-  fi
-
   if [ -d "$GITOPS_DIR" ] && [ -z "$(ls -A "$GITOPS_DIR" 2>/dev/null)" ]; then
     rmdir "$GITOPS_DIR"
     echo "  [gitops] Removed empty directory ${GITOPS_DIR}"
   fi
 
-  local WORKLOADS_GROUP_DIR="${REPO_ROOT}/workloads/${GROUP}"
-  if [ "$KEEP_WORKLOAD" != "true" ] && [ -d "$WORKLOADS_GROUP_DIR" ] && [ -z "$(ls -A "$WORKLOADS_GROUP_DIR" 2>/dev/null)" ]; then
-    rmdir "$WORKLOADS_GROUP_DIR"
-    echo "  [workload] Removed empty directory ${WORKLOADS_GROUP_DIR}"
-  fi
-
   if [ "$SYNC" = "true" ]; then
-    git -C "${REPO_ROOT}" add -A "$GITOPS_DIR" "$WORKLOAD_DIR" 2>/dev/null || true
+    git -C "${REPO_ROOT}" add "$GITOPS_FILE" 2>/dev/null || true
     git -C "${REPO_ROOT}" add "$GW_FILE"
     git -C "${REPO_ROOT}" commit -m "disable(workloads): remove ${GROUP}/${APP}" || echo "   (nothing to commit)"
 
@@ -842,6 +842,68 @@ cmd_disable() {
 
   echo ""
   echo "=== Disable complete for ${GROUP}/${APP} ==="
+}
+
+# --- Command: delete ---
+cmd_delete() {
+  local WORKLOAD=""
+  local DRY_RUN=false
+  SKIP_CONFIRM=false
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run) DRY_RUN=true; shift ;;
+      --yes|-y) SKIP_CONFIRM=true; shift ;;
+      -*|--*) die "Unknown option: $1" ;;
+      *)
+        [ -n "$WORKLOAD" ] && die "Unexpected argument: $1"
+        WORKLOAD="$1"
+        shift
+        ;;
+    esac
+  done
+
+  [ -z "$WORKLOAD" ] && die "Usage: atlasctl delete <group>/<app> [--dry-run] [-y]"
+
+  local GROUP="${WORKLOAD%%/*}"
+  local APP="${WORKLOAD#*/}"
+  [ "$GROUP" = "$APP" ] && die "Invalid format. Use: <group>/<app>"
+
+  local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
+  local GITOPS_FILE="${REPO_ROOT}/gitops/workloads/${GROUP}/${APP}.yaml"
+
+  [ ! -d "$WORKLOAD_DIR" ] && die "Workload not found: ${WORKLOAD_DIR}"
+
+  if [ -f "$GITOPS_FILE" ]; then
+    die "Workload ${GROUP}/${APP} is still enabled. Run 'atlasctl disable ${GROUP}/${APP}' first"
+  fi
+
+  echo "---"
+  echo "Deleting workload: ${GROUP}/${APP}"
+  echo "  Workload dir:   ${WORKLOAD_DIR} (remove)"
+  echo "---"
+
+  if [ "$DRY_RUN" = "true" ]; then
+    echo ""
+    echo ">> Would delete: ${WORKLOAD_DIR}/"
+    echo ""
+    echo "DRY RUN — no changes made"
+    return 0
+  fi
+
+  prompt_confirm "Delete workload directory?" || die "Aborted"
+
+  rm -rf "$WORKLOAD_DIR"
+  echo "  [workload] Removed ${WORKLOAD_DIR}/"
+
+  local WORKLOADS_GROUP_DIR="${REPO_ROOT}/workloads/${GROUP}"
+  if [ -d "$WORKLOADS_GROUP_DIR" ] && [ -z "$(ls -A "$WORKLOADS_GROUP_DIR" 2>/dev/null)" ]; then
+    rmdir "$WORKLOADS_GROUP_DIR"
+    echo "  [workload] Removed empty directory ${WORKLOADS_GROUP_DIR}"
+  fi
+
+  echo ""
+  echo "=== Delete complete for ${GROUP}/${APP} ==="
 }
 
 # --- Command: status ---
@@ -1026,6 +1088,7 @@ case "$CMD" in
   seed) cmd_seed "$@" ;;
   enable) cmd_enable "$@" ;;
   disable) cmd_disable "$@" ;;
+  delete) cmd_delete "$@" ;;
   status) cmd_status "$@" ;;
   list) cmd_list "$@" ;;
   -h|--help) usage ;;

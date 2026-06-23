@@ -23,7 +23,7 @@ metadata:
 spec:
   secretName: seal-tls
   issuerRef:
-    name: dev-ca-issuer
+    name: atlas-ca-issuer
     kind: ClusterIssuer
   dnsNames:
     - seal.atlas

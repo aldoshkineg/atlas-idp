@@ -23,7 +23,7 @@ metadata:
 spec:
   secretName: {{APP}}-tls
   issuerRef:
-    name: dev-ca-issuer
+    name: atlas-ca-issuer
     kind: ClusterIssuer
   dnsNames:
     - {{HOSTNAME}}
