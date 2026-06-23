@@ -15,6 +15,7 @@ spec:
         app.kubernetes.io/name: seal-ui
         app.kubernetes.io/instance: {{ .Release.Name }}
       annotations:
+        argocd.argoproj.io/sync-wave: "130"
     spec:
       serviceAccountName: seal-ui
       containers:
