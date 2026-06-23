@@ -25,6 +25,8 @@ spec:
               tag: v0.25.0
           vault:
             enabled: false
+          gateway:
+            enabled: false
           secrets:
             create: false
           migration:
