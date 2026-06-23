@@ -530,7 +530,7 @@ DATA
       if [[ "$line_name" == ${PREFIX}_* ]]; then
         local suffix="${line_name#${PREFIX}_}"
         case "$suffix" in
-          DB_PASSWORD|S3_ACCESS_KEY|S3_SECRET_KEY|REDIS_PASSWORD) continue ;;
+          DB_PASSWORD|S3_ACCESS_KEY|S3_SECRET_KEY|REDIS_PASSWORD|PDF_CERT_B64|PDF_KEY_B64) continue ;;
         esac
         VAULT_DATA="${VAULT_DATA}
 ${suffix,,}=${line_value}"
@@ -569,6 +569,59 @@ ${suffix,,}=${line_value}"
 
   echo ""
   echo "=== Seed complete for ${GROUP}/${APP} ==="
+
+  # --- Additional Vault paths from seed-mapping.conf ---
+  local SEED_MAPPING="${WORKLOAD_DIR}/vault/seed-mapping.conf"
+  if [ "$VAULT_WRITTEN" = "true" ] && [ -f "$SEED_MAPPING" ]; then
+    local SEED_TMPDIR
+    SEED_TMPDIR="$(mktemp -d)"
+    while IFS='' read -r mapping_line; do
+      [ -z "$mapping_line" ] && continue
+      [[ "$mapping_line" == \#* ]] && continue
+      local v_path v_rest v_key v_env
+      read -r v_path v_rest <<< "$mapping_line"
+      v_path="$(echo "$v_path" | xargs)"
+      v_rest="$(echo "$v_rest" | xargs)"
+      [ "$v_path" = "$VAULT_PATH" ] && continue
+      [ -z "$v_rest" ] && continue
+      v_key="${v_rest%%=*}"
+      v_env="${v_rest#*=}"
+      [ -f "${WORKLOAD_DIR}/.secret-seed" ] || continue
+      local v_value
+      v_value="$(grep "^${v_env}=" "${WORKLOAD_DIR}/.secret-seed" | tail -1 | cut -d= -f2-)"
+      [ -z "$v_value" ] && continue
+      if [[ "$v_env" == *_B64 ]]; then
+        local path_key
+        path_key="$(echo "$v_path" | tr '/' '_')"
+        echo "$v_value" | base64 -d > "${SEED_TMPDIR}/${path_key}_${v_key}.pem" 2>/dev/null
+        echo "${v_key}=@${SEED_TMPDIR}/${path_key}_${v_key}.pem" >> "${SEED_TMPDIR}/${path_key}.args"
+      fi
+    done < "$SEED_MAPPING"
+
+    for args_file in "${SEED_TMPDIR}"/*.args; do
+      [ -f "$args_file" ] || continue
+      local target_path
+      target_path="$(basename "$args_file" .args | tr '_' '/')"
+      local vault_args=()
+      local pod_files=()
+      while IFS='=' read -r k eq_val; do
+        [ -z "$k" ] && continue
+        local val="${eq_val#@}"
+        local pod_file="/tmp/$(basename "$val")"
+        kubectl exec -i -n vault vault-0 -c vault -- sh -c "cat > ${pod_file}" < "$val" 2>/dev/null
+        pod_files+=("$pod_file")
+        vault_args+=("${k}=@${pod_file}")
+      done < "$args_file"
+      if [ ${#vault_args[@]} -gt 0 ]; then
+        kubectl exec -n vault vault-0 -c vault -- env VAULT_TOKEN="${VAULT_ROOT_TOKEN}" VAULT_ADDR=http://127.0.0.1:8200 vault kv put "$target_path" "${vault_args[@]}" 2>/dev/null && echo "   Secrets written to ${target_path}"
+      fi
+      for pf in "${pod_files[@]}"; do
+        kubectl exec -n vault vault-0 -c vault -- rm -f "$pf" 2>/dev/null || true
+      done
+    done
+    rm -rf "$SEED_TMPDIR"
+  fi
+
   echo ""
   echo "Next step: atlasctl enable ${GROUP}/${APP} [--sync]"
 }
