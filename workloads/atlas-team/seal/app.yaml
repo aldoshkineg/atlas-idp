@@ -26,6 +26,10 @@ spec:
           enabled: false
         secrets:
           create: false
+        config:
+          postgres:
+            user: seal
+            db: seal
   destination:
     server: https://kubernetes.default.svc
     namespace: atlas-team-seal
