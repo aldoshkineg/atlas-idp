@@ -28,7 +28,7 @@ spec:
           secrets:
             create: false
           migration:
-            enabled: true
+            enabled: false
           keda:
             enabled: false
           config:
