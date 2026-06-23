@@ -3,8 +3,6 @@ name: Seal - Build and Publish Docker Images
 on:
   push:
     branches: [main]
-    paths: ['apps/seal/**']
-  push:
     tags: ['v*']
   pull_request:
     branches: [main]
