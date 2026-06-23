@@ -53,3 +53,11 @@ spec:
             capabilities:
               drop: ["ALL"]
             readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: pdf-signer
+              mountPath: /vault/secrets
+              readOnly: true
+      volumes:
+        - name: pdf-signer
+          secret:
+            secretName: seal-pdf-signer
