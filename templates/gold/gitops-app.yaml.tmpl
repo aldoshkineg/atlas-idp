@@ -17,7 +17,7 @@ spec:
       targetRevision: {{TARGET_REVISION}}
       path: workloads/{{GROUP}}/{{APP}}
       directory:
-        exclude: "{app.yaml,.secret-seed,gitops-app.yaml,*.tmpl}"
+        exclude: "{app.yaml,.secret-seed,gitops-app.yaml,vault/*,*.tmpl}"
   destination:
     server: https://kubernetes.default.svc
     namespace: {{NAMESPACE}}
