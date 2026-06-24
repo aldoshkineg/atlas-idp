@@ -172,7 +172,7 @@ prompt_confirm() {
 
 # --- Utility: kubectl exec ---
 kexec() {
-  kubectl exec "$@" 2>/dev/null || true
+  kubectl exec "$@" 2>/dev/null
 }
 
 # --- Utility: vault cmd inside vault-0 pod ---
@@ -503,7 +503,8 @@ cmd_seed() {
     kexec -n minio "${MINIO_POD}" -- mc admin user remove "${MC_ALIAS}" "${S3_ACCESS_KEY}"
   fi
   kexec -n minio "${MINIO_POD}" -- mc admin user add "${MC_ALIAS}" "${S3_ACCESS_KEY}" "${S3_SECRET_KEY}" && echo "   MinIO user '${S3_ACCESS_KEY}' created"
-  kexec -n minio "${MINIO_POD}" -- mc admin policy set "${MC_ALIAS}" readwrite user="${S3_ACCESS_KEY}" 2>/dev/null || kexec -n minio "${MINIO_POD}" -- mc admin policy attach "${MC_ALIAS}" readwrite --user "${S3_ACCESS_KEY}"
+  kubectl exec -n minio "${MINIO_POD}" -- mc admin policy set "${MC_ALIAS}" readwrite user="${S3_ACCESS_KEY}" 2>/dev/null || \
+  kubectl exec -n minio "${MINIO_POD}" -- mc admin policy attach "${MC_ALIAS}" readwrite --user "${S3_ACCESS_KEY}" 2>/dev/null || true
 
   echo ""
   echo ">> Vault: writing secrets to ${VAULT_PATH}..."
@@ -547,8 +548,10 @@ ${suffix,,}=${line_value}"
   VAULT_ROOT_TOKEN="$(kubectl get secret -n vault vault-unseal-keys -o jsonpath='{.data.vault-root}' 2>/dev/null | base64 -d || true)"
   if [ -n "$VAULT_ROOT_TOKEN" ]; then
     local VAULT_ARGS=()
-    while IFS='=' read -r key val; do
-      [ -z "$key" ] && continue
+    while IFS= read -r line; do
+      [ -z "$line" ] && continue
+      key="${line%%=*}"
+      val="${line#*=}"
       VAULT_ARGS+=("${key}=${val}")
     done <<< "$VAULT_DATA"
     if vault0 kv put "${VAULT_PATH}" "${VAULT_ARGS[@]}"; then
