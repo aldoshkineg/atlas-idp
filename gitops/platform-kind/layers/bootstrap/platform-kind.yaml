@@ -33,6 +33,8 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: nginx-gateway-fabric
       server: https://kubernetes.default.svc
+    - namespace: observability
+      server: https://kubernetes.default.svc
     - namespace: storage
       server: https://kubernetes.default.svc
     - namespace: redis
