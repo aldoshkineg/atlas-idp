@@ -23,54 +23,55 @@ alias atlasctl="$PWD/tools/atlasctl"
 
 ## `atlasctl new`
 
-Создаёт `workloads/<group>/<app>/` с файлами по golden path.
+Создаёт `workloads/<group>/<app>/` со всеми манифестами golden path.
 
 ```bash
-# Минимальный workload (только app.yaml)
+# Минимальный
 atlasctl new myapp --group team-a --repo https://github.com/team-a/myapp.git
 
 # С Helm чартом
 atlasctl new myapp --group team-a --repo https://github.com/team-a/myapp.git \
   --repo-path charts/myapp --helm
 
-# Полный набор: secrets + ingress + monitoring
+# С Helm values
 atlasctl new seal --group aldoshkineg \
   --repo https://github.com/aldoshkineg/atlas-idp-seal.git \
-  --repo-path charts/seal --helm --secrets --ingress --monitoring
+  --repo-path charts/seal --helm --helm-values ./seal-values.yaml
 ```
 
 ### Флаги
 
-| Флаг                | Описание                                                                   |
-| ------------------- | -------------------------------------------------------------------------- |
-| `--group <g>`       | Группа/команда                                                             |
-| `--repo <url>`      | URL репозитория приложения                                                 |
-| `--namespace <ns>`  | Namespace (по умолч.: `<group>-<app>`)                                     |
-| `--repo-path <p>`   | Путь к манифестам в репо (по умолч.: `.`)                                  |
-| `--helm`            | Использовать Helm                                                          |
-| `--helm-values <s>` | Inline values или путь к файлу                                             |
-| `--secrets`         | Создать `vault/` + `secrets.yaml` (DB + S3 + Redis) + сгенерировать пароли |
-| `--ingress`         | Создать `gateway.yaml` (HTTPRoute + Certificate)                           |
-| `--monitoring`      | Создать PodMonitor + PrometheusRule                                        |
-| `--sa <sas>`        | Service accounts для Vault auth (по умолч.: `<app>`)                       |
-| `-y` / `--yes`      | Без подтверждения                                                          |
+| Флаг                | Описание                                             |
+| ------------------- | ---------------------------------------------------- |
+| `--group <g>`       | Группа/команда                                       |
+| `--repo <url>`      | URL репозитория приложения                           |
+| `--namespace <ns>`  | Namespace (по умолч.: `<group>-<app>`)               |
+| `--repo-path <p>`   | Путь к манифестам в репо (по умолч.: `.`)            |
+| `--helm`            | Использовать Helm                                    |
+| `--helm-values <s>` | Inline values или путь к файлу                       |
+| `--sa <sas>`        | Service accounts для Vault auth (по умолч.: `<app>`) |
+| `-y` / `--yes`      | Без подтверждения                                    |
+
+> Все манифесты генерируются всегда: gateway.yaml (HTTPRoute + Certificate), secrets.yaml (ExternalSecrets), vault/, monitoring/, infra/ (NetworkPolicy + ResourceQuota). Отдельные флаги для каждого типа не требуются.
 
 ### Структура после `new`
 
 ```
 workloads/<group>/<app>/
-├── app.yaml              # ArgoCD Application → внешний репо
-├── gateway.yaml          # (--ingress) HTTPRoute + Certificate
-├── .secret-seed          # (--secrets) сгенерированные пароли
-├── vault/
-│   ├── policy.hcl        # (--secrets) Vault policy
+├── app.yaml               # ArgoCD Application (внешний репо + resources/)
+├── .secret-seed            # Сгенерированные пароли DB / S3 / Redis
+├── secrets.yaml            # ExternalSecrets: DB + S3 + Redis
+├── vault/                  # Vault policy + k8s auth role + seed config
+│   ├── policy.hcl
 │   ├── k8s-auth-role.yaml
 │   └── seed-mapping.conf
-├── secrets.yaml          # (--secrets) ExternalSecrets: DB + S3 + Redis
-├── monitoring/           # (--monitoring) PodMonitor + PrometheusRule
-└── infra/
-    ├── resource-quota.yaml
-    └── network-policy.yaml
+├── monitoring/             # PodMonitor + PrometheusRule
+│   ├── pod-monitor.yaml
+│   └── prometheus-rule.yaml
+└── infra/                  # Платформенные ресурсы кластера
+    ├── gateway.yaml        #   → gateway-routes/ (enable)
+    ├── network-policy.yaml #   → resources/
+    └── resource-quota.yaml #   → resources/
 ```
 
 ---
@@ -89,7 +90,7 @@ atlasctl seed aldoshkineg/seal
 
 ## `atlasctl enable`
 
-Создаёт ArgoCD Application CR в `gitops/workloads/<group>/<app>.yaml` и добавляет listener в gateway.
+Создаёт ArgoCD Application CR в `gitops/workloads/<group>/<app>.yaml`, синхронизирует манифесты в `gitops/workloads/<group>/<app>/resources/`, копирует `infra/gateway.yaml` в `gateway-routes/<app>.yaml` и добавляет TLS listener в gateway.
 
 ```bash
 # Предпросмотр
@@ -103,7 +104,7 @@ atlasctl enable aldoshkineg/seal --sync --push
 
 ## `atlasctl disable`
 
-Удаляет gateway listener (первым, иначе ArgoCD пересоздаст app), потом удаляет ArgoCD Application CR и пустую групповую папку.
+Удаляет gateway listener, ArgoCD Application CR из `gitops/workloads/`, файл из `gateway-routes/` и пустую групповую папку.
 
 ```bash
 # Предпросмотр
@@ -114,9 +115,6 @@ atlasctl disable aldoshkineg/seal -y
 
 # Отключить + commit + push
 atlasctl disable aldoshkineg/seal -y --sync --push
-
-# Не трогать workloads/ директорию
-atlasctl disable aldoshkineg/seal -y --keep-workload
 ```
 
 ---
@@ -126,7 +124,7 @@ atlasctl disable aldoshkineg/seal -y --keep-workload
 ```bash
 $ atlasctl list
 Workloads:
-  aldoshkineg/seal  [secrets monitoring gateway]
+  aldoshkineg/seal  [secrets gateway monitoring]
 ```
 
 ---
@@ -137,7 +135,7 @@ Workloads:
 # 1. Scaffold
 atlasctl new seal --group aldoshkineg \
   --repo https://github.com/aldoshkineg/atlas-idp-seal.git \
-  --repo-path charts/seal --helm --secrets --ingress --monitoring
+  --repo-path charts/seal --helm
 
 # 2. Настроить (опционально) — отредактировать файлы, .secret-seed
 

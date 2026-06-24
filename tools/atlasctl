@@ -188,10 +188,8 @@ detect_features() {
   local dir="$1"
   local features=""
   [ -f "${dir}.secret-seed" ] || [ -f "${dir}vault/policy.hcl" ] && features+="secrets "
-  [ -f "${dir}gateway.yaml" ] && features+="gateway "
+  [ -f "${dir}gateway.yaml" ] || [ -f "${dir}infra/gateway.yaml" ] && features+="gateway "
   [ -f "${dir}monitoring/prometheus-rule.yaml" ] && features+="monitoring "
-  [ -d "${dir}autoscaling" ] && features+="keda "
-  [ -d "${dir}rollouts" ] && features+="rollouts "
   echo "$features"
 }
 
