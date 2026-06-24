@@ -123,6 +123,7 @@ render_template() {
   content="${content//"{{CHART_REVISION}}"/${CHART_REVISION:-main}}"
   content="${content//"{{CHART_PATH}}"/${CHART_PATH:-}}"
   content="${content//"{{TARGET_REVISION}}"/${TARGET_REVISION:-main}}"
+  content="${content//"{{GATEWAY_PORT}}"/${GATEWAY_PORT:-8080}}"
 
   if [ -n "${HOSTNAME:-}" ]; then
     content="${content//"{{HOSTNAME}}"/$HOSTNAME}"

@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - argocd.yaml
+  - vault.yaml
+  - external-secrets.yaml
+  - nginx-gateway.yaml
+  - monitoring.yaml
+  - loki.yaml
+  - minio.yaml
+  - database.yaml
+  - redis.yaml
+  - cnpg-system.yaml
+  - kube-system.yaml
+  - velero.yaml
+  - keda.yaml
