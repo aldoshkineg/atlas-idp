@@ -45,7 +45,7 @@ spec:
       serviceAccountName: wait-vault
       containers:
         - name: wait-vault
-          image: bitnami/kubectl:1.33
+          image: bitnamilegacy/kubectl:1.33.4
           command:
             - /bin/sh
             - -c
