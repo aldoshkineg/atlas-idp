@@ -6,6 +6,16 @@ Managed by **atlasctl** — [Atlas IDP](https://github.com/aldoshkineg/atlas-idp
 - **Namespace:** `{{NAMESPACE}}`
 - **Repository:** {{REPO_URL}}
 
+## Directory structure
+
+| Path | Description |
+|------|-------------|
+| `app.yaml` | ArgoCD Application definition |
+| `infra/` | Platform infrastructure resources: HTTPRoute + Certificate (gateway.yaml), NetworkPolicy, ResourceQuota. On `enable` — gateway.yaml goes to `gateway-routes/`, the rest goes to `resources/` |
+| `secrets.yaml` | ExternalSecrets for DB, S3, Redis (synced to `resources/`) |
+| `monitoring/` | PodMonitor + PrometheusRule (synced to `resources/`) |
+| `vault/` | Vault policies and seed config (local, not synced) |
+
 ## Commands
 
 ```bash
