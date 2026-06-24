@@ -15,23 +15,23 @@ Verify that CA certificates used in this project are properly trusted by the sys
 
 The CA certificate and key are stored as GitHub repository secrets for use in CI/CD:
 
-| Secret       | Source File             | Created Via                                                                   |
-| ------------ | ----------------------- | ----------------------------------------------------------------------------- |
-| `DEV_CA_CRT` | `security/certs/ca.crt` | `make github-secrets-ca` → `gh secret set DEV_CA_CRT < security/certs/ca.crt` |
-| `DEV_CA_KEY` | `security/certs/ca.key` | `make github-secrets-ca` → `gh secret set DEV_CA_KEY < security/certs/ca.key` |
+| Secret         | Source File             | Created Via                                                                     |
+| -------------- | ----------------------- | ------------------------------------------------------------------------------- |
+| `ATLAS_CA_CRT` | `security/certs/ca.crt` | `make github-secrets-ca` → `gh secret set ATLAS_CA_CRT < security/certs/ca.crt` |
+| `ATLAS_CA_KEY` | `security/certs/ca.key` | `make github-secrets-ca` → `gh secret set ATLAS_CA_KEY < security/certs/ca.key` |
 
 **How they are consumed in CI/CD:**
 
 1. `.github/workflows/ci.yaml` passes both secrets to the `terraform-kind` composite action
 2. `.github/actions/terraform-kind/action.yml` uses them to create a Kubernetes TLS secret in the cluster:
    ```yaml
-   kubectl create secret tls dev-ca-secret \
-   --cert=<(echo "${{ inputs.dev_ca_crt }}") \
-   --key=<(echo "${{ inputs.dev_ca_key }}") \
+   kubectl create secret tls atlas-ca-secret \
+   --cert=<(echo "${{ inputs.atlas_ca_crt }}") \
+   --key=<(echo "${{ inputs.atlas_ca_key }}") \
    -n cert-manager \
    --dry-run=client -o yaml | kubectl apply -f -
    ```
-3. The resulting Kubernetes secret `dev-ca-secret` in namespace `cert-manager` is used as a CA issuer by cert-manager to sign certificates for in-cluster services (Ingress, etc.)
+3. The resulting Kubernetes secret `atlas-ca-secret` in namespace `cert-manager` is used as a CA issuer by cert-manager to sign certificates for in-cluster services (Ingress, etc.)
 
 **Check secrets via CLI:**
 

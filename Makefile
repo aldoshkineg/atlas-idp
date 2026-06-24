@@ -76,10 +76,10 @@ help:
 	@echo "  rbac-delete       Remove RBAC policies"
 	@echo ""
 	@echo "GitHub Secrets:"
-	@echo "  github-secrets-ca  Add root CA cert and key to GitHub secrets (DEV_CA_CRT, DEV_CA_KEY)"
+	@echo "  github-secrets-ca  Add root CA cert and key to GitHub secrets (ATLAS_CA_CRT, ATLAS_CA_KEY)"
 	@echo ""
 	@echo "CA Certificates:"
-	@echo "  seed-ca           Create dev-ca-secret for cert-manager from security/certs/"
+	@echo "  seed-ca           Create atlas-ca-secret for cert-manager from security/certs/"
 	@echo ""
 
 # --- Infrastructure Management ---
@@ -203,10 +203,10 @@ rbac-delete:
 
 # --- GitHub Secrets ---
 github-secrets-ca:
-	@echo "--> Adding root CA certificate to GitHub secrets (DEV_CA_CRT)..."
-	gh secret set DEV_CA_CRT < security/certs/ca.crt
-	@echo "--> Adding root CA key to GitHub secrets (DEV_CA_KEY)..."
-	gh secret set DEV_CA_KEY < security/certs/ca.key
+	@echo "--> Adding root CA certificate to GitHub secrets (ATLAS_CA_CRT)..."
+	gh secret set ATLAS_CA_CRT < security/certs/ca.crt
+	@echo "--> Adding root CA key to GitHub secrets (ATLAS_CA_KEY)..."
+	gh secret set ATLAS_CA_KEY < security/certs/ca.key
 	@echo "--> CA certificate and key added to GitHub secrets successfully"
 
 seed-ca:
@@ -214,12 +214,12 @@ seed-ca:
 	@kind export kubeconfig --name $(CLUSTER_NAME) 2>/dev/null || true
 	@echo "--> Ensuring cert-manager namespace exists..."
 	kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
-	@echo "--> Creating dev-ca-secret in cert-manager namespace..."
-	kubectl create secret tls dev-ca-secret -n cert-manager \
+	@echo "--> Creating atlas-ca-secret in cert-manager namespace..."
+	kubectl create secret tls atlas-ca-secret -n cert-manager \
 		--cert=security/certs/ca.crt \
 		--key=security/certs/ca.key \
 		--dry-run=client -o yaml | kubectl apply -f -
-	@echo "--> CA secret seeded successfully. ClusterIssuer dev-ca-issuer should become Healthy."
+	@echo "--> CA secret seeded successfully. ClusterIssuer atlas-ca-issuer should become Healthy."
 
 # --- Quality Assurance & Linting ---
 validate: validate-terraform validate-yaml validate-security

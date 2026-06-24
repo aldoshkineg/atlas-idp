@@ -74,8 +74,8 @@ run_ci() {
 
   act -W "$REPO_ROOT/.github/workflows/ci.yaml" \
     --container-options "-v $CACHE_DIR/tf:/opt/terraform/plugin-cache -v $CACHE_DIR/home:/root -v /var/tmp/atlas/terraform:/var/tmp/atlas/terraform" \
-    -s DEV_CA_CRT="$(cat "$REPO_ROOT/security/certs/ca.crt")" \
-    -s DEV_CA_KEY="$(cat "$REPO_ROOT/security/certs/ca.key")" \
+    -s ATLAS_CA_CRT="$(cat "$REPO_ROOT/security/certs/ca.crt")" \
+    -s ATLAS_CA_KEY="$(cat "$REPO_ROOT/security/certs/ca.key")" \
     -s VAULT_TOKEN="${VAULT_TOKEN:-}" \
     -s VL_MINIO_ROOT_USER="${VL_MINIO_ROOT_USER:-}" \
     -s VL_MINIO_ROOT_PASSWORD="${VL_MINIO_ROOT_PASSWORD:-}" \

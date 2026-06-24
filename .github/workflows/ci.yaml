@@ -24,8 +24,8 @@ jobs:
 
       - uses: ./.github/actions/terraform-kind
         with:
-          dev_ca_crt: ${{ secrets.DEV_CA_CRT }}
-          dev_ca_key: ${{ secrets.DEV_CA_KEY }}
+          atlas_ca_crt: ${{ secrets.ATLAS_CA_CRT }}
+          atlas_ca_key: ${{ secrets.ATLAS_CA_KEY }}
 
       - uses: ./.github/actions/vault-seeds
         with:
