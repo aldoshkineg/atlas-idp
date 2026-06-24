@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+    argocd.argoproj.io/depends-on: gateway-api-crds, nginx-gateway-fabric
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: base
+spec:
+  project: platform-kind
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-rollouts
+      targetRevision: 2.41.0
+      helm:
+        values: |
+          dashboard:
+            enabled: true
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      path: gitops/platform-kind/layers/base/resources/argo-rollouts
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
