@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: atlasteam-seal
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "90"
+    argocd.argoproj.io/depends-on: postgres-cluster,redis,minio,cert-manager
+spec:
+  project: workloads
+  sources:
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      path: apps/seal/charts/seal
+      helm:
+        values: |
+          global:
+            imageRegistry: ghcr.io/aldoshkineg
+          images:
+            api:
+              tag: v0.25.0
+            worker:
+              tag: v0.25.0
+            ui:
+              tag: v0.25.0
+          vault:
+            enabled: false
+          gateway:
+            enabled: false
+          secrets:
+            create: false
+          migration:
+            enabled: true
+          keda:
+            enabled: false
+          config:
+            postgres:
+              user: seal
+              db: seal
+    - repoURL: https://github.com/aldoshkineg/atlas-idp
+      targetRevision: main
+      path: gitops/workloads/atlasteam/seal/resources
+      directory:
+        recurse: true
+        exclude: "{.secret-seed,*.tmpl}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: atlasteam-seal
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
