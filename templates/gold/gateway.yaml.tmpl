@@ -19,9 +19,9 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{APP}}-cert
-  namespace: {{NAMESPACE}}
+  namespace: nginx-gateway-fabric
 spec:
-  secretName: {{APP}}-tls
+  secretName: {{APP}}-cert
   issuerRef:
     name: atlas-ca-issuer
     kind: ClusterIssuer

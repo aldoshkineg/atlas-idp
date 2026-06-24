@@ -15,10 +15,10 @@ spec:
 {{GITOPS_HELM_SETTINGS}}
     - repoURL: {{REPO_URL}}
       targetRevision: {{TARGET_REVISION}}
-      path: workloads/{{GROUP}}/{{APP}}
+      path: gitops/workloads/{{GROUP}}/{{APP}}/resources
       directory:
         recurse: true
-        exclude: "{app.yaml,.secret-seed,vault/*,*.tmpl}"
+        exclude: "{.secret-seed,*.tmpl}"
   destination:
     server: https://kubernetes.default.svc
     namespace: {{NAMESPACE}}

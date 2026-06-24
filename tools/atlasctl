@@ -671,6 +671,8 @@ cmd_enable() {
   local GITOPS_DIR="${REPO_ROOT}/gitops/workloads/${GROUP}"
   local GITOPS_FILE="${GITOPS_DIR}/${APP}.yaml"
   local GW_FILE="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml"
+  local GW_ROUTES_DIR="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-routes"
+  local GW_ROUTES_FILE="${GW_ROUTES_DIR}/${APP}.yaml"
 
   if [ "$FORCE" != "true" ]; then
     [ ! -d "$WORKLOAD_DIR" ] && die "Workload not found: $WORKLOAD_DIR"
@@ -701,14 +703,18 @@ cmd_enable() {
   echo "  Gateway patch:  ${HAS_GATEWAY}"
   echo "---"
 
+  local GITOPS_RESOURCES_DIR="${GITOPS_DIR}/${APP}/resources"
+
   if [ "$DRY_RUN" = "true" ]; then
     echo ""
     echo ">> Would copy ${WORKLOAD_DIR}/app.yaml → ${GITOPS_FILE}"
+    echo ">> Would rsync ${WORKLOAD_DIR}/ → ${GITOPS_RESOURCES_DIR}/ (excluding app.yaml, gateway.yaml, .secret-seed, vault/*, *.tmpl)"
 
     if [ "$HAS_GATEWAY" = "true" ]; then
       local GW_HOSTNAME
       GW_HOSTNAME="$(yq eval 'select(.kind == "HTTPRoute") | .spec.hostnames[0]' "${WORKLOAD_DIR}/gateway.yaml" 2>/dev/null | head -1 || echo "${APP}.atlas")"
       echo ""
+      echo ">> Would copy gateway.yaml → ${GW_ROUTES_FILE}"
       echo ">> Would add listener to: ${GW_FILE}"
       echo "   name: https-${APP}"
       echo "   hostname: ${GW_HOSTNAME}"
@@ -728,9 +734,24 @@ cmd_enable() {
   cp "${WORKLOAD_DIR}/app.yaml" "$GITOPS_FILE"
   echo "  [app] Copied to ${GITOPS_FILE}"
 
+  # rsync all yaml/md files (excluding app.yaml, gateway.yaml, secrets, vault, tmpl) to resources/
+  mkdir -p "$GITOPS_RESOURCES_DIR"
+  rsync -a --delete \
+    --exclude='app.yaml' \
+    --exclude='gateway.yaml' \
+    --exclude='.secret-seed' \
+    --exclude='vault' \
+    --exclude='*.tmpl' \
+    "${WORKLOAD_DIR}/" "${GITOPS_RESOURCES_DIR}/"
+  echo "  [workload] Synced manifests to ${GITOPS_RESOURCES_DIR}/"
+
   if [ "$HAS_GATEWAY" = "true" ]; then
     local GW_HOSTNAME
     GW_HOSTNAME="$(yq eval 'select(.kind == "HTTPRoute") | .spec.hostnames[0]' "${WORKLOAD_DIR}/gateway.yaml" 2>/dev/null | head -1 || echo "${APP}.atlas")"
+
+    mkdir -p "$GW_ROUTES_DIR"
+    cp "${WORKLOAD_DIR}/gateway.yaml" "$GW_ROUTES_FILE"
+    echo "  [gateway-routes] Copied gateway.yaml → ${GW_ROUTES_FILE}"
 
     local LISTENER_EXISTS
     LISTENER_EXISTS="$(yq eval ".spec.listeners[] | select(.name == \"https-${APP}\")" "$GW_FILE" 2>/dev/null || true)"
@@ -746,8 +767,10 @@ cmd_enable() {
 
   if [ "$SYNC" = "true" ]; then
     git -C "${REPO_ROOT}" add "${GITOPS_FILE}"
+    git -C "${REPO_ROOT}" add "${GITOPS_RESOURCES_DIR}"
     if [ "$HAS_GATEWAY" = "true" ]; then
       git -C "${REPO_ROOT}" add "$GW_FILE"
+      git -C "${REPO_ROOT}" add "$GW_ROUTES_FILE"
     fi
     git -C "${REPO_ROOT}" commit -m "enable(workloads): promote ${GROUP}/${APP}" || echo "   (nothing to commit)"
 
@@ -815,7 +838,11 @@ cmd_disable() {
   local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
   local GITOPS_DIR="${REPO_ROOT}/gitops/workloads/${GROUP}"
   local GITOPS_FILE="${GITOPS_DIR}/${APP}.yaml"
+  local GITOPS_RESOURCES_DIR="${GITOPS_DIR}/${APP}/resources"
+  local GITOPS_WORKLOAD_DIR="${GITOPS_DIR}/${APP}"
   local GW_FILE="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml"
+  local GW_ROUTES_DIR="${REPO_ROOT}/gitops/platform-kind/layers/networking/values/gateway-routes"
+  local GW_ROUTES_FILE="${GW_ROUTES_DIR}/${APP}.yaml"
 
   [ ! -f "$GITOPS_FILE" ] && die "Not enabled — ${GITOPS_FILE} does not exist"
 
@@ -839,6 +866,12 @@ cmd_disable() {
     echo "   name: https-${APP}"
     echo ""
     echo ">> Would delete: ${GITOPS_FILE}"
+    if [ -d "$GITOPS_RESOURCES_DIR" ]; then
+      echo ">> Would delete directory: ${GITOPS_RESOURCES_DIR}/"
+    fi
+    if [ -f "$GW_ROUTES_FILE" ]; then
+      echo ">> Would delete: ${GW_ROUTES_FILE}"
+    fi
     if [ -d "$GITOPS_DIR" ] && [ -z "$(ls -A "$GITOPS_DIR" 2>/dev/null)" ]; then
       echo ">> Would remove empty: ${GITOPS_DIR}"
     fi
@@ -863,6 +896,21 @@ cmd_disable() {
   rm -f "$GITOPS_FILE"
   echo "  [gitops] Removed ${GITOPS_FILE}"
 
+  if [ -d "$GITOPS_RESOURCES_DIR" ]; then
+    rm -rf "$GITOPS_RESOURCES_DIR"
+    echo "  [gitops] Removed directory ${GITOPS_RESOURCES_DIR}/"
+  fi
+
+  if [ -d "$GITOPS_WORKLOAD_DIR" ] && [ -z "$(ls -A "$GITOPS_WORKLOAD_DIR" 2>/dev/null)" ]; then
+    rmdir "$GITOPS_WORKLOAD_DIR"
+    echo "  [gitops] Removed empty directory ${GITOPS_WORKLOAD_DIR}/"
+  fi
+
+  if [ -f "$GW_ROUTES_FILE" ]; then
+    rm -f "$GW_ROUTES_FILE"
+    echo "  [gateway-routes] Removed ${GW_ROUTES_FILE}"
+  fi
+
   if [ -d "$GITOPS_DIR" ] && [ -z "$(ls -A "$GITOPS_DIR" 2>/dev/null)" ]; then
     rmdir "$GITOPS_DIR"
     echo "  [gitops] Removed empty directory ${GITOPS_DIR}"
@@ -870,7 +918,10 @@ cmd_disable() {
 
   if [ "$SYNC" = "true" ]; then
     git -C "${REPO_ROOT}" add "$GITOPS_FILE" 2>/dev/null || true
+    git -C "${REPO_ROOT}" add "$GITOPS_RESOURCES_DIR" 2>/dev/null || true
+    git -C "${REPO_ROOT}" add "$GITOPS_WORKLOAD_DIR" 2>/dev/null || true
     git -C "${REPO_ROOT}" add "$GW_FILE"
+    git -C "${REPO_ROOT}" add "$GW_ROUTES_FILE" 2>/dev/null || true
     git -C "${REPO_ROOT}" commit -m "disable(workloads): remove ${GROUP}/${APP}" || echo "   (nothing to commit)"
 
     if [ "$PUSH" = "true" ]; then

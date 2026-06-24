@@ -7,7 +7,6 @@ metadata:
 spec:
   schedule: "{{ .Values.cronjob.schedule }}"
   concurrencyPolicy: Forbid
-  ttlSecondsAfterFinished: {{ .Values.cronjob.ttlSecondsAfterFinished }}
   jobTemplate:
     spec:
       ttlSecondsAfterFinished: {{ .Values.cronjob.ttlSecondsAfterFinished }}

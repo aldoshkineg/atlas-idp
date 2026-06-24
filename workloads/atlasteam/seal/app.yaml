@@ -39,10 +39,10 @@ spec:
               db: seal
     - repoURL: https://github.com/aldoshkineg/atlas-idp
       targetRevision: main
-      path: workloads/atlasteam/seal
+      path: gitops/workloads/atlasteam/seal/resources
       directory:
         recurse: true
-        exclude: "{app.yaml,.secret-seed,vault/*,*.tmpl}"
+        exclude: "{.secret-seed,*.tmpl}"
   destination:
     server: https://kubernetes.default.svc
     namespace: atlasteam-seal
