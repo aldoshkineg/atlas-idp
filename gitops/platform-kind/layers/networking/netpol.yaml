@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform-kind/layers/networking/network-policies
+    path: gitops/platform-kind/layers/networking/resources/network-policies
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
