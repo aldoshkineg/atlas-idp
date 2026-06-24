@@ -9,12 +9,12 @@
 ### 1. Security Hardening
 
 - [ ] **Trivy Operator**: Deploy for runtime vulnerability scanning
-- [ ] **Network Policies**: Deny-all default + allow rules for `platform-kind`/`workloads`
-- [ ] **ResourceQuota**: Limit CPU/Memory for `workloads` namespace
+- [x] **Network Policies**: Deny-all default + allow rules for `platform-kind`/`workloads`
+- [x] **ResourceQuota**: Limit CPU/Memory for `workloads` namespace
 
 ### 2. Disaster Recovery
 
-- [ ] **Velero Backup Schedules**: Daily backups for `platform-kind`/`workloads`
+- [x] **Velero Backup Schedules**: Daily backups for `platform-kind`/`workloads`
 - [ ] **DR Runbook**: Document RTO/RPO and recovery procedure
 
 ---
@@ -62,10 +62,10 @@
 ## 📌 Next Sprint Focus (Top 5)
 
 1. [ ] Trivy Operator
-2. [ ] Network Policies
+2. [x] Network Policies
 3. [ ] KEDA ScaledObject
-4. [ ] Velero Backup Schedules
-5. [ ] ResourceQuota
+4. [x] Velero Backup Schedules
+5. [x] ResourceQuota
 
 ---
 

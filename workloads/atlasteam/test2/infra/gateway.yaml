@@ -1,0 +1,29 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: test2-route
+  namespace: atlasteam-test2
+spec:
+  parentRefs:
+    - name: platform-gateway
+      namespace: nginx-gateway-fabric
+      sectionName: https-test2
+  hostnames:
+    - test2.atlas
+  rules:
+    - backendRefs:
+        - name: test2
+          port: 80
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: test2-cert
+  namespace: nginx-gateway-fabric
+spec:
+  secretName: test2-cert
+  issuerRef:
+    name: atlas-ca-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - test2.atlas

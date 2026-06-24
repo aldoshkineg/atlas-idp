@@ -57,6 +57,9 @@ tools/ci/act-runner/cache/*
 .aider*
 .continue
 
+# Workload auto-generated secrets (local, rsync excludes from gitops)
+.secret-seed
+
 # Sealed Secrets pre-generated key (for reproducible encryption)
 .sealed-keys/
 

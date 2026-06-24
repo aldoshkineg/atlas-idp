@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-auth-atlasteam-test2-stub
+  namespace: vault
+data:
+  role: atlasteam-test2
+  policies: atlasteam-test2-workloads
+  bound_service_account_names: test2
+  bound_service_account_namespaces: atlasteam-test2

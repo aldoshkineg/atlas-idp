@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: atlasteam-test2
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "90"
+    argocd.argoproj.io/depends-on: postgres-cluster,redis,minio,cert-manager
+spec:
+  project: workloads
+  sources:
+    - repoURL: https://github.com/ealdoshkin/atlas-idp
+      targetRevision: main
+      path:
+
+    - repoURL: https://github.com/ealdoshkin/atlas-idp
+      targetRevision: main
+      path: gitops/workloads/atlasteam/test2/resources
+      directory:
+        recurse: true
+        exclude: "{.secret-seed,*.tmpl}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: atlasteam-test2
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

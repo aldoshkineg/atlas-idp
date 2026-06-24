@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: test2-alerts
+  namespace: atlasteam-test2
+spec:
+  groups:
+    - name: test2
+      rules:
+        - alert: ATLASTEAM_TEST2_HighErrorRate
+          expr: |
+            rate(http_requests_total{app="test2", status=~"5.."}[5m]) /
+            rate(http_requests_total{app="test2"}[5m]) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High error rate on test2"
+            description: "Error rate > 5% for 5 minutes"
