@@ -8,7 +8,7 @@
 
 ### 1. Security Hardening
 
-- [ ] **Trivy Operator**: Deploy for runtime vulnerability scanning
+- [x] **Trivy Operator**: Deploy for runtime vulnerability scanning
 - [x] **Network Policies**: Deny-all default + allow rules for `platform-kind`/`workloads`
 - [x] **ResourceQuota**: Limit CPU/Memory for `workloads` namespace
 
@@ -23,11 +23,11 @@
 
 ### 3. Autoscaling
 
-- [ ] **KEDA ScaledObject**: Configure Redis-triggered autoscaling for `worker`
+- [x] **KEDA ScaledObject**: Configure Redis-triggered autoscaling for `worker`
 
 ### 4. Observability
 
-- [ ] **Grafana Tempo**: Deploy for distributed tracing
+- [x] **Grafana Tempo**: Deploy for distributed tracing
 - [ ] **OpenTelemetry**: Instrument applications (backend-api/worker)
 
 ---
@@ -36,7 +36,7 @@
 
 ### 5. Deployment Strategy
 
-- [ ] **Argo Rollouts**: Replace `backend-api` Deployment with Rollout CRD
+- [x] **Argo Rollouts**: Replace `backend-api` Deployment with Rollout CRD
 
 ### 6. Documentation
 
@@ -61,9 +61,9 @@
 
 ## 📌 Next Sprint Focus (Top 5)
 
-1. [ ] Trivy Operator
+1. [x] Trivy Operator
 2. [x] Network Policies
-3. [ ] KEDA ScaledObject
+3. [x] KEDA ScaledObject
 4. [x] Velero Backup Schedules
 5. [x] ResourceQuota
 
