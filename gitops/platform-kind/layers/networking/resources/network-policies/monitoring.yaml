@@ -1,18 +1,20 @@
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
 metadata:
   name: platform-ingress
   namespace: monitoring
 spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
+  endpointSelector: {}
   ingress:
-    - from:
-        - podSelector: {}
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: nginx-gateway-fabric
-      ports:
-        - port: 80
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: monitoring
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: nginx-gateway-fabric
+      toPorts:
+        - ports:
+            - port: "80"
+    - fromEntities:
+        - remote-node
+        - world

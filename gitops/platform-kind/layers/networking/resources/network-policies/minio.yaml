@@ -1,35 +1,36 @@
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
 metadata:
   name: platform-ingress
   namespace: minio
 spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
+  endpointSelector: {}
   ingress:
-    - from:
-        - podSelector: {}
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: nginx-gateway-fabric
-      ports:
-        - port: 9000
-        - port: 9001
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: database
-      ports:
-        - port: 9000
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: velero
-      ports:
-        - port: 9000
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: minio
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: nginx-gateway-fabric
+      toPorts:
+        - ports:
+            - port: "9000"
+            - port: "9001"
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: database
+      toPorts:
+        - ports:
+            - port: "9000"
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: velero
+      toPorts:
+        - ports:
+            - port: "9000"
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: monitoring
+    - fromEntities:
+        - remote-node
+        - world

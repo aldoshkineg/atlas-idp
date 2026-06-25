@@ -21,11 +21,13 @@ This layer manages cluster networking: ingress gateways, HTTP routing, and netwo
 
 ### Network Policy Definitions (`network-policies/`)
 
+All policies are **CiliumNetworkPolicy** and include `fromEntities: [remote-node, world]` to allow node and external traffic. Port columns show `any` unless restricted.
+
 | File                    | Namespace              | Allows inbound from                                                | Ports      |
 | ----------------------- | ---------------------- | ------------------------------------------------------------------ | ---------- |
 | `argocd.yaml`           | `argocd`               | same-namespace, nginx-gateway-fabric, monitoring                   | 80         |
 | `vault.yaml`            | `vault`                | same-namespace, nginx-gateway-fabric, external-secrets, monitoring | 8200       |
-| `external-secrets.yaml` | `external-secrets`     | same-namespace, monitoring                                         | any        |
+| `external-secrets.yaml` | `external-secrets`     | same-namespace, monitoring, argocd, kube-system                    | any        |
 | `nginx-gateway.yaml`    | `nginx-gateway-fabric` | same-namespace, monitoring                                         | any        |
 | `monitoring.yaml`       | `monitoring`           | same-namespace, nginx-gateway-fabric                               | 80         |
 | `loki.yaml`             | `loki`                 | same-namespace, monitoring                                         | 3100       |
@@ -39,30 +41,34 @@ This layer manages cluster networking: ingress gateways, HTTP routing, and netwo
 
 ## How Network Policies Work
 
-Each policy file implements **default-deny ingress** with explicit allow rules:
+Policies are defined as **CiliumNetworkPolicy** (CNP) resources. Each policy implements **default-deny ingress** with explicit allow rules:
 
 ```yaml
 spec:
-  podSelector: {} # applies to ALL pods in the namespace
-  policyTypes:
-    - Ingress # enables ingress isolation
+  endpointSelector: {} # applies to ALL pods in the namespace
   ingress:
-    - from:
-        - podSelector: {} # allows same-namespace traffic
-    - from: # allows cross-namespace traffic
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: <source-ns>
-      ports:
-        - port: <N>
+    - fromEndpoints: # allows same-namespace traffic
+        - matchLabels:
+            io.kubernetes.pod.namespace: <ns>
+    - fromEndpoints: # allows cross-namespace traffic
+        - matchLabels:
+            io.kubernetes.pod.namespace: <source-ns>
+      toPorts:
+        - ports:
+            - port: "<N>"
+              protocol: TCP
+    - fromEntities: # allows node/host traffic (API server webhooks, kubelet probes, NodePort ingress)
+        - remote-node
+        - world
 ```
 
 Key behavior:
 
-- **Implicit deny-all**: setting `policyTypes: [Ingress]` with `podSelector: {}` drops all inbound traffic that does not match any `ingress` rule. There is no separate "deny-all" resource — it is defined by the absence of matching rules.
-- **Same-namespace allow**: every policy includes `podSelector: {}` in `from` so pods within the same namespace can communicate freely (e.g. Prometheus scraping Grafana inside `monitoring`).
-- **Monitoring allow**: every namespace with scrape targets allows inbound from `monitoring` on any port. This is intentionally unconstrained — Prometheus ServiceMonitors/PodMonitors discover endpoints dynamically.
-- **Namespace-explicit allow**: service-to-service dependencies (database → minio, keda → redis, etc.) use `namespaceSelector` + specific ports.
+- **Implicit deny-all**: `endpointSelector: {}` with explicit ingress `from*` rules drops all inbound traffic that does not match. There is no separate "deny-all" resource.
+- **Same-namespace allow**: every policy includes a `fromEndpoints` rule for its own namespace.
+- **Monitoring allow**: every namespace with scrape targets allows inbound from `monitoring` on any port — Prometheus ServiceMonitors/PodMonitors discover endpoints dynamically.
+- **Namespace-explicit allow**: service-to-service dependencies use `fromEndpoints` + `toPorts`.
+- **Host/node traffic**: every policy allows `remote-node` (traffic from other cluster nodes, including kube-apiserver) and `world` (external traffic via NodePort). Without this, kubelet health probes, API server webhooks, and external ingress would be blocked.
 
 ## Traffic Flow Example
 
