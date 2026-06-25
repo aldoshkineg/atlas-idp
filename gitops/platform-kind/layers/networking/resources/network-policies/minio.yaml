@@ -31,6 +31,3 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: monitoring
-    - fromEntities:
-        - remote-node
-        - world

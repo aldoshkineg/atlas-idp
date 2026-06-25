@@ -26,4 +26,3 @@ spec:
             io.kubernetes.pod.namespace: monitoring
     - fromEntities:
         - remote-node
-        - world

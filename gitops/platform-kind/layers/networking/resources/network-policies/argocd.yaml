@@ -12,12 +12,6 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: nginx-gateway-fabric
-      toPorts:
-        - ports:
-            - port: "80"
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: monitoring
-    - fromEntities:
-        - remote-node
-        - world

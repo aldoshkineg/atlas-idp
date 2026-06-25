@@ -15,6 +15,3 @@ spec:
       toPorts:
         - ports:
             - port: "3100"
-    - fromEntities:
-        - remote-node
-        - world
