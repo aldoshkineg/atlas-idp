@@ -23,6 +23,10 @@ spec:
           severity: HIGH,CRITICAL
         operator:
           scanJobsConcurrentLimit: 2
+          scanJobTolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
   destination:
     server: https://kubernetes.default.svc
     namespace: trivy-system
