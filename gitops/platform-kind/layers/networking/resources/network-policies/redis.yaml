@@ -18,3 +18,9 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: monitoring
+    - fromEndpoints:
+        - matchLabels:
+            io.kubernetes.pod.namespace: atlasteam-seal
+      toPorts:
+        - ports:
+            - port: "6379"
