@@ -34,6 +34,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate dev tag
+        id: dev-tag
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "tag=dev-$(date +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -41,7 +46,7 @@ jobs:
           images: ghcr.io/${{ env.ORG }}/${{ matrix.service }}
           tags: |
             type=ref,event=tag
-            type=raw,dev,enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=raw,value=${{ steps.dev-tag.outputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
