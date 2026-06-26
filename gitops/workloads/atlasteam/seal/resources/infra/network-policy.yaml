@@ -17,6 +17,7 @@ spec:
               kubernetes.io/metadata.name: nginx-gateway-fabric
       ports:
         - port: 8080
+        - port: 8081
     - from:
         - namespaceSelector:
             matchLabels:
