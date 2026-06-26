@@ -35,7 +35,7 @@ atlasctl new myapp --group team-a --repo https://github.com/team-a/myapp.git \
 
 # С Helm values
 atlasctl new seal --group aldoshkineg \
-  --repo https://github.com/aldoshkineg/atlas-idp-seal.git \
+  --repo https://github.com/aldoshkineg/atlas-idp.git \
   --repo-path charts/seal --helm --helm-values ./seal-values.yaml
 ```
 
@@ -134,7 +134,7 @@ Workloads:
 ```bash
 # 1. Scaffold
 atlasctl new seal --group aldoshkineg \
-  --repo https://github.com/aldoshkineg/atlas-idp-seal.git \
+  --repo https://github.com/aldoshkineg/atlas-idp.git \
   --repo-path charts/seal --helm
 
 # 2. Настроить (опционально) — отредактировать файлы, .secret-seed

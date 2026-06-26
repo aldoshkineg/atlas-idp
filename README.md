@@ -112,7 +112,7 @@ atlas-idp/
 │   │   └── monitoring.yaml     #     kube-prometheus-stack
 │   └── workloads/              #   Workload Applications
 │       └── application.yaml    #     Workloads app (backend-api, worker, cron)
-├── apps/                       # Placeholder — Seal project moved to aldoshkineg/atlas-idp-seal
+├── apps/                       # Seal project
 ├── observability/              # Monitoring & alerting
 │   ├── alerts/                 #   Prometheus custom alert rules
 │   │   ├── custom-rule-1.yaml  #     HighErrorRate

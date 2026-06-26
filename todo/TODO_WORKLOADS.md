@@ -85,7 +85,7 @@ templates/gold/
 
 ```bash
 # 1. Создать workload
-atlasctl new seal --group aldoshkineg --repo https://github.com/aldoshkineg/atlas-idp-seal.git --db --s3 --ingress --monitoring
+atlasctl new seal --group aldoshkineg --repo https://github.com/aldoshkineg/atlas-idp.git --db --s3 --ingress --monitoring
 
 # 2. Настроить app.yaml, gateway.yaml, .secret-seed (пароли уже сгенерированы)
 
@@ -167,14 +167,17 @@ atlasctl disable aldoshkineg/seal --sync --push
 **Цель:** Убрать workload из GitOps.
 
 - [x] Реализовать `cmd_disable()`:
+
   - **Порядок:**
     1. Сначала удалить listener из gateway (иначе ArgoCD пересоздаст app)
     2. Потом удалить Application CRs
   - Чтение hostname из `gateway.yaml` (если есть):
+
     ```bash
     yq -i 'del(.spec.listeners[] | select(.name == "https-'"$APP"'"))' \
       gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml
     ```
+
 - [ ] Удаляет:
   - `gitops/workloads/<group>/<app>.yaml`
   - Если папка `<group>/` пуста — удаляет и её
@@ -249,6 +252,7 @@ atlasctl disable aldoshkineg/seal --sync --push
 ## Phase 10 — Makefile + Documentation
 
 - [ ] Добавить Makefile targets:
+
   ```makefile
   atlasctl-new:    tools/atlasctl new $(ARGS)
   atlasctl-seed:   tools/atlasctl seed $(ARGS)
@@ -257,6 +261,7 @@ atlasctl disable aldoshkineg/seal --sync --push
   atlasctl-status: tools/atlasctl status $(ARGS)
   atlasctl-list:   tools/atlasctl list $(ARGS)
   ```
+
 - [ ] Обновить `apps/README.md`:
   - Описать полный workflow (new → seed → enable → disable)
   - Описать структуру workload директории

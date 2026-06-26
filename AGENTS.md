@@ -49,7 +49,7 @@ The platform runs locally on kind Kubernetes clusters while following AWS produc
 | `vault/`                  | Vault policies, Kubernetes auth roles, bootstrap scripts                                                       |
 | `security/`               | Trivy config, RBAC policies (planned)                                                                          |
 | `.github/`                | GitHub Actions workflows and composite actions                                                                 |
-| `apps/`                   | Placeholder — Seal project moved to aldoshkineg/atlas-idp-seal                                                 |
+| `apps/`                   | Seal project                                                                                                   |
 
 **Key Files:**
 
@@ -139,7 +139,7 @@ Pre-commit runs on every commit:
 
 ### Seal Project
 
-- **Repo:** `aldoshkineg/atlas-idp-seal` (extracted; ArgoCD Application in `gitops/workloads/layers/seal/seal.yaml` points there)
+- **Repo:** `aldoshkineg/atlas-dip` (extracted; ArgoCD Application in `gitops/workloads/layers/seal/seal.yaml` points there)
 - **Images on GHCR:** `ghcr.io/aldoshkineg/seal-{api,worker,ui}` — all three have `v0.25.0` and `0.2.0-alpha`; seal-api/seal-worker also have `latest`
 - **Build:** `go-task -t apps/seal/Taskfile.yml build-all` (local `docker buildx`), `push-images` (tag `:dev` → `ghcr.io/aldoshkineg/*:v0.25.0` + push)
 - **CI workflow:** `.github/workflows/seal-docker-publish.yml` — triggers on push main/push tag `v*`/PR main; uses `type=ref,event=tag` preserving `v` prefix

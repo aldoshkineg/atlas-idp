@@ -147,7 +147,7 @@ atlasctl:
 atlasctl-new:
 	@echo "Run: tools/atlasctl new <app> --group <group> --repo <url> [options]"
 	@echo "Example:"
-	@echo "  tools/atlasctl new seal --group aldoshkineg --repo https://github.com/aldoshkineg/atlas-idp-seal.git --repo-path charts/seal --helm --secrets --db --s3 --monitoring"
+	@echo "  tools/atlasctl new seal --group aldoshkineg --repo https://github.com/aldoshkineg/atlas-idp.git --repo-path charts/seal --helm --secrets --db --s3 --monitoring"
 
 atlasctl-seed:
 	tools/atlasctl seed
