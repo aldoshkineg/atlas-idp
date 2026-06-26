@@ -3,6 +3,7 @@ name: Seal - Build and Publish Docker Images
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -40,6 +41,7 @@ jobs:
           images: ghcr.io/${{ env.ORG }}/${{ matrix.service }}
           tags: |
             type=ref,event=tag
+            type=raw,dev,enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
