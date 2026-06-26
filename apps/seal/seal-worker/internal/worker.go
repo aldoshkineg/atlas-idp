@@ -12,6 +12,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -23,15 +27,17 @@ const (
 )
 
 type JobMessage struct {
-	DocumentID string `json:"document_id"`
-	InputText  string `json:"input_text"`
+	DocumentID  string `json:"document_id"`
+	InputText   string `json:"input_text"`
+	TraceParent string `json:"traceparent,omitempty"`
 }
 
 type ResultMessage struct {
-	DocumentID string `json:"document_id"`
-	Status     string `json:"status"`
-	S3Path     string `json:"s3_path"`
-	Error      string `json:"error"`
+	DocumentID  string `json:"document_id"`
+	Status      string `json:"status"`
+	S3Path      string `json:"s3_path"`
+	Error       string `json:"error"`
+	TraceParent string `json:"traceparent,omitempty"`
 }
 
 type Worker struct {
@@ -39,6 +45,7 @@ type Worker struct {
 	storage     *Storage
 	signer      *Signer
 	pollTimeout time.Duration
+	tracer      trace.Tracer
 }
 
 func NewWorker(redisClient *redis.Client, storage *Storage, signer *Signer, pollTimeout time.Duration) *Worker {
@@ -47,6 +54,7 @@ func NewWorker(redisClient *redis.Client, storage *Storage, signer *Signer, poll
 		storage:     storage,
 		signer:      signer,
 		pollTimeout: pollTimeout,
+		tracer:      otel.Tracer("seal-worker"),
 	}
 }
 
@@ -83,21 +91,35 @@ func (w *Worker) process(ctx context.Context, jobStr string) {
 		return
 	}
 
+	jobCtx := ctx
+	if msg.TraceParent != "" {
+		propagator := otel.GetTextMapPropagator()
+		carrier := propagation.MapCarrier{"traceparent": msg.TraceParent}
+		jobCtx = propagator.Extract(ctx, carrier)
+	}
+
+	jobCtx, span := w.tracer.Start(jobCtx, "ProcessJob",
+		trace.WithAttributes(
+			attribute.String("document.id", msg.DocumentID),
+		),
+	)
+	defer span.End()
+
 	id, err := uuid.Parse(msg.DocumentID)
 	if err != nil {
 		slog.Error("invalid document ID in job", "document_id", msg.DocumentID, "error", err)
-		w.removeFromProcessing(ctx, jobStr)
+		w.removeFromProcessing(jobCtx, jobStr)
 		return
 	}
 
 	if msg.InputText == "" {
 		slog.Error("empty input text in job", "document_id", id)
-		_ = w.pushResult(ctx, ResultMessage{
+		_ = w.pushResult(jobCtx, ResultMessage{
 			DocumentID: id.String(),
 			Status:     "failed",
 			Error:      "empty input text",
 		})
-		w.retryOrDLQ(ctx, jobStr)
+		w.retryOrDLQ(jobCtx, jobStr)
 		return
 	}
 
@@ -106,12 +128,13 @@ func (w *Worker) process(ctx context.Context, jobStr string) {
 	data, err := GeneratePDF(msg.InputText)
 	if err != nil {
 		slog.Error("generate pdf", "document_id", id, "error", err)
-		_ = w.pushResult(ctx, ResultMessage{
+		span.RecordError(err)
+		_ = w.pushResult(jobCtx, ResultMessage{
 			DocumentID: id.String(),
 			Status:     "failed",
 			Error:      fmt.Sprintf("pdf generation: %v", err),
 		})
-		w.retryOrDLQ(ctx, jobStr)
+		w.retryOrDLQ(jobCtx, jobStr)
 		return
 	}
 	slog.Info("pdf generated",
@@ -122,17 +145,26 @@ func (w *Worker) process(ctx context.Context, jobStr string) {
 
 	if w.signer != nil {
 		signStart := time.Now()
-		signed, err := w.signer.Sign(ctx, data)
+
+		_, signSpan := w.tracer.Start(jobCtx, "Sign",
+			trace.WithAttributes(attribute.String("document.id", id.String())),
+		)
+		signed, err := w.signer.Sign(jobCtx, data)
 		if err != nil {
 			slog.Error("sign pdf", "document_id", id, "error", err)
-			_ = w.pushResult(ctx, ResultMessage{
+			signSpan.RecordError(err)
+			signSpan.End()
+			span.RecordError(err)
+			_ = w.pushResult(jobCtx, ResultMessage{
 				DocumentID: id.String(),
 				Status:     "failed",
 				Error:      fmt.Sprintf("pdf sign: %v", err),
 			})
-			w.retryOrDLQ(ctx, jobStr)
+			w.retryOrDLQ(jobCtx, jobStr)
 			return
 		}
+		signSpan.SetAttributes(attribute.Int("size_bytes", len(signed)))
+		signSpan.End()
 		slog.Info("pdf signed",
 			"document_id", id,
 			"duration", time.Since(signStart),
@@ -145,16 +177,27 @@ func (w *Worker) process(ctx context.Context, jobStr string) {
 
 	objectKey := id.String() + ".pdf"
 	uploadStart := time.Now()
-	if err := w.storage.Upload(ctx, objectKey, data); err != nil {
+
+	_, uploadSpan := w.tracer.Start(jobCtx, "Upload",
+		trace.WithAttributes(
+			attribute.String("document.id", id.String()),
+			attribute.String("object_key", objectKey),
+		),
+	)
+	if err := w.storage.Upload(jobCtx, objectKey, data); err != nil {
 		slog.Error("upload pdf", "document_id", id, "error", err)
-_ = w.pushResult(ctx, ResultMessage{
+		uploadSpan.RecordError(err)
+		uploadSpan.End()
+		span.RecordError(err)
+		_ = w.pushResult(jobCtx, ResultMessage{
 			DocumentID: id.String(),
 			Status:     "failed",
 			Error:      fmt.Sprintf("upload: %v", err),
 		})
-		w.retryOrDLQ(ctx, jobStr)
+		w.retryOrDLQ(jobCtx, jobStr)
 		return
 	}
+	uploadSpan.End()
 	slog.Info("pdf uploaded",
 		"document_id", id,
 		"object_key", objectKey,
@@ -162,7 +205,7 @@ _ = w.pushResult(ctx, ResultMessage{
 		"duration", time.Since(uploadStart),
 	)
 
-	if err := w.pushResult(ctx, ResultMessage{
+	if err := w.pushResult(jobCtx, ResultMessage{
 		DocumentID: id.String(),
 		Status:     "completed",
 		S3Path:     objectKey,
@@ -172,7 +215,7 @@ _ = w.pushResult(ctx, ResultMessage{
 		slog.Info("result pushed", "document_id", id, "status", "completed", "s3_path", objectKey)
 	}
 
-	w.removeFromProcessing(ctx, jobStr)
+	w.removeFromProcessing(jobCtx, jobStr)
 	jobsProcessedTotal.WithLabelValues("ok").Inc()
 	jobDurationSeconds.Observe(time.Since(start).Seconds())
 	slog.Info("job completed",
@@ -183,6 +226,13 @@ _ = w.pushResult(ctx, ResultMessage{
 }
 
 func (w *Worker) pushResult(ctx context.Context, result ResultMessage) error {
+	propagator := otel.GetTextMapPropagator()
+	carrier := propagation.MapCarrier{}
+	propagator.Inject(ctx, carrier)
+	if tp, ok := carrier["traceparent"]; ok {
+		result.TraceParent = tp
+	}
+
 	data, err := json.Marshal(result)
 	if err != nil {
 		return fmt.Errorf("marshal result: %w", err)

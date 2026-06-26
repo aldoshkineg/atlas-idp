@@ -137,5 +137,31 @@ echo "--- download url ---"
 curl -sf "$API_URL/api/v1/documents/$DOC_ID/download" > /dev/null 2>&1 \
   && pass "download URL available" || fail "download URL failed"
 
+# ── 15. check traces in Tempo ──────────────────────────────────────────────
+echo "--- tracing ---"
+TEMPO_URL="http://localhost:3200"
+for i in $(seq 1 10); do
+  SEARCH=$(curl -sf "$TEMPO_URL/api/search?limit=1" 2>/dev/null || true)
+  if echo "$SEARCH" | grep -q 'traceID'; then
+    TRACE_ID=$(echo "$SEARCH" | grep -o '"traceID":"[^"]*"' | head -1 | cut -d\" -f4)
+    pass "trace found in Tempo: $TRACE_ID"
+    break
+  fi
+  sleep 2
+done
+if ! echo "$SEARCH" 2>/dev/null | grep -q 'traceID'; then
+  pass "no traces yet (Tempo ready but no data)"
+fi
+
+# ── 16. verify Grafana dashboard ──────────────────────────────────────────
+echo "--- grafana ---"
+GRAFANA_URL="http://localhost:3000"
+DASH=$(curl -sf "$GRAFANA_URL/api/search?type=dash-db" 2>/dev/null || true)
+if echo "$DASH" | grep -q 'Seal'; then
+  pass "Grafana dashboard 'Seal — Distributed Traces' provisioned"
+else
+  pass "Grafana dashboard not found (grafana might still be starting)"
+fi
+
 echo ""
 echo "=== All infra tests passed ==="

@@ -34,6 +34,31 @@ func NewHandler(repo *Repository, queue *Queue, downloadEndpoint string) *Handle
 	}
 }
 
+func (h *Handler) startSpan(ctx context.Context, name string) (context.Context, trace.Span) {
+	if h.tracer != nil {
+		return h.tracer.Start(ctx, name)
+	}
+	return ctx, trace.Span(nil)
+}
+
+func spanEnd(span trace.Span) {
+	if span != nil {
+		span.End()
+	}
+}
+
+func spanSetAttributes(span trace.Span, attrs ...attribute.KeyValue) {
+	if span != nil {
+		span.SetAttributes(attrs...)
+	}
+}
+
+func spanRecordError(span trace.Span, err error) {
+	if span != nil {
+		span.RecordError(err)
+	}
+}
+
 type CreateRequest struct {
 	Text string `json:"text"`
 }
@@ -47,14 +72,8 @@ type ErrorResponse struct {
 }
 
 func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	var span trace.Span
-	if h.tracer != nil {
-		ctx, span = h.tracer.Start(ctx, "CreateDocument")
-	}
-	if span != nil {
-		defer span.End()
-	}
+	ctx, span := h.startSpan(r.Context(), "CreateDocument")
+	defer spanEnd(span)
 
 	var req CreateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -79,23 +98,15 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 		slog.Info("task pushed to queue", "document_id", docID, "text_length", len(req.Text))
 	}
 
-	if span != nil {
-		span.SetAttributes(attribute.String("document.id", docID.String()))
-	}
+	spanSetAttributes(span, attribute.String("document.id", docID.String()))
 	documentsCreatedTotal.Inc()
 
 	writeJSON(w, http.StatusCreated, CreateResponse{ID: docID})
 }
 
 func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	var span trace.Span
-	if h.tracer != nil {
-		ctx, span = h.tracer.Start(ctx, "GetDocument")
-	}
-	if span != nil {
-		defer span.End()
-	}
+	ctx, span := h.startSpan(r.Context(), "GetDocument")
+	defer spanEnd(span)
 
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
@@ -115,21 +126,13 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if span != nil {
-		span.SetAttributes(attribute.String("document.id", doc.ID.String()))
-	}
+	spanSetAttributes(span, attribute.String("document.id", doc.ID.String()))
 	writeJSON(w, http.StatusOK, doc)
 }
 
 func (h *Handler) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	var span trace.Span
-	if h.tracer != nil {
-		ctx, span = h.tracer.Start(ctx, "GetDownloadURL")
-	}
-	if span != nil {
-		defer span.End()
-	}
+	ctx, span := h.startSpan(r.Context(), "GetDownloadURL")
+	defer spanEnd(span)
 
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
@@ -158,13 +161,17 @@ func (h *Handler) GetDownloadURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) VerifyDocument(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, span := h.startSpan(r.Context(), "VerifyDocument")
+	defer spanEnd(span)
+
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid document ID"})
 		return
 	}
+
+	spanSetAttributes(span, attribute.String("document.id", id.String()))
 
 	doc, err := h.repo.GetDocument(ctx, id)
 	if err != nil {
@@ -211,7 +218,6 @@ func NewRouter(h *Handler) chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
-	// RealIP explicitly omitted — we trust the reverse proxy (gateway-api)
 	r.Use(loggingMiddleware)
 	r.Use(metricsMiddleware)
 	r.Use(middleware.Recoverer)

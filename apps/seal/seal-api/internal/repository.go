@@ -7,6 +7,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Document struct {
@@ -30,6 +33,7 @@ func NewRepository(ctx context.Context, connString string) (*Repository, error) 
 		return nil, err
 	}
 	cfg.MaxConns = 5
+	cfg.ConnConfig.Tracer = &pgxTracer{}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -78,4 +82,28 @@ func (r *Repository) UpdateStatus(ctx context.Context, id uuid.UUID, status, s3P
 		id, status, s3Path, errorMsg,
 	)
 	return err
+}
+
+type pgxTracer struct{}
+
+func (t *pgxTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	sql := data.SQL
+	if len(sql) > 80 {
+		sql = sql[:80] + "..."
+	}
+	ctx, _ = otel.Tracer("seal-api").Start(ctx, "SQL "+sql,
+		trace.WithAttributes(
+			attribute.String("db.system", "postgresql"),
+			attribute.String("db.statement", data.SQL),
+		))
+	return ctx
+}
+
+func (t *pgxTracer) TraceQueryEnd(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryEndData) {
+	span := trace.SpanFromContext(ctx)
+	if data.Err != nil {
+		span.RecordError(data.Err)
+	}
+	span.SetAttributes(attribute.Int64("db.rows_affected", data.CommandTag.RowsAffected()))
+	span.End()
 }

@@ -1,0 +1,124 @@
+{
+  "title": "Seal — Distributed Traces",
+  "tags": ["seal", "tempo", "traces"],
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "time": { "from": "now-15m", "to": "now" },
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Requests & Worker Jobs",
+      "type": "table",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "query": "{ rootName != \"REDIS blmove\" && rootName != \"REDIS blpop\" && rootServiceName =~ \"seal-.*\" }",
+          "queryType": "traceql",
+          "limit": 50,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTypeIcons": false,
+        "footer": { "show": false },
+        "sortBy": [{ "displayName": "Time", "desc": true }]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "left", "cellOptions": { "type": "auto" } }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Trace ID" },
+            "properties": [
+              { "id": "custom.width", "value": 100 },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Explore",
+                    "url": "",
+                    "internal": {
+                      "datasourceUid": "tempo",
+                      "datasourceName": "Tempo",
+                      "query": {
+                        "query": "${__value.raw}",
+                        "queryType": "traceql"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Service" },
+            "properties": [{ "id": "custom.width", "value": 120 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Name" },
+            "properties": [{ "id": "custom.width", "value": 300 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Duration" },
+            "properties": [
+              { "id": "custom.width", "value": 100 },
+              { "id": "unit", "value": "ms" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "nested" },
+            "properties": [{ "id": "custom.hidden", "value": true }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "title": "REDIS Polling (background)",
+      "type": "table",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 10 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "query": "{ rootName = \"REDIS blmove\" }",
+          "queryType": "traceql",
+          "limit": 5,
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "query": "{ rootName = \"REDIS blpop\" }",
+          "queryType": "traceql",
+          "limit": 5,
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "showTypeIcons": false,
+        "footer": { "show": false },
+        "sortBy": [{ "displayName": "Time", "desc": true }]
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "left", "cellOptions": { "type": "auto" } }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Trace ID" },
+            "properties": [{ "id": "custom.width", "value": 100 }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "nested" },
+            "properties": [{ "id": "custom.hidden", "value": true }]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -16,6 +16,9 @@ data:
 {{- if .Values.config.downloadUrlPrefix }}
   DOWNLOAD_URL_PREFIX: "{{ .Values.config.downloadUrlPrefix }}"
 {{- end }}
+{{- if .Values.config.otel.endpoint }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: "{{ .Values.config.otel.endpoint }}"
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -30,6 +33,9 @@ data:
   WORKER_POLL_INTERVAL_MS: "1000"
   SIGN_CERT_PATH: "/vault/secrets/tls.crt"
   SIGN_KEY_PATH: "/vault/secrets/tls.key"
+{{- if .Values.config.otel.endpoint }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: "{{ .Values.config.otel.endpoint }}"
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -40,3 +46,6 @@ data:
   HTTP_PORT: "{{ .Values.service.uiPort }}"
   LOG_LEVEL: "{{ .Values.config.logLevel }}"
   BACKEND_API_URL: "http://seal-api:{{ .Values.service.apiPort }}"
+{{- if .Values.config.otel.endpoint }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: "{{ .Values.config.otel.endpoint }}"
+{{- end }}

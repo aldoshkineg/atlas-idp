@@ -313,12 +313,64 @@ KEDA ScaledObject
 
 #### Tracing (OpenTelemetry + Tempo)
 
+All three Seal services export distributed traces via **OTLP/HTTP** to Grafana Alloy, which batches and forwards to **Grafana Tempo**.
+
+##### Data Flow
+
 ```
-Seal UI ──▶ Seal API ──▶ Redis ──▶ Seal Worker ──▶ MinIO
-           trace_id=abc                    trace_id=abc
+seal-ui ──HTTP──▶ seal-api ──▶ Redis[jobs] ──▶ seal-worker ──▶ Redis[results] ──▶ seal-api
+     (traceparent)     │                                            │
+                       │          OTLP/HTTP (port 4318)              │
+                       └──────────▶ Grafana Alloy ◀──────────────────┘
+                                       │ OTLP/gRPC (batch)
+                                       ▼
+                                  Grafana Tempo
+                                       │ TraceQL
+                                       ▼
+                                  Grafana (Explore / dashboards)
 ```
 
-**Demonstrates:** Structured logging, log/metric/trace correlation, custom dashboards, SLO-based alerting.
+##### Propagation
+
+| Boundary             | Mechanism | How                                                                                   |
+| -------------------- | --------- | ------------------------------------------------------------------------------------- |
+| HTTP (UI ↔ API)     | Automatic | `otelhttp.NewHandler` / `otelhttp.NewTransport` injects/extracts `traceparent` header |
+| Redis (API → Worker) | Manual    | `PushTask` serializes `traceparent` into JSON payload; worker extracts it             |
+| Redis (Worker → API) | Manual    | `pushResult` serializes `traceparent` into JSON payload; `PopResult` loop extracts it |
+
+##### Spans per Service
+
+| Service     | Automatic Spans                                                        | Manual Spans                                                                     |
+| ----------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| seal-ui     | HTTP handler (otelhttp)                                                | —                                                                                |
+| seal-api    | HTTP handler (otelhttp), SQL queries (pgx hook), Redis commands (hook) | `CreateDocument`, `GetDocument`, `GetDownloadURL`, `VerifyDocument`, `PopResult` |
+| seal-worker | Redis commands (hook)                                                  | `ProcessJob`, `Sign`, `Upload`                                                   |
+
+##### Infrastructure
+
+| Component | Role                              | Endpoint                               |
+| --------- | --------------------------------- | -------------------------------------- |
+| Alloy     | OTLP receiver, batcher, forwarder | `:4318` (HTTP) → `tempo:4317` (gRPC)   |
+| Tempo     | Trace storage + query             | `:3200` (HTTP), local FS storage       |
+| Grafana   | Visualization                     | Tempo datasource → `http://tempo:3200` |
+
+##### Configuration
+
+```env
+OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4318   # empty = tracing disabled
+```
+
+Alloy pipeline: `OTLP/HTTP → batch → OTLP/gRPC → Tempo`
+
+Tempo backend: local filesystem (`/tmp/tempo/traces`)
+
+##### Viewing Traces
+
+1. Open Grafana → **Explore** → **Tempo** datasource
+2. Query: `{ rootServiceName =~ "seal-.*" }` (filters out Redis polling noise)
+3. Click a trace ID to see the full waterfall
+
+Pre-built dashboard `seal-traces.json` is available with the filtered query and excludes `REDIS blmove` / `REDIS blpop` root spans.
 
 ---
 

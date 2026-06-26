@@ -13,7 +13,7 @@ tasks:
   # ────────────────────────────────────────────
 
   dc-up:
-    desc: Start full stack (postgres, redis, minio, seal-api, seal-worker)
+    desc: Start full stack (postgres, redis, minio, alloy, tempo, grafana, seal-api, seal-worker, seal-ui)
     dir: tests/integration
     cmds:
       - docker compose up -d

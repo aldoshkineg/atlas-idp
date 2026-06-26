@@ -10,6 +10,7 @@ alloy:
         role = "pod"
       }
 
+      // ── Logs → Loki ────────────────────────────────────────────────
       loki.source.kubernetes "pods" {
         targets    = discovery.kubernetes.pods.targets
         forward_to = [loki.write.default.receiver]
@@ -18,6 +19,32 @@ alloy:
       loki.write "default" {
         endpoint {
           url = "http://loki-gateway.loki.svc.cluster.local/loki/api/v1/push"
+        }
+      }
+
+      // ── Traces → Tempo ─────────────────────────────────────────────
+      otelcol.receiver.otlp "default" {
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+
+        output {
+          traces = [otelcol.processor.batch.default.input]
+        }
+      }
+
+      otelcol.processor.batch "default" {
+        output {
+          traces = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+
+      otelcol.exporter.otlp "tempo" {
+        client {
+          endpoint = "tempo.observability.svc.cluster.local:4317"
+          tls {
+            insecure = true
+          }
         }
       }
 

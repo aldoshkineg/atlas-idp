@@ -7,10 +7,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/aldoshkineg/atlas-idp/apps/seal-ui/internal"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 func main() {
@@ -25,11 +33,20 @@ func main() {
 
 	setLogLevel(cfg.HTTP.LogLevel)
 
+	if cfg.Telemetry.OTLPEndpoint != "" {
+		tp, err := initTracerProvider(ctx, cfg.Telemetry.OTLPEndpoint, "seal-ui")
+		if err != nil {
+			slog.Error("failed to init tracer provider", "error", err)
+			os.Exit(1)
+		}
+		defer func() { _ = tp.Shutdown(context.Background()) }()
+	}
+
 	router := internal.NewRouter(cfg.BackendAPIURL)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.HTTP.Port),
-		Handler:      router,
+		Handler:      otelhttp.NewHandler(router, "seal-ui"),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
@@ -52,6 +69,48 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("shutdown error", "error", err)
 	}
+}
+
+func initTracerProvider(ctx context.Context, endpoint, serviceName string) (*sdktrace.TracerProvider, error) {
+	host, insecure := parseOTLPEndpoint(endpoint)
+
+	var opts []otlptracehttp.Option
+	opts = append(opts, otlptracehttp.WithEndpoint(host))
+	if insecure {
+		opts = append(opts, otlptracehttp.WithInsecure())
+	}
+	exporter, err := otlptracehttp.New(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("create otlp exporter: %w", err)
+	}
+
+	res := resource.NewSchemaless(
+		attribute.String("service.name", serviceName),
+	)
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+	)
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(
+		propagation.NewCompositeTextMapPropagator(
+			propagation.TraceContext{},
+			propagation.Baggage{},
+		),
+	)
+
+	return tp, nil
+}
+
+func parseOTLPEndpoint(raw string) (host string, insecure bool) {
+	if strings.HasPrefix(raw, "http://") {
+		return strings.TrimPrefix(raw, "http://"), true
+	}
+	if strings.HasPrefix(raw, "https://") {
+		return strings.TrimPrefix(raw, "https://"), false
+	}
+	return raw, true
 }
 
 func setLogLevel(level string) {

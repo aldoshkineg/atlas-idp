@@ -35,6 +35,8 @@ config:
     useSSL: false
   logLevel: info
   downloadUrlPrefix: https://s3.atlas
+  otel:
+    endpoint: ""
 
 service:
   apiPort: 8080

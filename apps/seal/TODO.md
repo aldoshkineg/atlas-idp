@@ -135,28 +135,31 @@ and can download the signed document.
 
 ## Phase 8 — OpenTelemetry Instrumentation
 
-- [ ] **seal-api** (otel.Tracer уже есть, нет OTLP exporter)
-  - [ ] Add `go.opentelemetry.io/otel/exporters/otlp/otlptrace` dependency
-  - [ ] Init OTLP exporter + TracerProvider в `main.go` (читает `OTEL_EXPORTER_OTLP_ENDPOINT`)
-  - [ ] Настроить `pgx.QueryTracer` для трассировки SQL
-  - [ ] Настроить Redis hook для трассировки команд
-  - [ ] Propagate trace context в JSON `seal:jobs` (push) и `seal:results` (pop)
-  - [ ] Добавить span в `VerifyDocument` и background consumer (`PopResult`)
-  - [ ] Добавить span в chi middleware (все HTTP requests)
-- [ ] **seal-worker** (OTEL нет с нуля)
-  - [ ] Добавить `go.opentelemetry.io/otel` + OTLP exporter dependency
-  - [ ] Init OTLP exporter + TracerProvider в `main.go`
-  - [ ] Инструментировать `Worker.Run()` — span на lifecycle job
-  - [ ] Инструментировать `GeneratePDF` + `Sign` + MinIO `Upload` как дочерние спаны
-  - [ ] Propagate trace context извлечение из JSON `seal:jobs`, вложение в JSON `seal:results`
-  - [ ] Добавить Redis hook
-- [ ] **seal-ui** (OTEL нет с нуля)
-  - [ ] Добавить `go.opentelemetry.io/otel` + OTLP exporter dependency
-  - [ ] Init OTLP exporter + TracerProvider в `main.go`
-  - [ ] Инструментировать HTTP хендлеры
-  - [ ] Propagate trace context в HTTP headers к seal-api
+- [x] **seal-api** (otel.Tracer уже есть, нет OTLP exporter)
+  - [x] Add `go.opentelemetry.io/otel/exporters/otlp/otlptrace` dependency
+  - [x] Init OTLP exporter + TracerProvider в `main.go` (читает `OTEL_EXPORTER_OTLP_ENDPOINT`)
+  - [x] Настроить `pgx.QueryTracer` для трассировки SQL
+  - [x] Настроить Redis hook для трассировки команд
+  - [x] Propagate trace context в JSON `seal:jobs` (push) и `seal:results` (pop)
+  - [x] Добавить span в `VerifyDocument` и background consumer (`PopResult`)
+  - [x] Добавить span в chi middleware (все HTTP requests via otelhttp)
+- [x] **seal-worker** (OTEL нет с нуля)
+  - [x] Добавить `go.opentelemetry.io/otel` + OTLP exporter dependency
+  - [x] Init OTLP exporter + TracerProvider в `main.go`
+  - [x] Инструментировать `Worker.Run()` — span на lifecycle job
+  - [x] Инструментировать `GeneratePDF` + `Sign` + MinIO `Upload` как дочерние спаны
+  - [x] Propagate trace context извлечение из JSON `seal:jobs`, вложение в JSON `seal:results`
+  - [x] Добавить Redis hook
+- [x] **seal-ui** (OTEL нет с нуля)
+  - [x] Добавить `go.opentelemetry.io/otel` + OTLP exporter dependency
+  - [x] Init OTLP exporter + TracerProvider в `main.go`
+  - [x] Инструментировать HTTP хендлеры
+  - [x] Propagate trace context в HTTP headers к seal-api
 - [ ] **Grafana** — настроить Tempo datasource
 - [ ] **E2E проверка** — создать документ → проследить trace в Tempo (UI → API → Redis → Worker → MinIO → результат)
+- [x] Docker Compose OTEL: `docker-compose.otel.yml` (Alloy + Tempo), `alloy.river`, `tempo.yaml`
+- [x] Taskfile: `dc-up-otel`, `dc-down-otel`, `dc-logs-alloy`, `test-infra-otel`
+- [x] `test-infra.sh` шаг 15 — проверка trace в Tempo API
 
 ---
 

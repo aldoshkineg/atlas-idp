@@ -2,16 +2,25 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/aldoshkineg/atlas-idp/apps/seal-worker/internal"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func main() {
@@ -24,6 +33,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	if cfg.Telemetry.OTLPEndpoint != "" {
+		tp, err := initTracerProvider(ctx, cfg.Telemetry.OTLPEndpoint, "seal-worker")
+		if err != nil {
+			slog.Error("failed to init tracer provider", "error", err)
+			os.Exit(1)
+		}
+		defer func() { _ = tp.Shutdown(context.Background()) }()
+	}
+
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:         cfg.Redis.Addr(),
 		Password:     cfg.Redis.Password,
@@ -32,6 +50,7 @@ func main() {
 		WriteTimeout: 5 * time.Second,
 	})
 	defer func() { _ = redisClient.Close() }()
+	redisClient.AddHook(&redisTracer{})
 
 	storage, err := internal.NewStorage(ctx, cfg.Minio)
 	if err != nil {
@@ -81,4 +100,74 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 	_ = srv.Shutdown(shutdownCtx)
+}
+
+func initTracerProvider(ctx context.Context, endpoint, serviceName string) (*sdktrace.TracerProvider, error) {
+	host, insecure := parseOTLPEndpoint(endpoint)
+
+	var opts []otlptracehttp.Option
+	opts = append(opts, otlptracehttp.WithEndpoint(host))
+	if insecure {
+		opts = append(opts, otlptracehttp.WithInsecure())
+	}
+	exporter, err := otlptracehttp.New(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("create otlp exporter: %w", err)
+	}
+
+	res := resource.NewSchemaless(
+		attribute.String("service.name", serviceName),
+	)
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+	)
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(
+		propagation.NewCompositeTextMapPropagator(
+			propagation.TraceContext{},
+			propagation.Baggage{},
+		),
+	)
+
+	return tp, nil
+}
+
+func parseOTLPEndpoint(raw string) (host string, insecure bool) {
+	if strings.HasPrefix(raw, "http://") {
+		return strings.TrimPrefix(raw, "http://"), true
+	}
+	if strings.HasPrefix(raw, "https://") {
+		return strings.TrimPrefix(raw, "https://"), false
+	}
+	return raw, true
+}
+
+type redisTracer struct{}
+
+func (h *redisTracer) DialHook(next redis.DialHook) redis.DialHook {
+	return next
+}
+
+func (h *redisTracer) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		ctx, span := otel.Tracer("seal-worker").Start(ctx, "REDIS "+cmd.Name(),
+			trace.WithAttributes(attribute.String("redis.cmd", cmd.String())))
+		defer span.End()
+		err := next(ctx, cmd)
+		if err != nil {
+			span.RecordError(err)
+		}
+		return err
+	}
+}
+
+func (h *redisTracer) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		ctx, span := otel.Tracer("seal-worker").Start(ctx, "REDIS pipeline",
+			trace.WithAttributes(attribute.Int("redis.pipeline_size", len(cmds))))
+		defer span.End()
+		return next(ctx, cmds)
+	}
 }
