@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-auth-testgroup-testapp-stub
+  namespace: vault
+data:
+  role: testgroup-testapp
+  policies: testgroup-testapp-workloads
+  bound_service_account_names: testapp
+  bound_service_account_namespaces: testgroup-testapp

@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: testgroup-testapp
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "90"
+    argocd.argoproj.io/depends-on: postgres-cluster,redis,minio,cert-manager
+spec:
+  project: workloads
+  sources:
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      path:
+
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      path: gitops/workloads/testgroup/testapp/resources
+      directory:
+        recurse: true
+        exclude: "{.secret-seed,*.tmpl}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: testgroup-testapp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

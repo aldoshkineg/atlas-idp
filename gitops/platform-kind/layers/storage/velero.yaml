@@ -47,6 +47,13 @@ spec:
           useSecret: true
           existingSecret: velero-aws
         deployNodeAgent: true
+        schedules:
+          weekly-pvc-backup:
+            schedule: "0 2 * * 0"
+            useOwnerReferencesInBackup: false
+            template:
+              ttl: "336h"
+              defaultVolumesToFsBackup: true
   destination:
     server: https://kubernetes.default.svc
     namespace: velero

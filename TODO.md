@@ -163,12 +163,10 @@
   - [x] `workload-deployer` Role (deploy-only to workload namespaces)
   - [x] `readonly` ClusterRole for observability service accounts
 - [x] `topologySpreadConstraints` applied to prometheus, grafana, alertmanager, loki
-- [ ] Network Policies — namespace isolation (deny-all default, allow ingress/monitoring to workloads)
-- [ ] Pod Security Standards — `restricted` profile and `readOnlyRootFilesystem` configurations
-- [ ] Trivy Operator deployed in-cluster (continuous runtime scanning)
-- [ ] Enforce namespace standards — `ResourceQuota` and `LimitRange` rules for workloads pool
-
----
+- [x] Network Policies — CiliumNetworkPolicy per namespace (deny-all default, allow ingress/monitoring)
+- [x] Pod Security Standards — apply `restricted` profile via Pod Security Admission labels on namespaces
+- [x] Trivy Operator deployed in-cluster (continuous runtime scanning)
+- [x] Enforce namespace standards — `ResourceQuota` and `LimitRange` rules for workloads pool
 
 ---
 
@@ -177,40 +175,38 @@
 - [x] Velero deployed via Argo CD (`gitops/platform-kind/layers/storage/velero.yaml`)
 - [x] Backup storage: MinIO (`http://minio.minio.svc.cluster.local:9000`)
 - [x] Velero pod running (sync-wave 4)
-- [ ] `velero/schedules/` — BackupSchedule CRs (daily platform and workloads namespaces + volume snapshots)
-- [ ] `velero/restore/` — Restore procedure + tested runbook
-- [ ] DR runbook: `docs/runbooks/disaster-recovery.md`
-  - [ ] Document precise RTO/RPO metrics
-  - [ ] **Live Validation Drill:** Upload data → take Velero backup → destroy cluster via `kind delete cluster` → bootstrap fresh environment with Terraform → execute Velero restore → verify total application state and file recoverability
+- [x] `velero/schedules/` — BackupSchedule CR (weekly PVC backups to S3 via fs-backup)
+- [x] `velero/restore/` — Restore procedure + tested runbook
 
 ---
 
-## Phase 8 — Advanced Application Observability & Tracing
+## Phase 8 — Progressive Delivery (Argo Rollouts)
 
-- [ ] **Distributed Tracing Stack**
-  - [ ] Deploy **Grafana Tempo** inside the cluster via ArgoCD
-  - [ ] Instrument Go 1.24 applications with **OpenTelemetry SDK**
-  - [ ] Trace the request lifecycle end-to-end: Frontend UI → Backend API → Redis Queue serialization → Worker execution
-- [ ] **Dashboards & Logging**
-  - [ ] Refactor app logs to structured JSON and inject correlation variables (`task_id`) into Alloy -> Loki
-  - [ ] Build custom Grafana dashboards: App Performance (latency, error rates) and Queue Processing (KEDA replicas vs backlog)
-- [ ] **SLOs & Advanced Alerting**
-  - [ ] Define API Latency SLO (95% < 200ms) and Worker Success Rate SLO
-  - [ ] Configure critical alert rules in Prometheus: `QueueBacklog` (KEDA at max but backlog growing), `WorkerFailures`, `PostgreSQLUnavailable`
+- [x] Install Argo Rollouts controller
+- [ ] **seal-api Rollout CR** — заменить Deployment на Rollout (blue-green/canary)
+  - [ ] Создать `Rollout` CR в Helm chart (`charts/seal/templates/rollout-api.yaml`)
+  - [ ] Настроить canary strategy: 10% → 50% → 100%
+  - [ ] Настроить traffic routing через Gateway API (HTTPRoute + Service weights)
+  - [ ] Prometheus health check для auto-promotion
+  - [ ] Prometheus error budget check для auto-rollback
+- [ ] **KEDA + Rollout** — проверить совместимость ScaledObject с Rollout (replicas management)
+- [ ] E2E проверка: git push → canary → validate → full rollout
 
 ---
 
-## Phase 9 — Progressive Delivery
+## Phase 9 — Platform CLI & Developer Experience
 
-- [ ] **Progressive Delivery (Argo Rollouts)**
-  - [ ] Install Argo Rollouts controller and refactor the `backend-api` deployment into a `Rollout` CRD
-  - [ ] Configure a Canary deployment strategy (route 10% traffic to new version, validate via Prometheus metrics, auto-rollback on error spikes)
+- [ ] **atlasctl** (Go CLI для платформы)
+  - [ ] Определить scope команд (create workload, get status, logs, backup trigger?)
+  - [ ] Инициализировать Go module `cmd/atlasctl/`
+  - [ ] Реализовать базовую структуру (cobra CLI)
+  - [ ] Интеграция с ArgoCD API (sync status, rollout promotion)
 - [ ] **Final Showcase Presentation**
-  - [ ] Script and record a final end-to-end platform showcase demo (GitOps push → Canary check → KEDA auto-scale 0 to max under load → Grafana trace navigation → Cluster destruction and Velero recovery)
+  - [ ] Script and record end-to-end demo (GitOps push → Canary → KEDA scale → Trace → DR)
 
 ---
 
-## Phase 10 — Developer Experience & Documentation
+## Phase 10 — Documentation
 
 - [ ] **Developer Tooling & Golden Path**
   - [ ] Create standardized Go app service and Helm chart templates
@@ -229,5 +225,8 @@
   - [ ] Create `docs/adr/ADR-002-vault-integration.md`
   - [ ] Create `docs/adr/ADR-003-keda-adoption.md`
   - [ ] Create `docs/adr/ADR-004-object-storage-design.md`
+- [ ] DR runbook: `docs/runbooks/disaster-recovery.md`
+  - [ ] Document precise RTO/RPO metrics
+  - [ ] **Live Validation Drill:** Upload data → take Velero backup → destroy cluster via `kind delete cluster` → bootstrap fresh environment with Terraform → execute Velero restore → verify total application state and file recoverability
 
 ---

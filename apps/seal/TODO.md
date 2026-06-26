@@ -10,7 +10,7 @@ and can download the signed document.
 **Philosophy:** Application is a vehicle to demonstrate platform engineering.
 15% Go code, 85% infrastructure (Helm, ArgoCD, Vault, KEDA, Observability, Security).
 
-**Available in cluster:** CNPG 17.6, Redis, MinIO, KEDA, Vault (Bank-Vaults), Prometheus/Grafana/Loki/Alloy, ArgoCD.
+**Available in cluster:** CNPG 17.6, Redis, MinIO, KEDA, Vault (Bank-Vaults), Prometheus/Grafana/Loki/Alloy/Tempo, ArgoCD.
 
 ---
 
@@ -29,30 +29,6 @@ and can download the signed document.
 
 **Stack:** chi, pgx, go-redis, go-envconfig, slog, prometheus, otel.
 
-```
-apps/seal-api/
-├── cmd/
-│   └── api/
-│       ├── main.go
-│       └── main_test.go
-├── internal/
-│   ├── config.go
-│   ├── config_test.go
-│   ├── handler.go
-│   ├── handler_test.go
-│   ├── handler_integration_test.go
-│   ├── repository.go
-│   ├── repository_test.go
-│   ├── queue.go
-│   ├── queue_test.go
-│   ├── migrate.go
-│   ├── migrate_test.go
-│   └── migrations/
-│       └── 001_create_documents.sql
-├── Dockerfile
-└── go.mod
-```
-
 - [x] `go mod init`, Config with go-envconfig
 - [x] `cmd/main.go` — startup, graceful shutdown, /healthz /readyz, background results consumer
 - [x] `cmd/main.go` — `os.Args[1] == "migrate"` subcommand for standalone migration Job
@@ -62,13 +38,13 @@ apps/seal-api/
 - [x] `handler.go` — chi:
   - `POST /api/v1/documents` → repo.Create + queue.PushTask, return `{id}`
   - `GET /api/v1/documents/{id}` → repo.GetDocument, return JSON
-  - `GET /api/v1/documents/{id}/download` → returns download URL (constructed from config prefix, no MinIO client)
+  - `GET /api/v1/documents/{id}/download` → returns download URL
   - `GET /api/v1/documents/{id}/verify` → checks PG status, returns `{valid: true}` if `completed`
   - Logging middleware (slog, request_id, method, path, duration)
   - Metrics middleware (http_requests_total, http_request_duration_seconds)
-  - Tracing middleware (OpenTelemetry)
+  - Tracing middleware (OpenTelemetry — declared, span создаются, нет OTLP exporter)
   - CORS middleware
-- [x] Dockerfile (multi-stage: `golang:1.26` → `scratch`, non-root, `-ldflags="-s -w"`, `--mount=type=cache` for go mod + build cache)
+- [x] Dockerfile (multi-stage: `golang:1.26` → `scratch`, non-root, `-ldflags="-s -w"`)
 - [x] **Test:** `go test ./...` — unit tests pass
 - [x] **Test:** `go test -tags=integration ./...` — testcontainers: real postgres + redis, full POST/GET flow
 
@@ -77,28 +53,6 @@ apps/seal-api/
 ## Phase 2 — Seal Worker (Go 1.26)
 
 **Stack:** go-redis, minio-go, gofpdf, digitorus/pdfsign, slog, prometheus, otel.
-
-```
-apps/seal-worker/
-├── cmd/
-│   └── worker/
-│       ├── main.go
-│       └── main_test.go
-├── internal/
-│   ├── config.go
-│   ├── config_test.go
-│   ├── worker.go           # BLMove loop + retry/DLQ + results queue push
-│   ├── worker_test.go
-│   ├── worker_integration_test.go
-│   ├── pdf.go              # gofpdf: text → PDF
-│   ├── pdf_test.go
-│   ├── signer.go           # PDF cryptographic signing (digitorus/pdfsign)
-│   ├── signer_test.go      # sign + verify round-trip + tamper + untrusted CA
-│   ├── storage.go          # minio-go: Upload to seal-outputs/{id}.pdf
-│   └── storage_test.go
-├── Dockerfile
-└── go.mod
-```
 
 - [x] `go mod init`
 - [x] Config struct (CryptoConfig with Vault-default paths)
@@ -119,30 +73,6 @@ apps/seal-worker/
 
 **Stack:** Go 1.26, chi, html/template, HTMX, Tailwind CSS (CDN).
 
-```
-apps/seal-ui/
-├── cmd/
-│   └── ui/
-│       └── main.go
-├── internal/
-│   ├── config.go
-│   ├── server.go
-│   ├── handlers/
-│   │   ├── page.go              # GET / — main form
-│   │   └── document.go          # POST /documents, GET /documents/{id}/status (HTMX)
-│   ├── templates/
-│   │   ├── base.html            # layout
-│   │   ├── index.html           # textarea + Submit
-│   │   ├── status.html          # spinner → hx-get polling
-│   │   ├── status_pending.html  # continue polling
-│   │   └── download.html        # download link + verify
-│   └── client/
-│       └── api.go               # HTTP client to seal-api
-├── Dockerfile
-├── go.mod
-├── .env.example                 # BACKEND_API_URL=http://localhost:8080
-```
-
 - [x] `go mod init`, Config (`BACKEND_API_URL`, `PORT`)
 - [x] `cmd/main.go` — chi router, graceful shutdown, /healthz /readyz
 - [x] `internal/client/api.go` — CreateDocument, GetDocument, GetDownloadURL, VerifyDocument
@@ -157,153 +87,110 @@ apps/seal-ui/
 
 ## Phase 4 — Helm Chart
 
-- [x] Single chart `apps/charts/seal/`:
-  - `Chart.yaml`, `values.yaml` (zero secrets — host/port/logLevel only; `secrets.*` for dev overrides)
-  - `templates/deployment-api.yaml` — Vault Agent annotations (conditional via `vault.enabled`), envFrom ConfigMap/Secret, probes, resources, direct entrypoint (no shell)
+- [x] Single chart `apps/seal/charts/seal/`:
+  - `Chart.yaml`, `values.yaml` (zero secrets; `secrets.*` for dev overrides)
+  - `templates/deployment-api.yaml` — Vault Agent annotations (conditional), envFrom ConfigMap/Secret, probes, resources
   - `templates/deployment-worker.yaml` — same + Vault Agent cert injection, redis-client label
   - `templates/deployment-ui.yaml` — same (minimal)
   - `templates/service.yaml` — seal-api:8080, seal-worker:9090, seal-ui:8081
   - `templates/servicemonitor.yaml` — Prometheus ServiceMonitor for API + Worker
-  - `templates/vault-role.yaml` — RBAC roles for Vault Agent
+  - `templates/vault-role.yaml` — RBAC roles for Vault Agent (conditional via `vault.enabled`)
   - `templates/migration-job.yaml` — ArgoCD PreSync hook, runs `./app migrate`
   - `templates/keda-scaledobject.yaml` — KEDA ScaledObject for worker (scale-to-zero)
   - `templates/cronjob.yaml` — DLQ reprocessor every 5min
   - `templates/configmap.yaml` — configmaps for all 3 components
   - `templates/secret.yaml` — values-driven via `.Values.secrets.*` (Vault in prod, --set in dev)
   - `templates/serviceaccount.yaml` — service accounts for all 3 components
-  - `templates/httproute.yaml` — seal.atlas / → seal-ui, /api/ → seal-api
-- [x] **Test:** `helm lint apps/charts/seal` — no errors
-- [x] **Test:** `helm template apps/charts/seal` — valid YAML output
+  - `templates/httproute.yaml` — seal.atlas /api/ → seal-api, / → seal-ui
+  - `templates/keda-trigger-auth.yaml` — Redis password auth for KEDA
+- [x] **Test:** `helm lint apps/seal/charts/seal` — no errors
+- [x] **Test:** `helm template apps/seal/charts/seal` — valid YAML output
 
 ---
 
 ## Phase 5 — GitOps (ArgoCD)
 
-- [x] Single ArgoCD Application `seal` in `gitops/workloads/layers/seal/seal.yaml`
-- [x] AppProject `seal` in `gitops/workloads/layers/seal/project.yaml`
-- [x] Gateway API HTTPRoutes:
-  - `seal.atlas` `/` → seal-ui:8081
-  - `seal.atlas` `/api/` → seal-api:8080
-- [x] KEDA ScaledObject for worker (scale-to-zero on `seal:jobs` queue length)
-- [x] **Test:** `yamllint gitops/workloads/layers/` — valid YAML
-- [ ] **Test:** `argocd app sync root-app` — apps create and sync successfully
-      ⚠️ Sync temporarily disabled (root-app: no automated, seal: deleted from cluster)
+- [x] Single ArgoCD Application `atlasteam-seal` в `gitops/workloads/atlasteam/seal/app.yaml`
+- [x] AppProject `workloads` — project для workloads
+- [x] Gateway HTTPRoute `seal-route` для `seal.atlas` (/ → seal-ui, /api/ → seal-api)
+- [x] KEDA ScaledObject for worker (scale-to-zero на длине очереди `seal:jobs`)
+- [x] CiliumNetworkPolicy `seal` — deny-all default + allow rules
+- [x] ResourceQuota `seal-quota` — CPU/Memory limits для atlasteam-seal
+- [x] PodMonitor `seal` для Prometheus
+- [x] PrometheusRule `seal-alerts`
+- [x] CronJob `seal-dlq-reprocessor` каждые 5мин
+- [x] ServiceAccounts: seal-api, seal-ui, seal-worker
+- [x] Secrets: seal-api-secret, seal-worker-secret, seal-pdf-signer
 
 ---
 
 ## Phase 6 — Vault Integration
 
+- [x] Vault operator + secrets webhook deployed (Bank-Vaults)
+- [x] External Secrets Operator syncs platform secrets (MinIO, Redis, DB) в namespace
 - [ ] Vault policy: `seal-workloads` — read `kv/data/seal/*`
-- [ ] K8s auth role: `seal` — bound to SA in `seal` namespace
-- [ ] Secrets in Vault: `kv/data/seal/seal-api`, `kv/data/seal/seal-worker`, `kv/data/seal/seal-ui`
-- [ ] PDF signing cert in Vault: `kv/data/seal/pdf-signer`
-- [ ] Vault Agent injection annotations in Helm deployment templates
-- [ ] Bootstrap script: `security/vault-bootstrap-seal.sh`
-- [ ] **Test:** `vault policy read seal-workloads` — policy exists
-- [ ] **Test:** Deploy pod with Vault annotations → verify `/vault/secrets/config` exists
+- [ ] K8s auth role: `seal` — bound to SA in `atlasteam-seal` namespace
 
 ---
 
-## Phase 7 — MinIO Buckets
+## Phase 8 — OpenTelemetry Instrumentation
 
-- [x] Create `seal-outputs` bucket with `policy: download` (in MinIO chart via `gitops/platform-kind/layers/storage/minio.yaml`)
-- [ ] Lifecycle policy (30-day retention)
-- [ ] **Test:** `mc ls myminio/seal-outputs` — bucket exists
-- [ ] **Test:** Upload + lifecycle policy — verify 30-day rule applied
+- [ ] **seal-api** (otel.Tracer уже есть, нет OTLP exporter)
+  - [ ] Add `go.opentelemetry.io/otel/exporters/otlp/otlptrace` dependency
+  - [ ] Init OTLP exporter + TracerProvider в `main.go` (читает `OTEL_EXPORTER_OTLP_ENDPOINT`)
+  - [ ] Настроить `pgx.QueryTracer` для трассировки SQL
+  - [ ] Настроить Redis hook для трассировки команд
+  - [ ] Propagate trace context в JSON `seal:jobs` (push) и `seal:results` (pop)
+  - [ ] Добавить span в `VerifyDocument` и background consumer (`PopResult`)
+  - [ ] Добавить span в chi middleware (все HTTP requests)
+- [ ] **seal-worker** (OTEL нет с нуля)
+  - [ ] Добавить `go.opentelemetry.io/otel` + OTLP exporter dependency
+  - [ ] Init OTLP exporter + TracerProvider в `main.go`
+  - [ ] Инструментировать `Worker.Run()` — span на lifecycle job
+  - [ ] Инструментировать `GeneratePDF` + `Sign` + MinIO `Upload` как дочерние спаны
+  - [ ] Propagate trace context извлечение из JSON `seal:jobs`, вложение в JSON `seal:results`
+  - [ ] Добавить Redis hook
+- [ ] **seal-ui** (OTEL нет с нуля)
+  - [ ] Добавить `go.opentelemetry.io/otel` + OTLP exporter dependency
+  - [ ] Init OTLP exporter + TracerProvider в `main.go`
+  - [ ] Инструментировать HTTP хендлеры
+  - [ ] Propagate trace context в HTTP headers к seal-api
+- [ ] **Grafana** — настроить Tempo datasource
+- [ ] **E2E проверка** — создать документ → проследить trace в Tempo (UI → API → Redis → Worker → MinIO → результат)
 
 ---
 
-## Phase 8 — Observability
+## Phase 9 — Progressive Delivery (Argo Rollouts)
+
+- [x] Argo Rollouts controller + dashboard deployed
+- [ ] **Rollout CR** — заменить seal-api Deployment на Rollout (blue-green/canary)
+  - [ ] Создать `templates/rollout-api.yaml` в Helm chart
+  - [ ] Настроить canary: 10% → 50% → 100%
+  - [ ] Traffic routing через Gateway API + Service weights
+  - [ ] Prometheus health check для auto-promotion
+  - [ ] Prometheus error budget check для auto-rollback
+- [ ] **KEDA + Rollout** — проверить совместимость
+- [ ] E2E: git push → canary → validate → full rollout
+
+---
+
+## Phase 10 — Dashboards, Logging & SLOs
 
 - [ ] Grafana dashboards:
   - Application: RPS, latency p50/p95/p99, error rate, queue depth
   - Worker: jobs/s, active pods, success rate, DLQ length
   - Business: documents created/failed, avg processing time
-- [ ] Loki: structured log correlation by `request_id`
+- [ ] Structured JSON logs с `trace_id`/`span_id` → Alloy → Loki
 - [ ] PrometheusRules: `QueueBacklog`, `WorkerFailures`, `HighErrorRate`
-- [ ] **Test:** Grafana API — dashboards provisioned and visible
-- [ ] **Test:** Prometheus — targets are up (seal-api, seal-worker, redis, cnpg)
+- [ ] SLO: API Latency 95% < 200ms
+- [ ] SLO: Worker Success Rate > 99%
 
 ---
 
-## Phase 9 — Platform Hardening
+## Phase 11 — Platform Hardening
 
-- [ ] **PgBouncer**: enable CNPG connection pooler — `pooler.mode: transaction`, 2 instances
-- [ ] NetworkPolicies:
-  ```
-  seal-ui → seal-api
-  seal-api → postgres (5432)
-  seal-api → redis (6379)
-  seal-worker → redis (6379)
-  seal-worker → minio (9000)
-  deny-all else
-  ```
-- [ ] Pod Security: `runAsNonRoot`, `readOnlyRootFilesystem`, `drop: ALL`
-- [ ] Cosign signing in CI
-- [ ] Velero backup schedules for workload namespaces
-- [ ] **Test:** `kubectl exec` cross-namespace — blocked by NetworkPolicy
-- [ ] **Test:** Velero backup created successfully
-- [ ] **Test:** Trivy scan — zero HIGH/CRITICAL in chainguard images
+- [ ] **Pod Security**: `runAsNonRoot`, `readOnlyRootFilesystem`, `drop: ALL` в Helm templates
+- [ ] **Cosign signing** образов в CI
+- [ ] **k6 load tests** (`apps/tests/load/`)
 
 ---
-
-## Phase 10 — CI/CD
-
-**Goal:** Modern container build pipeline — BuildKit, GHA cache, Trivy, Cosign, GHCR.
-
-- [ ] Local build via Taskfile:
-  ```yaml
-  build-api:
-    cmds:
-      - docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/atlas-idp/seal-api:dev apps/seal-api
-  ```
-- [ ] GitHub Actions pipeline with test → build → trivy → cosign → push
-- [ ] Image tagging: `sha-{short}`, `v{semver}`, never `latest`
-- [ ] Trivy image scan (HIGH/CRITICAL fail)
-- [ ] Cosign signing
-- [ ] SBOM generation (syft or trivy)
-- [ ] k6 load tests (`apps/tests/load/`)
-- [ ] DR runbook: backup → delete → restore → verify
-- [ ] **Test:** GHA workflow runs green on PR
-- [ ] **Test:** `cosign verify` passes on pushed image
-
-## Phase 11 - Final check from migration
-
-- [x] App scaffolds exist (`apps/`, `gitops/workloads/layers/`)
-- [ ] **Shared Stateful Backends**
-  - [x] **CloudNativePG 17.6:** Operator 1.29.1, cluster `production-db` (1 instance, csi-hostpath-sc). ScheduledBackup (weekly, WAL archiving via barman-cloud plugin, MinIO `cnpg-backups`). PodMonitor for Prometheus. PG credentials in Vault pending.
-  - [x] **Redis (Bitnami 24.0.8):** Deployed (standalone, persistence 256Mi csi-hostpath-sc, probes, PDB, ServiceMonitor, `redis-exporter` built-in). `[ ]` Enable AOF persistence for queue stability.
-  - [ ] **MinIO:** Create S3 buckets (`text2pdf-inputs`/`outputs`) and setup a 7-day auto-purge lifecycle policy
-- [ ] **backend-api (Go 1.24)**
-  - [ ] Multi-stage non-root Dockerfile, Helm chart, Deployment, Service, HPA, PDB
-  - [ ] REST endpoints (accept `.txt`, upload to MinIO, write metadata to PG, push task ID to Redis)
-  - [ ] Liveness / Readiness / Startup probes, custom `/metrics` and `/healthz` endpoints
-- [ ] **worker (Go 1.24)**
-  - [ ] Queue consumer loop (`BLPOP`), PDF generation (`gofpdf`), state updates in Postgres
-  - [ ] Implement robust Graceful Shutdown to prevent raw process termination during generation
-  - [ ] Apply `topologySpreadConstraints` and expose `/metrics` endpoint
-- [ ] **frontend (Go + HTMX)**
-  - [ ] HTML form with HTMX polling, status updates, PDF download link
-  - [ ] Route traffic using Gateway API `HTTPRoute` resources (bind frontend to `/`, API to `/api`)
-- [ ] **Autoscaling (KEDA)**
-  - [ ] Deploy KEDA `ScaledObject` pointing to the worker deployment triggered by Redis queue length
-  - [ ] Configure **scale-to-zero** (shrink worker pool to 0 replicas when idle) and test scaling thresholds
-- [ ] **GitOps Delivery Pipeline**
-  - [ ] GHA workflows to build all three images, run `helm lint` validation, scan via Trivy, and push to Zot
-  - [ ] Implement automatic image tag updates in the GitOps repo triggering automated ArgoCD sync
-
----
-
-## Time Allocation
-
-| Area                                | %   |
-| ----------------------------------- | --- |
-| Go code (API + Worker)              | 10% |
-| PDF signing (signer.go, verify)     | 5%  |
-| Frontend (Go + HTMX)                | 10% |
-| Helm chart                          | 15% |
-| ArgoCD manifests + GitOps           | 20% |
-| Vault policies + injection          | 15% |
-| Monitoring/Logging/Tracing          | 15% |
-| KEDA ScaledObject                   | 5%  |
-| NetworkPolicies + Velero + Security | 5%  |

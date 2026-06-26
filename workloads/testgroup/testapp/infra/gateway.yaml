@@ -1,0 +1,29 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: testapp-route
+  namespace: testgroup-testapp
+spec:
+  parentRefs:
+    - name: platform-gateway
+      namespace: nginx-gateway-fabric
+      sectionName: https-testapp
+  hostnames:
+    - testapp.atlas
+  rules:
+    - backendRefs:
+        - name: testapp
+          port: 8080
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: testapp-cert
+  namespace: nginx-gateway-fabric
+spec:
+  secretName: testapp-cert
+  issuerRef:
+    name: atlas-ca-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - testapp.atlas

@@ -36,7 +36,7 @@
 
 ### 5. Deployment Strategy
 
-- [x] **Argo Rollouts**: Replace `backend-api` Deployment with Rollout CRD
+- [~] **Argo Rollouts**: Replace `backend-api` Deployment with Rollout CRD
 
 ### 6. Documentation
 
