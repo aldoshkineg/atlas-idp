@@ -43,9 +43,23 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: wait-vault
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
       containers:
         - name: wait-vault
           image: bitnamilegacy/kubectl:1.33.4
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
           command:
             - /bin/sh
             - -c

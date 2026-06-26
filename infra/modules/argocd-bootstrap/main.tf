@@ -25,7 +25,7 @@ locals {
   argocd_controller_resources = {
     limits = {
       cpu    = "1500m"
-      memory = "1Gi"
+      memory = "2Gi"
     }
     requests = {
       cpu    = "750m"
