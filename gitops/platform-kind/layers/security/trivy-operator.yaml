@@ -21,6 +21,8 @@ spec:
         trivy:
           ignoreUnfixed: true
           severity: HIGH,CRITICAL
+        operator:
+          builtInTrivyServer: true
         trivyOperator:
           scanJobsConcurrentLimit: 2
           scanJobTolerations:
