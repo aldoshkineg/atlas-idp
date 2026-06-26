@@ -21,9 +21,14 @@ spec:
         trivy:
           ignoreUnfixed: true
           severity: HIGH,CRITICAL
-        operator:
+        trivyOperator:
           scanJobsConcurrentLimit: 2
           scanJobTolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+        nodeCollector:
+          tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
               effect: NoSchedule
