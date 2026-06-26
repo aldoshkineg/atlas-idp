@@ -22,7 +22,8 @@ spec:
           ignoreUnfixed: true
           severity: HIGH,CRITICAL
         operator:
-          builtInTrivyServer: true
+          vulnerabilityScannerEnabled: false  # only for test — no trivy DB download
+          exposedSecretScannerEnabled: false   # only for test — no trivy DB download
         trivyOperator:
           scanJobsConcurrentLimit: 2
           scanJobTolerations:
