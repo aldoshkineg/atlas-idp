@@ -22,7 +22,7 @@ spec:
           ignoreUnfixed: true
           severity: HIGH,CRITICAL
         operator:
-          scanJobsConcurrentLimit: 5
+          scanJobsConcurrentLimit: 2
   destination:
     server: https://kubernetes.default.svc
     namespace: trivy-system
