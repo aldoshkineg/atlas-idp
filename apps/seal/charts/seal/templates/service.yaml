@@ -1,3 +1,4 @@
+{{- if not .Values.rollouts.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -12,6 +13,37 @@ spec:
       port: {{ .Values.service.apiPort }}
       targetPort: http
       protocol: TCP
+{{- else }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.rollouts.stableService }}
+  labels: {{- include "seal.labels" (dict "name" "seal-api" "instance" .Release.Name) | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: seal-api
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: {{ .Values.service.apiPort }}
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.rollouts.canaryService }}
+  labels: {{- include "seal.labels" (dict "name" "seal-api" "instance" .Release.Name) | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: seal-api
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: {{ .Values.service.apiPort }}
+      targetPort: http
+      protocol: TCP
+{{- end }}
 ---
 apiVersion: v1
 kind: Service

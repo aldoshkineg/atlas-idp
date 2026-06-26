@@ -1,0 +1,46 @@
+{{- if .Values.rollouts.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: seal-success-rate
+  labels: {{- include "seal.labels" (dict "name" "seal-success-rate") | nindent 4 }}
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: success-rate
+      interval: 30s
+      count: 2
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://kube-prometheus-stack-prometheus.monitoring:9090
+          query: >
+            sum(rate(http_requests_total{job="{{`{{args.service-name}}`}}",code!~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="{{`{{args.service-name}}`}}"}[5m]))
+      failureCondition: result < 0.99
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: seal-latency
+  labels: {{- include "seal.labels" (dict "name" "seal-latency") | nindent 4 }}
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: p95-latency
+      interval: 30s
+      count: 2
+      failureLimit: 1
+      provider:
+        prometheus:
+          address: http://kube-prometheus-stack-prometheus.monitoring:9090
+          query: >
+            histogram_quantile(0.95,
+              sum(rate(http_request_duration_seconds_bucket{job="{{`{{args.service-name}}`}}"}[5m]))
+              by (le)
+            )
+      failureCondition: result > 0.5
+{{- end }}

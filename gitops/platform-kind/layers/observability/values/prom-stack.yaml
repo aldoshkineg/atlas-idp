@@ -80,6 +80,13 @@ grafana:
       url: http://loki-gateway.loki.svc.cluster.local
       isDefault: false
       editable: true
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      access: proxy
+      url: http://tempo.observability.svc.cluster.local:3200
+      isDefault: false
+      editable: true
   # Default dashboards
   defaultDashboardsEnabled: true
   defaultDashboardsTimezone: UTC

@@ -1,13 +1,14 @@
-{{- if not .Values.rollouts.enabled }}
-apiVersion: apps/v1
-kind: Deployment
+{{- if .Values.rollouts.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: seal-api
   labels: {{- include "seal.labels" (dict "name" "seal-api") | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "130"
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: 3
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: seal-api
@@ -35,7 +36,6 @@ spec:
                 name: seal-api-config
             - secretRef:
                 name: seal-api-secret
-
           livenessProbe:
             httpGet:
               path: /healthz
@@ -54,4 +54,13 @@ spec:
             capabilities:
               drop: ["ALL"]
             readOnlyRootFilesystem: true
+  strategy:
+    canary:
+      canaryService: {{ .Values.rollouts.canaryService }}
+      stableService: {{ .Values.rollouts.stableService }}
+      trafficRouting:
+        managedRoutes:
+          - {{ .Values.rollouts.trafficRouting.httpRoute }}
+      steps:
+{{ toYaml .Values.rollouts.canary.steps | indent 8 }}
 {{- end }}

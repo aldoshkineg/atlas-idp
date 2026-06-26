@@ -19,8 +19,13 @@ spec:
             type: PathPrefix
             value: /api/
       backendRefs:
-        - name: {{ .Chart.Name }}-api
+        - name: {{ if .Values.rollouts.enabled }}{{ .Values.rollouts.stableService }}{{ else }}{{ .Chart.Name }}-api{{ end }}
           port: {{ .Values.service.apiPort }}
+{{- if .Values.rollouts.enabled }}
+        - name: {{ .Values.rollouts.canaryService }}
+          port: {{ .Values.service.apiPort }}
+          weight: 0
+{{- end }}
     - matches:
         - path:
             type: PathPrefix

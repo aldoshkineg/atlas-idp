@@ -102,3 +102,42 @@ gateway:
   enabled: true
   hostname: seal.atlas
   sectionName: https-seal
+
+rollouts:
+  enabled: false
+  stableService: seal-api-stable
+  canaryService: seal-api-canary
+  trafficRouting:
+    httpRoute: seal-route
+    namespace: atlasteam-seal
+  canary:
+    steps:
+      - setWeight: 10
+      - pause:
+          duration: 30s
+          analyses:
+            - template:
+                templateName: seal-success-rate
+              args:
+                - name: service-name
+                  value: seal-api
+            - template:
+                templateName: seal-latency
+              args:
+                - name: service-name
+                  value: seal-api
+      - setWeight: 50
+      - pause:
+          duration: 30s
+          analyses:
+            - template:
+                templateName: seal-success-rate
+              args:
+                - name: service-name
+                  value: seal-api
+            - template:
+                templateName: seal-latency
+              args:
+                - name: service-name
+                  value: seal-api
+      - setWeight: 100

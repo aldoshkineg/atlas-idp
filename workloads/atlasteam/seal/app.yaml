@@ -29,6 +29,8 @@ spec:
             enabled: false
           secrets:
             create: false
+          rollouts:
+            enabled: true
           migration:
             enabled: true
           keda:
@@ -37,6 +39,8 @@ spec:
             postgres:
               user: seal
               db: seal
+            otel:
+              endpoint: http://alloy.monitoring:4318
     - repoURL: https://github.com/aldoshkineg/atlas-idp
       targetRevision: main
       path: gitops/workloads/atlasteam/seal/resources

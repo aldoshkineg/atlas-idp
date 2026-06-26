@@ -166,12 +166,13 @@ and can download the signed document.
 ## Phase 9 — Progressive Delivery (Argo Rollouts)
 
 - [x] Argo Rollouts controller + dashboard deployed
-- [ ] **Rollout CR** — заменить seal-api Deployment на Rollout (blue-green/canary)
-  - [ ] Создать `templates/rollout-api.yaml` в Helm chart
-  - [ ] Настроить canary: 10% → 50% → 100%
-  - [ ] Traffic routing через Gateway API + Service weights
-  - [ ] Prometheus health check для auto-promotion
-  - [ ] Prometheus error budget check для auto-rollback
+- [x] **Rollout CR** — заменить seal-api Deployment на Rollout (blue-green/canary)
+  - [x] Создать `templates/rollout-api.yaml` в Helm chart
+  - [x] Настроить canary: 10% → 50% → 100% с анализом во время pause
+  - [x] Traffic routing через Gateway API + Service weights (stable/canary)
+  - [x] Prometheus health check для auto-promotion (seal-success-rate: error rate < 1%)
+  - [x] Prometheus error budget check для auto-rollback (seal-latency: p95 < 500ms)
+- [ ] **KEDA + Rollout** — проверить совместимость
 - [ ] **KEDA + Rollout** — проверить совместимость
 - [ ] E2E: git push → canary → validate → full rollout
 
