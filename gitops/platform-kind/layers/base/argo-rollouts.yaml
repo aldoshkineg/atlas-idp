@@ -13,17 +13,18 @@ metadata:
     app.kubernetes.io/layer: base
 spec:
   project: platform-kind
-  sources:
-    - repoURL: https://argoproj.github.io/argo-helm
-      chart: argo-rollouts
-      targetRevision: 2.41.0
-      helm:
-        values: |
-          dashboard:
-            enabled: true
-    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
-      targetRevision: main
-      path: gitops/platform-kind/layers/base/resources/argo-rollouts
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-rollouts
+    targetRevision: 2.41.0
+    helm:
+      values: |
+        dashboard:
+          enabled: true
+        controller:
+          trafficRouterPlugins:
+            - name: "argoproj-labs/gatewayAPI"
+              location: "https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.14.1/gatewayapi-plugin-linux-amd64"
   destination:
     server: https://kubernetes.default.svc
     namespace: argo-rollouts
