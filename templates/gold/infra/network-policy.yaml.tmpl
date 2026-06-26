@@ -23,6 +23,10 @@ spec:
               kubernetes.io/metadata.name: monitoring
   egress:
     - to:
+        - podSelector: {}
+      ports:
+        - port: {{GATEWAY_PORT}}
+    - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: kube-system

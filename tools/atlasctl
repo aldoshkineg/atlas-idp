@@ -318,7 +318,8 @@ EOF
   render_template "${TEMPLATES_DIR}/infra/resource-quota.yaml.tmpl" "${WORKLOAD_DIR}/infra/resource-quota.yaml"
   render_template "${TEMPLATES_DIR}/infra/limit-range.yaml.tmpl" "${WORKLOAD_DIR}/infra/limit-range.yaml"
   render_template "${TEMPLATES_DIR}/infra/keda-scaledobject.yaml.tmpl" "${WORKLOAD_DIR}/infra/keda-scaledobject.yaml"
-  echo "  [infra] Created gateway.yaml + NetworkPolicy + ResourceQuota + LimitRange + KedaScaledObject"
+  render_template "${TEMPLATES_DIR}/infra/ccnp-ingress.yaml.tmpl" "${WORKLOAD_DIR}/infra/ccnp-ingress.yaml" 2>/dev/null || true
+  echo "  [infra] Created gateway.yaml + NetworkPolicy + ResourceQuota + LimitRange + KedaScaledObject + CCNP"
 
   render_template "${TEMPLATES_DIR}/README.md.tmpl" "${WORKLOAD_DIR}/README.md"
   echo "  [README.md] Created"
