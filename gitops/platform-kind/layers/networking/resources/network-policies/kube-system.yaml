@@ -9,9 +9,7 @@ spec:
     - fromEndpoints:
         - matchLabels:
             io.kubernetes.pod.namespace: kube-system
-    - fromEndpoints:
-        - matchLabels: {}
-      toPorts:
+    - toPorts:
         - ports:
             - port: "53"
               protocol: UDP
