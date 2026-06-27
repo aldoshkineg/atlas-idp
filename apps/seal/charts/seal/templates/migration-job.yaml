@@ -24,5 +24,6 @@ spec:
             - secretRef:
                 name: seal-api-secret
           command: ["/app", "migrate"]
+          resources: {{- toYaml .Values.migration.resources | nindent 12 }}
           securityContext: {{- include "seal.containerSecurityContext" . | nindent 12 }}
 {{- end }}

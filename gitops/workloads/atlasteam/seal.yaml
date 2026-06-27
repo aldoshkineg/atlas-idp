@@ -26,13 +26,22 @@ spec:
           vault:
             enabled: false
           gateway:
-            enabled: false
+            enabled: true
           secrets:
             create: false
           rollouts:
             enabled: true
+            trafficRouting:
+              httpRoute: seal
           migration:
             enabled: true
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 500m
+                memory: 256Mi
           keda:
             enabled: false
           config:
