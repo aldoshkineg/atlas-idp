@@ -8,6 +8,24 @@ alloy:
     content: |
       discovery.kubernetes "pods" {
         role = "pod"
+
+        rule {
+          action       = "replace"
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label = "namespace"
+        }
+
+        rule {
+          action       = "replace"
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label = "pod"
+        }
+
+        rule {
+          action       = "replace"
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label = "container"
+        }
       }
 
       // ── Logs → Loki ────────────────────────────────────────────────
