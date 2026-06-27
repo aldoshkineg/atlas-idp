@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -259,7 +260,7 @@ func metricsMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 		next.ServeHTTP(ww, r)
-		httpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, http.StatusText(ww.Status())).Inc()
+		httpRequestsTotal.WithLabelValues(r.Method, r.URL.Path, fmt.Sprintf("%d", ww.Status())).Inc()
 		httpRequestDurationSeconds.WithLabelValues(r.Method, r.URL.Path).Observe(time.Since(start).Seconds())
 	})
 }
@@ -293,6 +294,11 @@ var (
 		Name: "documents_created_total",
 		Help: "Total number of documents created",
 	})
+
+	RedisQueueLength = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "redis_queue_length",
+		Help: "Current length of Redis queues",
+	}, []string{"queue"})
 )
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

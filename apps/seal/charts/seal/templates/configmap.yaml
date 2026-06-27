@@ -6,6 +6,7 @@ metadata:
 data:
   HTTP_PORT: "{{ .Values.service.apiPort }}"
   LOG_LEVEL: "{{ .Values.config.logLevel }}"
+  LOG_FORMAT: "{{ .Values.config.logFormat }}"
   POSTGRES_HOST: "{{ .Values.config.postgres.host }}"
   POSTGRES_PORT: "{{ .Values.config.postgres.port }}"
   POSTGRES_USER: "{{ .Values.config.postgres.user }}"
@@ -33,6 +34,8 @@ data:
   WORKER_POLL_INTERVAL_MS: "1000"
   SIGN_CERT_PATH: "/vault/secrets/tls.crt"
   SIGN_KEY_PATH: "/vault/secrets/tls.key"
+  LOG_LEVEL: "{{ .Values.config.logLevel }}"
+  LOG_FORMAT: "{{ .Values.config.logFormat }}"
 {{- if .Values.config.otel.endpoint }}
   OTEL_EXPORTER_OTLP_ENDPOINT: "{{ .Values.config.otel.endpoint }}"
 {{- end }}
@@ -45,6 +48,7 @@ metadata:
 data:
   HTTP_PORT: "{{ .Values.service.uiPort }}"
   LOG_LEVEL: "{{ .Values.config.logLevel }}"
+  LOG_FORMAT: "{{ .Values.config.logFormat }}"
   BACKEND_API_URL: "http://seal-api:{{ .Values.service.apiPort }}"
 {{- if .Values.config.otel.endpoint }}
   OTEL_EXPORTER_OTLP_ENDPOINT: "{{ .Values.config.otel.endpoint }}"

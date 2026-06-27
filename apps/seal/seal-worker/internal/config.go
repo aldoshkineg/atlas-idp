@@ -41,7 +41,9 @@ type TelemetryConfig struct {
 }
 
 type WorkerConfig struct {
-	PollInterval int `env:"WORKER_POLL_INTERVAL_MS, default=1000"`
+	PollInterval int    `env:"WORKER_POLL_INTERVAL_MS, default=1000"`
+	LogLevel     string `env:"LOG_LEVEL, default=info"`
+	LogFormat    string `env:"LOG_FORMAT, default=text"`
 }
 
 func LoadConfig(ctx context.Context) (Config, error) {

@@ -67,6 +67,10 @@ func (q *Queue) PushTask(ctx context.Context, documentID, inputText string) erro
 	return q.client.RPush(ctx, QueueKey, string(data)).Err()
 }
 
+func (q *Queue) QueueLen(ctx context.Context, key string) *redis.IntCmd {
+	return q.client.LLen(ctx, key)
+}
+
 func (q *Queue) PopResult(ctx context.Context, timeout time.Duration) (string, error) {
 	items, err := q.client.BLPop(ctx, timeout, ResultsQueueKey).Result()
 	if err != nil {

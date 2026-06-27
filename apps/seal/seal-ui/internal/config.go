@@ -13,8 +13,9 @@ type Config struct {
 }
 
 type HTTPConfig struct {
-	Port     int    `env:"HTTP_PORT, default=8081"`
-	LogLevel string `env:"LOG_LEVEL, default=info"`
+	Port      int    `env:"HTTP_PORT, default=8081"`
+	LogLevel  string `env:"LOG_LEVEL, default=info"`
+	LogFormat string `env:"LOG_FORMAT, default=text"`
 }
 
 type TelemetryConfig struct {

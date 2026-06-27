@@ -33,6 +33,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	initLogger(cfg.Worker.LogFormat)
+
 	if cfg.Telemetry.OTLPEndpoint != "" {
 		tp, err := initTracerProvider(ctx, cfg.Telemetry.OTLPEndpoint, "seal-worker")
 		if err != nil {
@@ -142,6 +144,41 @@ func parseOTLPEndpoint(raw string) (host string, insecure bool) {
 		return strings.TrimPrefix(raw, "https://"), false
 	}
 	return raw, true
+}
+
+func initLogger(format string) {
+	if format != "json" {
+		return
+	}
+
+	var level slog.Level
+	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+
+	slog.SetDefault(slog.New(&traceHandler{
+		Handler: slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}),
+	}))
+}
+
+type traceHandler struct {
+	slog.Handler
+}
+
+func (h *traceHandler) Handle(ctx context.Context, r slog.Record) error {
+	if span := trace.SpanFromContext(ctx); span.IsRecording() {
+		sc := span.SpanContext()
+		r.AddAttrs(slog.String("trace_id", sc.TraceID().String()))
+		r.AddAttrs(slog.String("span_id", sc.SpanID().String()))
+	}
+	return h.Handler.Handle(ctx, r)
 }
 
 type redisTracer struct{}

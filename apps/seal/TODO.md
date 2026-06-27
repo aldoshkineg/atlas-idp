@@ -178,16 +178,20 @@ and can download the signed document.
 
 ---
 
-## Phase 10 — Dashboards, Logging & SLOs
+## Phase 10 — Dashboards, Logging & SLOs — ✅ Done (2026-06-27)
 
-- [ ] Grafana dashboards:
+- [x] Grafana dashboards:
   - Application: RPS, latency p50/p95/p99, error rate, queue depth
   - Worker: jobs/s, active pods, success rate, DLQ length
   - Business: documents created/failed, avg processing time
-- [ ] Structured JSON logs с `trace_id`/`span_id` → Alloy → Loki
-- [ ] PrometheusRules: `QueueBacklog`, `WorkerFailures`, `HighErrorRate`
-- [ ] SLO: API Latency 95% < 200ms
-- [ ] SLO: Worker Success Rate > 99%
+- [x] Structured JSON logs с `trace_id`/`span_id` → Alloy → Loki
+- [x] PrometheusRules: `QueueBacklog`, `WorkerFailures`, `HighErrorRate`
+- [x] SLO: API Latency 95% < 200ms
+- [x] SLO: Worker Success Rate > 99%
+- [x] Loki pipeline verified: `discovery.docker` → `loki.source.docker` → `loki.write`
+- [x] Dashboard labels fixed: `container` (not `container_name`), `|= "error"` (not `level = `error``)
+- [x] Loki config fixed: inmemory KV store (not consul) to avoid "Ingester is shutting down" loop
+- [x] All 15/15 smoke tests pass with Loki + Prometheus + Tempo
 
 ---
 

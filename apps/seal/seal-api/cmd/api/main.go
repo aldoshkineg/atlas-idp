@@ -23,6 +23,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func main() {
@@ -36,6 +37,7 @@ func main() {
 	}
 
 	setLogLevel(cfg.HTTP.LogLevel)
+	initLogger(cfg.HTTP.LogFormat)
 
 	if cfg.Telemetry.OTLPEndpoint != "" {
 		tp, err := initTracerProvider(ctx, cfg.Telemetry.OTLPEndpoint, "seal-api")
@@ -72,6 +74,24 @@ func main() {
 
 	handler := internal.NewHandler(repo, queue, cfg.DownloadBaseURL)
 	router := internal.NewRouter(handler)
+
+	// Queue depth collector
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			qlen := queue.QueueLen(context.Background(), internal.QueueKey)
+			if qlen.Err() != nil {
+				slog.Error("queue depth collector", "error", qlen.Err())
+			} else {
+				internal.RedisQueueLength.WithLabelValues("seal:jobs").Set(float64(qlen.Val()))
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}()
 
 	// Background consumer: reads results from Redis and updates PostgreSQL
 	go func() {
@@ -220,4 +240,39 @@ func setLogLevel(level string) {
 	case "error":
 		slog.SetLogLoggerLevel(slog.LevelError)
 	}
+}
+
+func initLogger(format string) {
+	if format != "json" {
+		return
+	}
+
+	var level slog.Level
+	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+
+	slog.SetDefault(slog.New(&traceHandler{
+		Handler: slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}),
+	}))
+}
+
+type traceHandler struct {
+	slog.Handler
+}
+
+func (h *traceHandler) Handle(ctx context.Context, r slog.Record) error {
+	if span := trace.SpanFromContext(ctx); span.IsRecording() {
+		sc := span.SpanContext()
+		r.AddAttrs(slog.String("trace_id", sc.TraceID().String()))
+		r.AddAttrs(slog.String("span_id", sc.SpanID().String()))
+	}
+	return h.Handler.Handle(ctx, r)
 }

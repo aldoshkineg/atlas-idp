@@ -16,8 +16,9 @@ type Config struct {
 }
 
 type HTTPConfig struct {
-	Port     int    `env:"HTTP_PORT, default=8080"`
-	LogLevel string `env:"LOG_LEVEL, default=info"`
+	Port      int    `env:"HTTP_PORT, default=8080"`
+	LogLevel  string `env:"LOG_LEVEL, default=info"`
+	LogFormat string `env:"LOG_FORMAT, default=text"`
 }
 
 type DatabaseConfig struct {

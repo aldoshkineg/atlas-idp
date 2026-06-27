@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: seal-api
+    static_configs:
+      - targets: ["seal-api:8080"]
+        labels:
+          app: seal-api
+
+  - job_name: seal-worker
+    static_configs:
+      - targets: ["seal-worker:9090"]
+        labels:
+          app: seal-worker
+
+  - job_name: seal-ui
+    static_configs:
+      - targets: ["seal-ui:8081"]
+        labels:
+          app: seal-ui
+
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]
+        labels:
+          app: alloy
