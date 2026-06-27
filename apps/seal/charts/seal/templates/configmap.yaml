@@ -49,7 +49,7 @@ data:
   HTTP_PORT: "{{ .Values.service.uiPort }}"
   LOG_LEVEL: "{{ .Values.config.logLevel }}"
   LOG_FORMAT: "{{ .Values.config.logFormat }}"
-  BACKEND_API_URL: "http://seal-api:{{ .Values.service.apiPort }}"
+  BACKEND_API_URL: "http://{{ if .Values.rollouts.enabled }}{{ .Values.rollouts.stableService }}{{ else }}seal-api{{ end }}:{{ .Values.service.apiPort }}"
 {{- if .Values.config.otel.endpoint }}
   OTEL_EXPORTER_OTLP_ENDPOINT: "{{ .Values.config.otel.endpoint }}"
 {{- end }}
