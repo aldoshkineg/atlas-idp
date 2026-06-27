@@ -45,7 +45,7 @@
 
 ## Phase 3 — GitOps Layer (Argo CD)
 
-> Day-0 and Day-1 bootstrap implemented. 20 applications deployed and synced.
+> Day-0 and Day-1 bootstrap implemented. 20+ applications deployed and synced.
 
 ### Day-0: Argo CD Install (Terraform-driven)
 
@@ -71,8 +71,8 @@
 
 - [x] Root-app renamed `root-platform` → `root-app`, converted to multi-source (`platform-kind/layers/` + `workloads/layers/`)
 - [x] ArgoCD Project `platform-kind` — restricts platform apps to their namespaces (sync-wave -1)
-- [x] ArgoCD Project `workloads` — restricts workload apps to backend-api, worker, cronjob (sync-wave -1), cluster-resources disabled
-- [x] All 19 child Application CRs migrated: `project: default` → `project: platform-kind`
+- [x] ArgoCD Project `workloads` — restricts workload apps (sync-wave -1), cluster-resources disabled
+- [x] All child Application CRs migrated: `project: default` → `project: platform-kind`
 - [x] `gitops/workloads/layers/` — scaffold directory ready for future workloads
 
 ---
@@ -110,13 +110,13 @@
 
 ### Data
 
-- [x] **CloudNativePG** — replaces Bitnami PostgreSQL. Operator 1.29.1, cluster `production-db` (1 instance, PG 17.6, csi-hostpath-sc). MinIO bucket `cnpg-backups`. Backup config (ObjectStore, Secret, ScheduledBackup) moved to `examples/cnpg-backup/`.
+- [x] **CloudNativePG** — Operator 1.29.1, cluster `production-db` (1 instance, PG 17.6, csi-hostpath-sc).
   - [x] Plugin-based recovery (no deprecated `externalClusters.barmanObjectStore`)
   - [x] `shared_buffers` reduced to 64MB (OOM risk fix)
   - [x] PodMonitor for Prometheus scrapes metrics (9187), verified `health=up`
-  - [x] CNPG Grafana dashboard added via `gnetId: 20417`
+  - [x] CNPG Grafana dashboard via `gnetId: 20417`
   - [x] Backup/restore test: 7/7 PASS (source → backup → recovery → verify 100 rows)
-  - [x] Switch backup secrets to Vault (`vault/` policies + external-secrets operator to sync k8s Secret)
+  - [x] Switch backup secrets to Vault (policies + external-secrets to sync k8s Secret)
 
 ### Base
 
@@ -129,7 +129,9 @@
   - [x] Grafana dashboards: platform overview (inline JSON), CNPG Cluster (gnetId 20417)
 - [x] **loki** — SingleBinary mode, filesystem storage, 10d retention (sync-wave 6)
 - [x] **alloy** — DaemonSet collecting pod logs → loki-gateway (sync-wave 7)
+- [x] **tempo** — Distributed tracing backend (sync-wave 6)
 - [x] Grafana Loki datasource configured
+- [x] Grafana Tempo datasource configured (uid: tempo)
 
 ### Vault Policy & Config
 
@@ -152,6 +154,7 @@
 - [x] Argo CD bootstrap verification step
 - [x] `security.yml` — Trivy image scan on `apps/**` changes
 - [x] `clusters/kind/ci/act-runner/Dockerfile` + `.actrc` + Makefile targets for local CI execution via act
+- [x] `.github/workflows/seal-docker-publish.yml` — build and push seal-api/seal-worker/seal-ui images
 
 ---
 
@@ -162,11 +165,12 @@
   - [x] `platform-admin` ClusterRole (full platform namespace access)
   - [x] `workload-deployer` Role (deploy-only to workload namespaces)
   - [x] `readonly` ClusterRole for observability service accounts
-- [x] `topologySpreadConstraints` applied to prometheus, grafana, alertmanager, loki
 - [x] Network Policies — CiliumNetworkPolicy per namespace (deny-all default, allow ingress/monitoring)
+- [x] CiliumClusterwideNetworkPolicy — ingress rules for platform and workload namespaces
 - [x] Pod Security Standards — apply `restricted` profile via Pod Security Admission labels on namespaces
 - [x] Trivy Operator deployed in-cluster (continuous runtime scanning)
-- [x] Enforce namespace standards — `ResourceQuota` and `LimitRange` rules for workloads pool
+- [x] ResourceQuota and LimitRange for workload namespaces
+- [x] External Secrets Operator — syncs platform secrets from Vault to Kubernetes
 
 ---
 
@@ -175,58 +179,75 @@
 - [x] Velero deployed via Argo CD (`gitops/platform-kind/layers/storage/velero.yaml`)
 - [x] Backup storage: MinIO (`http://minio.minio.svc.cluster.local:9000`)
 - [x] Velero pod running (sync-wave 4)
-- [x] `velero/schedules/` — BackupSchedule CR (weekly PVC backups to S3 via fs-backup)
-- [x] `velero/restore/` — Restore procedure + tested runbook
+- [x] BackupSchedule CR (weekly PVC backups to S3 via fs-backup)
 
 ---
 
 ## Phase 8 — Progressive Delivery (Argo Rollouts)
 
-- [x] Install Argo Rollouts controller
-- [ ] **seal-api Rollout CR** — заменить Deployment на Rollout (blue-green/canary)
-  - [ ] Создать `Rollout` CR в Helm chart (`charts/seal/templates/rollout-api.yaml`)
-  - [ ] Настроить canary strategy: 10% → 50% → 100%
-  - [ ] Настроить traffic routing через Gateway API (HTTPRoute + Service weights)
-  - [ ] Prometheus health check для auto-promotion
-  - [ ] Prometheus error budget check для auto-rollback
-- [ ] **KEDA + Rollout** — проверить совместимость ScaledObject с Rollout (replicas management)
-- [ ] E2E проверка: git push → canary → validate → full rollout
+- [x] Install Argo Rollouts controller + dashboard
+- [x] **seal-api Rollout CR** — Deployment replaced with Rollout
+  - [x] `templates/rollout-api.yaml` in Helm chart
+  - [x] Canary strategy: 10% → pause 30s → 50% → pause 30s → 100%
+  - [x] Traffic routing via Gateway API (managedRoutes + HTTPRoute `seal`)
+  - [x] Tested with `v0.40` — full canary lifecycle verified
+  - [x] Rollback tested with non-existent tag — manual rollback works
+- [x] Prometheus analysis templates (`seal-success-rate`, `seal-latency`) — deployed, ready for canary validation
+- [ ] Wire analysis templates into Rollout canary steps — currently defined but not referenced in `spec.strategy.canary.analysis` (OutOfSync cosmetic issue)
+- [x] KEDA ScaledObject for `seal-worker` — deployed, Ready, Redis-triggered (min=1, max=20)
+- [ ] E2E: git push → ArgoCD sync → canary → validate → full rollout
 
 ---
 
 ## Phase 9 — Platform CLI & Developer Experience
 
-- [ ] **atlasctl** (Go CLI для платформы)
-  - [ ] Определить scope команд (create workload, get status, logs, backup trigger?)
-  - [ ] Инициализировать Go module `cmd/atlasctl/`
-  - [ ] Реализовать базовую структуру (cobra CLI)
-  - [ ] Интеграция с ArgoCD API (sync status, rollout promotion)
+- [x] **atlasctl** — bash-based workload management CLI (`tools/atlasctl`)
+  - [x] `new` — scaffold workload structure
+  - [x] `seed` — provision DB + bucket + write secrets to Vault
+  - [x] `enable` / `disable` — manage GitOps + Gateway listeners
+  - [x] `status` / `list` — workload status
+- [ ] **atlasctl** (Go CLI) — rewrite as standalone Go binary
+  - [ ] Define command scope (create workload, status, logs, backup trigger)
+  - [ ] Init Go module `cmd/atlasctl/`
+  - [ ] Cobra CLI structure
+  - [ ] ArgoCD API integration (sync status, rollout promotion)
 - [ ] **Final Showcase Presentation**
   - [ ] Script and record end-to-end demo (GitOps push → Canary → KEDA scale → Trace → DR)
 
 ---
 
-## Phase 10 — Documentation
+## Phase 10 — Supply Chain Security & Admission Control
 
-- [ ] **Developer Tooling & Golden Path**
-  - [ ] Create standardized Go app service and Helm chart templates
-  - [ ] Write a developer onboarding guide and workload onboarding documentation
-- [ ] **Architecture & Documentation**
-  - [ ] `docs/architecture.md` — layered system overview + decision log
-  - [ ] `docs/diagrams/` — draw.io / Mermaid architecture diagrams
-    - [ ] Platform overview (layers)
-    - [ ] GitOps flow (git push → Argo CD sync → k8s)
-    - [ ] Secrets flow (Vault → workload)
-  - [ ] `docs/runbooks/argocd-bootstrap.md`
-  - [ ] `docs/runbooks/vault-init.md`
-  - [ ] `docs/runbooks/disaster-recovery.md`
-- [ ] **Architecture Decisions Logs**
-  - [ ] Create `docs/adr/ADR-001-gitops-strategy.md`
-  - [ ] Create `docs/adr/ADR-002-vault-integration.md`
-  - [ ] Create `docs/adr/ADR-003-keda-adoption.md`
-  - [ ] Create `docs/adr/ADR-004-object-storage-design.md`
-- [ ] DR runbook: `docs/runbooks/disaster-recovery.md`
-  - [ ] Document precise RTO/RPO metrics
-  - [ ] **Live Validation Drill:** Upload data → take Velero backup → destroy cluster via `kind delete cluster` → bootstrap fresh environment with Terraform → execute Velero restore → verify total application state and file recoverability
+- [ ] **Cosign** — container image signing in CI
+  - [ ] `cosign generate-key-pair` → private key in GitHub Secrets, public key in repo
+  - [ ] Add `cosign sign --key` to `.github/workflows/seal-docker-publish.yml` after push
+  - [ ] Keyless verification for third-party images (Grafana, Loki, etc.)
+- [ ] **Kyverno / Policy Controller** — Admission Control
+  - [ ] Deploy Kyverno via Argo CD (sync-wave 1)
+  - [ ] **Validate: `disallow latest tag`** — block `:latest` image deployments
+  - [ ] **Validate: `require-run-as-non-root`** — all pods must set `runAsNonRoot: true`
+  - [ ] **Mutate: auto-add security context** — inject `readOnlyRootFilesystem`, `drop: ALL`, `seccomp: RuntimeDefault`
+  - [ ] **Validate: `require-labels`** — enforce `app.kubernetes.io/name`, `app.kubernetes.io/instance`
+  - [ ] **Validate: `disallow-privileged`** — block `privileged: true` and `hostPath` in workload namespaces
+  - [ ] **Validate: `require-image-signature`** — block unsigned images for `ghcr.io/aldoshkineg/*`
+  - [ ] **Mutate: auto-add Alloy sidecar** — optionally inject log collector into all pods in `atlasteam-seal`
+
+---
+
+## Phase 11 — Documentation
+
+- [ ] **Cosign** — container image signing in CI
+  - [ ] `cosign generate-key-pair` → private key in GitHub Secrets, public key in repo
+  - [ ] Add `cosign sign --key` to `.github/workflows/seal-docker-publish.yml` after push
+  - [ ] Keyless verification for third-party images (Grafana, Loki, etc.)
+- [ ] **Kyverno / Policy Controller** — Admission Control
+  - [ ] Deploy Kyverno via Argo CD (sync-wave 1)
+  - [ ] **Validate: `disallow latest tag`** — block `:latest` image deployments
+  - [ ] **Validate: `require-run-as-non-root`** — all pods must set `runAsNonRoot: true`
+  - [ ] **Mutate: auto-add security context** — inject `readOnlyRootFilesystem`, `drop: ALL`, `seccomp: RuntimeDefault`
+  - [ ] **Validate: `require-labels`** — enforce `app.kubernetes.io/name`, `app.kubernetes.io/instance`
+  - [ ] **Validate: `disallow-privileged`** — block `privileged: true` and `hostPath` in workload namespaces
+  - [ ] **Validate: `require-image-signature`** — block unsigned images for `ghcr.io/aldoshkineg/*`
+  - [ ] **Mutate: auto-add Alloy sidecar** — optionally inject log collector into all pods in `atlasteam-seal`
 
 ---

@@ -116,29 +116,21 @@ rollouts:
       - setWeight: 10
       - pause:
           duration: 30s
-          analyses:
-            - template:
-                templateName: seal-success-rate
-              args:
-                - name: service-name
-                  value: seal-api
-            - template:
-                templateName: seal-latency
-              args:
-                - name: service-name
-                  value: seal-api
+      - analysis:
+          templates:
+            - templateName: seal-success-rate
+            - templateName: seal-latency
+          args:
+            - name: service-name
+              value: seal-api
       - setWeight: 50
       - pause:
           duration: 30s
-          analyses:
-            - template:
-                templateName: seal-success-rate
-              args:
-                - name: service-name
-                  value: seal-api
-            - template:
-                templateName: seal-latency
-              args:
-                - name: service-name
-                  value: seal-api
+      - analysis:
+          templates:
+            - templateName: seal-success-rate
+            - templateName: seal-latency
+          args:
+            - name: service-name
+              value: seal-api
       - setWeight: 100
