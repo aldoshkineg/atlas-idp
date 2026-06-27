@@ -32,6 +32,7 @@ alloy:
       loki.source.kubernetes "pods" {
         targets    = discovery.kubernetes.pods.targets
         forward_to = [loki.write.default.receiver]
+        relabel_rules = discovery.kubernetes.pods.rules
       }
 
       loki.write "default" {
