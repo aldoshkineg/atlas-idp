@@ -8,31 +8,31 @@ alloy:
     content: |
       discovery.kubernetes "pods" {
         role = "pod"
+      }
+
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
 
         rule {
-          action       = "replace"
           source_labels = ["__meta_kubernetes_namespace"]
-          target_label = "namespace"
+          target_label  = "namespace"
         }
 
         rule {
-          action       = "replace"
           source_labels = ["__meta_kubernetes_pod_name"]
-          target_label = "pod"
+          target_label  = "pod"
         }
 
         rule {
-          action       = "replace"
           source_labels = ["__meta_kubernetes_pod_container_name"]
-          target_label = "container"
+          target_label  = "container"
         }
       }
 
       // ── Logs → Loki ────────────────────────────────────────────────
       loki.source.kubernetes "pods" {
-        targets    = discovery.kubernetes.pods.targets
+        targets    = discovery.relabel.pods.output
         forward_to = [loki.write.default.receiver]
-        relabel_rules = discovery.kubernetes.pods.rules
       }
 
       loki.write "default" {
