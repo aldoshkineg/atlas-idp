@@ -13,7 +13,9 @@ spec:
       template:
         spec:
           restartPolicy: Never
-          securityContext: {{- include "seal.redisSecurityContext" . | nindent 12 }}
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
           containers:
             - name: reprocess
               image: redis:7-alpine
@@ -28,4 +30,11 @@ spec:
                 capabilities:
                   drop: ["ALL"]
                 readOnlyRootFilesystem: true
+              resources:
+                requests:
+                  cpu: {{ .Values.cronjob.resources.requests.cpu }}
+                  memory: {{ .Values.cronjob.resources.requests.memory }}
+                limits:
+                  cpu: {{ .Values.cronjob.resources.limits.cpu }}
+                  memory: {{ .Values.cronjob.resources.limits.memory }}
 {{- end }}

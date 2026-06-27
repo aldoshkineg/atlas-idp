@@ -82,6 +82,13 @@ cronjob:
   enabled: true
   schedule: "*/5 * * * *"
   ttlSecondsAfterFinished: 120
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
 
 migration:
   enabled: true

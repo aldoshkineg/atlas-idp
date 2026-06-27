@@ -7,7 +7,7 @@
 - **Rollout:** `seal-api` (3 replics, Argo Rollouts controller)
 - **Gateway:** nginx-gateway-fabric, HTTPRoute `seal` (managedRoute for traffic routing)
 - **Analysis templates:** `seal-success-rate`, `seal-latency` (Prometheus-based)
-- **Canary steps:** `setWeight 10 → pause 30s → setWeight 50 → pause 30s → setWeight 100`
+- **Canary steps:** `setWeight 10 → pause 30s → analysis (success-rate + latency) → setWeight 50 → pause 30s → analysis (success-rate + latency) → setWeight 100`
 - **Date:** 2026-06-27
 
 ## Test: `v0.40` tag
@@ -50,17 +50,18 @@ The tag `v0.40` was pushed to GitHub, built by CI (`seal-docker-publish.yml`), a
 - Automatic pauses (`duration: 30s`) expire and the rollout progresses to the next step.
 - Manual promote/abort not tested (plugin `kubectl-argo-rollouts` not installed).
 
-### Analysis
+### Analysis (updated 2026-06-27)
 
-- AnalysisTemplates `seal-success-rate` and `seal-latency` exist but **are not referenced** in the running Rollout's step definitions (the spec on the cluster omits the `analyses:` blocks present in the Helm template). This is an intermittent `OutOfSync` condition flagged by ArgoCD.
+- AnalysisTemplates `seal-success-rate` and `seal-latency` are **wired into canary steps** — after each traffic weight increase, the rollout runs Prometheus-based analysis before proceeding.
+- Steps use `analysis` step type (not legacy `analyses:` inside `pause`) — requires CRD schema v1.9.0+.
+- CRD updated from upstream via separate ArgoCD Application `argo-rollouts-crds` (GitOps-managed).
 - Without analysis steps, the rollout relies solely on pod readiness probes for health checks.
 
 ## Recommendations
 
 1. **Add `progressDeadlineSeconds: 300`** to the Rollout spec — enables automatic rollback if the canary does not become healthy within 5 minutes.
-2. **Fix the canary steps** to include `analyses:` blocks referencing `seal-success-rate` and `seal-latency` — enables Prometheus-based canary validation (error rate, latency).
-3. **Install `kubectl-argo-rollouts`** plugin for `promote`/`abort`/`retry` commands in future tests.
-4. **Test with a deliberately degraded canary** (e.g. high-latency code, failing health endpoint) to verify that analysis thresholds trigger automatic rollback.
+2. **Install `kubectl-argo-rollouts`** plugin for `promote`/`abort`/`retry` commands in future tests.
+3. **Test with a deliberately degraded canary** (e.g. high-latency code, failing health endpoint) to verify that analysis thresholds trigger automatic rollback.
 
 ## Appendix: Commands Used
 
