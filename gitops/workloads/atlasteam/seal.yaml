@@ -29,6 +29,8 @@ spec:
             enabled: false
           secrets:
             create: false
+          rollouts:
+            enabled: true
           migration:
             enabled: true
           keda:
