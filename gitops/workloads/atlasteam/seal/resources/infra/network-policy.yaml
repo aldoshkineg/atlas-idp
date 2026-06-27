@@ -62,3 +62,9 @@ spec:
               kubernetes.io/metadata.name: redis
       ports:
         - port: 6379
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: 4318
