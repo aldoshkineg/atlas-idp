@@ -11,6 +11,7 @@ spec:
           - database
           - redis
           - minio
+          - monitoring
   ingress:
     - fromEndpoints:
         - matchLabels:
@@ -20,3 +21,4 @@ spec:
             - port: "5432"
             - port: "6379"
             - port: "9000"
+            - port: "4318"
