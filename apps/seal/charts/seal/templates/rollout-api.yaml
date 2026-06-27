@@ -57,7 +57,7 @@ spec:
       stableService: {{ .Values.rollouts.stableService }}
       trafficRouting:
         managedRoutes:
-          - {{ .Values.rollouts.trafficRouting.httpRoute }}
+          - name: {{ .Values.rollouts.trafficRouting.httpRoute }}
       steps:
 {{ toYaml .Values.rollouts.canary.steps | indent 8 }}
 {{- end }}
