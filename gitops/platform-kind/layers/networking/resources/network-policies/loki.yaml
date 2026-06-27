@@ -15,3 +15,4 @@ spec:
       toPorts:
         - ports:
             - port: "3100"
+            - port: "8080"
