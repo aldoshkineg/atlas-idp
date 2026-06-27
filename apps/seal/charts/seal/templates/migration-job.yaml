@@ -13,6 +13,7 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      securityContext: {{- include "seal.podSecurityContext" . | nindent 8 }}
       containers:
         - name: migrate
           image: "{{ .Values.global.imageRegistry }}/{{ .Values.images.api.repository }}:{{ .Values.images.api.tag }}"
@@ -23,4 +24,5 @@ spec:
             - secretRef:
                 name: seal-api-secret
           command: ["/app", "migrate"]
+          securityContext: {{- include "seal.containerSecurityContext" . | nindent 12 }}
 {{- end }}

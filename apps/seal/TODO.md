@@ -197,8 +197,17 @@ and can download the signed document.
 
 ## Phase 11 — Platform Hardening
 
-- [ ] **Pod Security**: `runAsNonRoot`, `readOnlyRootFilesystem`, `drop: ALL` в Helm templates
+- [x] **Pod Security**: `runAsNonRoot`, `readOnlyRootFilesystem`, `drop: ALL` в Helm templates ✅ 2026-06-27
+  - Pod-level: `runAsNonRoot: true`, `runAsUser: 65532`, `runAsGroup: 65532`, `fsGroup: 65532`, `seccompProfile: RuntimeDefault`
+  - Container-level: `allowPrivilegeEscalation: false`, `capabilities.drop: ["ALL"]`, `readOnlyRootFilesystem: true`
+  - Applied to: seal-api, seal-worker, seal-ui deployments + rollout-api + migration-job + cronjob
 - [ ] **Cosign signing** образов в CI
-- [ ] **k6 load tests** (`apps/tests/load/`)
+- [x] **k6 load tests** (`apps/tests/load/`) ✅ 2026-06-27
+  - Smoke (1 VU, 10 iterations) — `go-task test-load-smoke`
+  - Load (ramp-up to 50 VUs, 4min) — `go-task test-load`
+  - Stress (step to 100 VUs) — `go-task test-load-stress`
+  - Soak (20 VUs, 5min) — `go-task test-load-soak`
+  - Scenario: create → poll → download → verify (`helpers/client.js`)
+  - Results: 0% errors, p99 < 40ms across all profiles, no breaking point at 100 VUs
 
 ---

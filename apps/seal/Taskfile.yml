@@ -115,6 +115,34 @@ tasks:
       - ./test-infra.sh
 
   # ────────────────────────────────────────────
+  # Load Testing (k6 — Docker)
+  # ────────────────────────────────────────────
+
+  test-load-smoke:
+    desc: Run k6 smoke test (1 VU, 10 iterations)
+    dir: tests/load
+    cmds:
+      - bash k6/run.sh smoke
+
+  test-load:
+    desc: Run k6 load test (ramp-up to 50 VUs, 4min)
+    dir: tests/load
+    cmds:
+      - bash k6/run.sh load
+
+  test-load-stress:
+    desc: Run k6 stress test (step to 100 VUs)
+    dir: tests/load
+    cmds:
+      - bash k6/run.sh stress
+
+  test-load-soak:
+    desc: Run k6 soak test (20 VUs, 5min)
+    dir: tests/load
+    cmds:
+      - bash k6/run.sh soak
+
+  # ────────────────────────────────────────────
   # Lint / Vet / Validate (both Go modules)
   # ────────────────────────────────────────────
 

@@ -13,6 +13,7 @@ spec:
       template:
         spec:
           restartPolicy: Never
+          securityContext: {{- include "seal.redisSecurityContext" . | nindent 12 }}
           containers:
             - name: reprocess
               image: redis:7-alpine
@@ -22,4 +23,9 @@ spec:
                 - |
                   redis-cli -h {{ .Values.config.redis.host }} -p {{ .Values.config.redis.port }} \
                     LMOVE seal:dlq seal:jobs LEFT LEFT
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                readOnlyRootFilesystem: true
 {{- end }}

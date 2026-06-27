@@ -68,3 +68,5 @@ security/certs/ca*
 
 # Dev certs
 .certs/
+
+apps/seal/tests/load/reports
