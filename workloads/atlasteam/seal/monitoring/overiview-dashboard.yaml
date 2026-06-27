@@ -79,7 +79,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(http_requests_total{namespace=\"atlasteam-seal\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{namespace=\"atlasteam-seal\"}[5m])) * 100",
+              "expr": "(sum(rate(http_requests_total{namespace=\"atlasteam-seal\",status=~\"5..\"}[5m])) or vector(0)) / sum(rate(http_requests_total{namespace=\"atlasteam-seal\"}[5m])) * 100",
               "legendFormat": "Error %",
               "refId": "A"
             }
@@ -294,13 +294,13 @@ data:
         },
         {
           "id": 12,
-          "title": "Logs — Recent Warnings",
+          "title": "Logs — Recent Info",
           "type": "logs",
           "gridPos": { "h": 10, "w": 12, "x": 12, "y": 24 },
           "datasource": { "type": "loki", "uid": "loki" },
           "targets": [
             {
-              "expr": "{namespace=\"atlasteam-seal\"} |= \"warn\" | json",
+              "expr": "{namespace=\"atlasteam-seal\"} |= \"info\" | json",
               "refId": "A"
             }
           ],
