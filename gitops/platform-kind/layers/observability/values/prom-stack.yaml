@@ -75,6 +75,7 @@ grafana:
             path: /var/lib/grafana/dashboards/default
   additionalDataSources:
     - name: Loki
+      uid: loki
       type: loki
       access: proxy
       url: http://loki-gateway.loki.svc.cluster.local
