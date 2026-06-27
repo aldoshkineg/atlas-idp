@@ -18,11 +18,11 @@ spec:
             imageRegistry: ghcr.io/aldoshkineg
           images:
             api:
-              tag: v0.25.0
+              tag: v0.35
             worker:
-              tag: v0.25.0
+              tag: v0.35
             ui:
-              tag: v0.25.0
+              tag: v0.35
           vault:
             enabled: false
           gateway:
