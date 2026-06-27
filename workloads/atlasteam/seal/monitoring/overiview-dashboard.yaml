@@ -157,12 +157,12 @@ data:
         {
           "id": 6,
           "title": "Worker — Success Rate",
-          "type": "timeseries",
+          "type": "stat",
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(jobs_processed_total{namespace=\"atlasteam-seal\",status=\"ok\"}[5m])) / sum(rate(jobs_processed_total{namespace=\"atlasteam-seal\"}[5m])) * 100",
+              "expr": "((sum(rate(jobs_processed_total{namespace=\"atlasteam-seal\",status=\"ok\"}[5m])) / sum(rate(jobs_processed_total{namespace=\"atlasteam-seal\"}[5m]))) or vector(1)) * 100",
               "legendFormat": "Success %",
               "refId": "A"
             }
@@ -172,7 +172,6 @@ data:
               "unit": "percent",
               "min": 0,
               "max": 100,
-              "custom": { "showPoints": "never" },
               "color": { "mode": "thresholds" },
               "thresholds": {
                 "mode": "absolute",
@@ -183,7 +182,14 @@ data:
               }
             }
           },
-          "options": { "legend": { "showLegend": false }, "tooltip": { "mode": "single" } }
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          }
         },
         {
           "id": 7,
@@ -211,7 +217,7 @@ data:
         {
           "id": 8,
           "title": "Worker — DLQ Length",
-          "type": "timeseries",
+          "type": "stat",
           "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
@@ -225,7 +231,6 @@ data:
             "defaults": {
               "unit": "short",
               "min": 0,
-              "custom": { "showPoints": "never" },
               "color": { "mode": "thresholds" },
               "thresholds": {
                 "mode": "absolute",
@@ -237,7 +242,14 @@ data:
               }
             }
           },
-          "options": { "legend": { "showLegend": false }, "tooltip": { "mode": "single" } }
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          }
         },
         {
           "id": 9,
