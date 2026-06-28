@@ -254,12 +254,12 @@ atlasctl disable aldoshkineg/seal --sync --push
 - [ ] Добавить Makefile targets:
 
   ```makefile
-  atlasctl-new:    tools/atlasctl new $(ARGS)
-  atlasctl-seed:   tools/atlasctl seed $(ARGS)
-  atlasctl-enable: tools/atlasctl enable $(ARGS)
-  atlasctl-disable:tools/atlasctl disable $(ARGS)
-  atlasctl-status: tools/atlasctl status $(ARGS)
-  atlasctl-list:   tools/atlasctl list $(ARGS)
+  atlasctl-new:    tools/atlasctl/atlasctl.sh new $(ARGS)
+  atlasctl-seed:   tools/atlasctl/atlasctl.sh seed $(ARGS)
+  atlasctl-enable: tools/atlasctl/atlasctl.sh enable $(ARGS)
+  atlasctl-disable:tools/atlasctl/atlasctl.sh disable $(ARGS)
+  atlasctl-status: tools/atlasctl/atlasctl.sh status $(ARGS)
+  atlasctl-list:   tools/atlasctl/atlasctl.sh list $(ARGS)
   ```
 
 - [ ] Обновить `apps/README.md`:
@@ -275,6 +275,6 @@ atlasctl disable aldoshkineg/seal --sync --push
 ## Phase 11 — Pre-commit & Validation
 
 - [ ] `yamllint` на всех новых YAML файлах
-- [ ] `shellcheck` на `tools/atlasctl`
+- [ ] `shellcheck` на `tools/atlasctl/atlasctl.sh`
 - [ ] `trivy` на шаблонах (не должно быть false positives на `{{}}`)
 - [ ] `pre-commit run --all-files` — все хуки проходят

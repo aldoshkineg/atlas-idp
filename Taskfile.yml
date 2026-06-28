@@ -1,0 +1,26 @@
+version: "3"
+
+tasks:
+  atlasctl:build:
+    desc: Build atlasctl Go binary
+    cmds:
+      - task: tools/atlasctl:build
+    dir: tools/atlasctl
+
+  atlasctl:test:
+    desc: Run atlasctl unit tests
+    cmds:
+      - task: tools/atlasctl:test
+    dir: tools/atlasctl
+
+  atlasctl:vet:
+    desc: Run go vet on atlasctl
+    cmds:
+      - task: tools/atlasctl:vet
+    dir: tools/atlasctl
+
+  atlasctl:cover:
+    desc: Run atlasctl tests with coverage
+    cmds:
+      - task: tools/atlasctl:cover
+    dir: tools/atlasctl

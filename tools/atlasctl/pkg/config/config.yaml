@@ -1,0 +1,41 @@
+templates:
+  path: templates
+  gold_dir: gold
+
+scaffold:
+  directory: workloads
+
+gitops:
+  workloads_dir: gitops/workloads
+  gateway_file: gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml
+  gateway_routes_dir: gitops/platform-kind/layers/networking/values/gateway-routes
+
+defaults:
+  repo_path: "."
+  gateway_port: "8080"
+  chart_revision: "main"
+  target_revision: "main"
+  hostname_pattern: "{{APP}}.atlas"
+
+seed:
+  keys:
+    - name: DB_PASSWORD
+      generator: base64
+      length: 24
+      env_key: DB_PASSWORD
+    - name: S3_ACCESS_KEY
+      generator: hex
+      length: 16
+      env_key: S3_ACCESS_KEY
+    - name: S3_SECRET_KEY
+      generator: base64
+      length: 32
+      env_key: S3_SECRET_KEY
+    - name: REDIS_PASSWORD
+      generator: base64
+      length: 24
+      env_key: REDIS_PASSWORD
+
+backup:
+  cluster_pattern: "{{APP}}-db"
+  namespace: database

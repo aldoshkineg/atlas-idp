@@ -50,6 +50,7 @@ The platform runs locally on kind Kubernetes clusters while following AWS produc
 | `security/`               | Trivy config, RBAC policies (planned)                                                                          |
 | `.github/`                | GitHub Actions workflows and composite actions                                                                 |
 | `apps/`                   | Seal project                                                                                                   |
+| `tools/atlasctl/`         | Go CLI for workload lifecycle management (scaffold, seed, enable, disable, status, list)                       |
 
 **Key Files:**
 
@@ -147,7 +148,40 @@ Pre-commit runs on every commit:
 - **Task CLI:** `task` a distrobox wrapper — use `go-task` directly
 - **Credentials in `.env`:** `GITHUB_TOKEN=ghp_...` (repo, workflow, write:packages, delete:packages)
 
-### kind Deployments (seal namespace)
+### atlasctl (Go CLI)
+
+- **Location:** `tools/atlasctl/` — standalone Go module (`go.mod` at `tools/atlasctl/go.mod`)
+- **Module path:** `github.com/aldoshkineg/atlas-idp/tools/atlasctl`
+- **CLI framework:** Cobra (github.com/spf13/cobra v1.10+)
+- **Commands:** `new`, `seed`, `enable`, `disable`, `delete`, `status`, `list`, `logs`, `backup`
+- **Build:** `go-task -t tools/atlasctl/Taskfile.yml build` → binary at `tools/atlasctl/bin/atlasctl`
+- **Test:** `go-task -t tools/atlasctl/Taskfile.yml test`
+- **Vet:** `go-task -t tools/atlasctl/Taskfile.yml vet`
+- **Coverage:** `go-task -t tools/atlasctl/Taskfile.yml cover`
+- **Clean:** `go-task -t tools/atlasctl/Taskfile.yml clean`
+- **Package structure:**
+  ```
+  tools/atlasctl/
+  ├── main.go              # Entry point → cmd.Execute()
+  ├── cmd/                 # Cobra command implementations
+  │   ├── root.go          # Root command (--help, --version)
+  │   ├── new.go / seed.go / enable.go / disable.go / delete.go
+  │   └── status.go / list.go / logs.go / backup.go
+  ├── pkg/
+  │   ├── template/        # Template rendering (templates/gold/)
+  │   ├── seed/            # DB/S3/Vault provisioning
+  │   ├── gitops/          # GitOps file management
+  │   ├── k8s/             # Kubernetes client wrapper
+  │   ├── vault/           # Vault API client
+  │   └── gateway/         # Gateway resource management
+  ├── go.mod / go.sum
+  ├── Taskfile.yml
+  └── .gitignore
+  ```
+- **Current status:** all 9 commands implemented (new, seed, enable, disable, delete, status, list, logs, backup); all tests green
+- **Release:** `git tag vX.Y.Z && git push origin vX.Y.Z` triggers `.github/workflows/atlasctl-release.yml` — builds for linux/darwin (amd64+arm64), injects version via `-ldflags "-X github.com/aldoshkineg/atlas-idp/tools/atlasctl/cmd.Version=vX.Y.Z"`, publishes to GitHub Release
+- **Version:** `cmd/root.go` has `var Version = "dev"` — overridden by ldflags at release build
+- **Build artifacts excluded via** `tools/atlasctl/.gitignore` (bin/, go.work, _.test, _.out, \*.cov, coverage/)
 
 - 3 pods: `seal-api`, `seal-worker`, `seal-ui` — all running with `ghcr.io/aldoshkineg/*:v0.25.0`
 - **seal-api** exposed on 8080; needs Postgres (`production-db-rw.database.svc:5432`, user `app`/`MyzuMb6...`), Redis (`redis-master.redis.svc:6379`, pw `e5f2190c...`), MinIO (`minio.minio.svc:9000`, admin creds from Vault)

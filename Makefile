@@ -138,22 +138,40 @@ vault-seed-from-env:
 	@unset VAULT_ADDR; ./security/vault/seed-from-env.sh
 
 # --- Atlas Workload Management ---
+ATLASCTL_BIN ?= tools/atlasctl/bin/atlasctl
+
 atlasctl:
-	@echo "Usage: make atlasctl-{new,seed,list}"
-	@echo "  atlasctl-new  <args>   Create a new workload (via tools/atlasctl)"
+	@echo "Usage: make atlasctl-{new,seed,list,build,test}"
+	@echo "  atlasctl-new  <args>   Create a new workload (via atlasctl Go binary)"
 	@echo "  atlasctl-seed          Seed all workload secrets into Vault"
 	@echo "  atlasctl-list          List all registered workloads"
+	@echo "  atlasctl-build         Build atlasctl Go binary"
+	@echo "  atlasctl-test          Run atlasctl unit tests"
+
+atlasctl-build:
+	go-task -t tools/atlasctl/Taskfile.yml build
+
+atlasctl-test:
+	go-task -t tools/atlasctl/Taskfile.yml test
+
+atlasctl-vet:
+	go-task -t tools/atlasctl/Taskfile.yml vet
 
 atlasctl-new:
-	@echo "Run: tools/atlasctl new <app> --group <group> --repo <url> [options]"
+	@echo "Run: $(ATLASCTL_BIN) new <app> --group <group> --repo <url> [options]"
 	@echo "Example:"
-	@echo "  tools/atlasctl new seal --group aldoshkineg --repo https://github.com/aldoshkineg/atlas-idp.git --repo-path charts/seal --helm --secrets --db --s3 --monitoring"
+	@echo "  $(ATLASCTL_BIN) new seal --group aldoshkineg --repo https://github.com/aldoshkineg/atlas-idp.git --repo-path charts/seal --helm"
+	@echo ""
+	@echo "Build first: make atlasctl-build"
 
 atlasctl-seed:
-	tools/atlasctl seed
+	$(ATLASCTL_BIN) seed $(filter-out $@,$(MAKECMDGOALS))
 
 atlasctl-list:
-	tools/atlasctl list
+	$(ATLASCTL_BIN) list
+
+atlasctl-status:
+	$(ATLASCTL_BIN) status $(filter-out $@,$(MAKECMDGOALS))
 
 # --- Tests ---
 test-ca-gateway:

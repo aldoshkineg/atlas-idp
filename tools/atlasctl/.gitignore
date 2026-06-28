@@ -1,0 +1,12 @@
+# Go binary
+bin/
+
+# Go build cache (local)
+go.work
+go.work.sum
+
+# Test cache, coverage
+*.test
+*.out
+*.cov
+coverage/

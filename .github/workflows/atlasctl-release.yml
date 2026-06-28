@@ -1,0 +1,100 @@
+name: atlasctl Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: tools/atlasctl/go.sum
+      - run: go mod download
+        working-directory: tools/atlasctl
+      - run: go vet ./...
+        working-directory: tools/atlasctl
+      - run: go test -race -count=1 ./...
+        working-directory: tools/atlasctl
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, darwin]
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache-dependency-path: tools/atlasctl/go.sum
+
+      - name: Build atlasctl-${{ matrix.os }}-${{ matrix.arch }}
+        run: |
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} \
+          go build -ldflags "-X github.com/aldoshkineg/atlas-idp/tools/atlasctl/cmd.Version=${{ github.ref_name }}" \
+            -o bin/atlasctl-${{ matrix.os }}-${{ matrix.arch }} .
+        working-directory: tools/atlasctl
+
+      - name: Generate checksum
+        run: sha256sum bin/atlasctl-${{ matrix.os }}-${{ matrix.arch }} >> bin/checksums.txt
+        working-directory: tools/atlasctl
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: atlasctl-${{ matrix.os }}-${{ matrix.arch }}
+          path: tools/atlasctl/bin/atlasctl-${{ matrix.os }}-${{ matrix.arch }}
+
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Gather artifacts
+        run: |
+          mkdir -p release-artifacts
+          find artifacts -type f | while read f; do
+            cp "$f" release-artifacts/
+          done
+          cd release-artifacts
+          sha256sum atlasctl-* > checksums.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: atlasctl ${{ github.ref_name }}
+          body: |
+            **atlasctl** — CLI для управления жизненным циклом workload-ов на Atlas IDP.
+
+            ## Установка
+            ```bash
+            curl -Lo atlasctl https://github.com/aldoshkineg/atlas-idp/releases/download/$(curl -s https://api.github.com/repos/aldoshkineg/atlas-idp/releases/latest | grep tag_name | cut -d'"' -f4)/atlasctl-linux-amd64
+            chmod +x atlasctl
+            sudo mv atlasctl /usr/local/bin/
+            ```
+
+            ## Команды
+            - `new` — создать workload из golden-path шаблонов
+            - `seed` — провижининг PostgreSQL, MinIO S3, Vault
+            - `enable` — промоутить workload в GitOps (ArgoCD Application + gateway listener)
+            - `disable` — удалить workload из GitOps
+            - `delete` — удалить директорию workload-а
+            - `status` — показать статус workload-а
+            - `list` — список всех workload-ов
+            - `logs` — tail логов пода
+            - `backup` — триггер CNPG backup
+          files: release-artifacts/*
