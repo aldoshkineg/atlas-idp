@@ -139,7 +139,7 @@ func TestDeleteCmd_StillEnabled(t *testing.T) {
 	os.WriteFile("gitops/workloads/testgroup/testapp.yaml", []byte("enabled"), 0644)
 
 	restore := suppressOutput()
-	rootCmd.SetArgs([]string{"delete", "testgroup/testapp"})
+	rootCmd.SetArgs([]string{"delete", "testgroup/testapp", "-y"})
 	err := rootCmd.Execute()
 	restore()
 

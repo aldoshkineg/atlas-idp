@@ -6,19 +6,22 @@ import (
 )
 
 func TestLoadDefaults(t *testing.T) {
+	// Ignore user config, run from a non-repo dir so paths stay relative
+	t.Setenv("ATLASCTL_NO_USER_CONFIG", "1")
+	orig, _ := os.Getwd()
+	os.Chdir(t.TempDir())
+	defer os.Chdir(orig)
+
 	cfg, err := Load()
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.Templates.Path != "templates" {
-		t.Errorf("expected templates.path 'templates', got %q", cfg.Templates.Path)
+	if cfg.Templates.Dir != "templates/gold" {
+		t.Errorf("expected templates.dir 'templates/gold', got %q", cfg.Templates.Dir)
 	}
-	if cfg.Templates.GoldDir != "gold" {
-		t.Errorf("expected templates.gold_dir 'gold', got %q", cfg.Templates.GoldDir)
-	}
-	if cfg.Scaffold.Directory != "workloads" {
-		t.Errorf("expected scaffold.directory 'workloads', got %q", cfg.Scaffold.Directory)
+	if cfg.Scaffold.Dir != "workloads" {
+		t.Errorf("expected scaffold.dir 'workloads', got %q", cfg.Scaffold.Dir)
 	}
 	if cfg.Gitops.WorkloadsDir != "gitops/workloads" {
 		t.Errorf("expected gitops.workloads_dir 'gitops/workloads', got %q", cfg.Gitops.WorkloadsDir)
@@ -53,14 +56,11 @@ func TestApplyDefaults_EmptyConfig(t *testing.T) {
 	cfg := &Config{}
 	cfg.applyDefaults()
 
-	if cfg.Templates.Path != "templates" {
-		t.Errorf("expected templates.path 'templates'")
+	if cfg.Templates.Dir != "templates/gold" {
+		t.Errorf("expected templates.dir 'templates/gold'")
 	}
-	if cfg.Templates.GoldDir != "gold" {
-		t.Errorf("expected templates.gold_dir 'gold'")
-	}
-	if cfg.Scaffold.Directory != "workloads" {
-		t.Errorf("expected scaffold.directory 'workloads'")
+	if cfg.Scaffold.Dir != "workloads" {
+		t.Errorf("expected scaffold.dir 'workloads'")
 	}
 	if cfg.Gitops.WorkloadsDir != "gitops/workloads" {
 		t.Errorf("expected gitops.workloads_dir 'gitops/workloads'")
@@ -72,8 +72,8 @@ func TestApplyDefaults_EmptyConfig(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	base := Config{
-		Templates: TemplatesConfig{Path: "custom-templates", GoldDir: "gold"},
-		Scaffold:  ScaffoldConfig{Directory: "workloads"},
+		Templates: TemplatesConfig{Dir: "custom-templates/gold"},
+		Scaffold:  ScaffoldConfig{Dir: "workloads"},
 		Gitops: GitopsConfig{
 			WorkloadsDir:     "gitops/workloads",
 			GatewayFile:      "gw.yaml",
@@ -92,8 +92,8 @@ func TestMerge(t *testing.T) {
 	}
 
 	result := merge(base, over)
-	if result.Templates.Path != "custom-templates" {
-		t.Errorf("Templates.Path should stay custom, got %q", result.Templates.Path)
+	if result.Templates.Dir != "custom-templates/gold" {
+		t.Errorf("Templates.Dir should stay custom, got %q", result.Templates.Dir)
 	}
 	if result.Defaults.GatewayPort != "9090" {
 		t.Errorf("GatewayPort should be overridden to '9090', got %q", result.Defaults.GatewayPort)
@@ -105,13 +105,13 @@ func TestMergeOverrides(t *testing.T) {
 	base.applyDefaults()
 
 	over := Config{
-		Templates: TemplatesConfig{Path: "other-templates"},
+		Templates: TemplatesConfig{Dir: "other-templates"},
 		Gitops:    GitopsConfig{WorkloadsDir: "other/workloads"},
 	}
 
 	result := merge(base, over)
-	if result.Templates.Path != "other-templates" {
-		t.Errorf("Templates.Path should be overridden")
+	if result.Templates.Dir != "other-templates" {
+		t.Errorf("Templates.Dir should be overridden")
 	}
 	if result.Gitops.WorkloadsDir != "other/workloads" {
 		t.Errorf("Gitops.WorkloadsDir should be overridden")
@@ -133,6 +133,7 @@ func TestOverlayFromBinaryDir(t *testing.T) {
 }
 
 func TestSeedKeys(t *testing.T) {
+	t.Setenv("ATLASCTL_NO_USER_CONFIG", "1")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)

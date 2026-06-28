@@ -32,7 +32,11 @@ func TestSmokeNewSeedEnableStatusDisableDelete(t *testing.T) {
 	os.Symlink(filepath.Join(repoRoot, "templates"), filepath.Join(tmpDir, "templates"))
 	os.WriteFile(filepath.Join(tmpDir, "Makefile"), []byte(".PHONY: all\nall:\n"), 0644)
 
-	InitTemplateFS()
+	TemplatesFS = nil
+	Cfg = nil
+	if err := InitTemplatesFS(); err != nil {
+		t.Fatal(err)
+	}
 
 	// new
 	resetNewFlags()

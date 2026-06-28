@@ -21,7 +21,7 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all registered workloads",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		workloadsDir := Cfg.Scaffold.Directory
+		workloadsDir := Cfg.Scaffold.Dir
 		if _, err := os.Stat(workloadsDir); os.IsNotExist(err) {
 			if listCmdFlags.json {
 				fmt.Println("[]")

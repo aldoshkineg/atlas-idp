@@ -1,9 +1,8 @@
 templates:
-  path: templates
-  gold_dir: gold
+  dir: templates/gold
 
 scaffold:
-  directory: workloads
+  dir: workloads
 
 gitops:
   workloads_dir: gitops/workloads

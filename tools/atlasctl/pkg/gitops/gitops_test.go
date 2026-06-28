@@ -22,7 +22,7 @@ func TestResolvePaths(t *testing.T) {
 		GatewayFile:      "gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml",
 		GatewayRoutesDir: "gitops/platform-kind/layers/networking/values/gateway-routes",
 	}
-	p := ResolvePaths("/repo", WorkloadRef{Group: "g", App: "a"}, gc, "workloads")
+	p := ResolvePaths(WorkloadRef{Group: "g", App: "a"}, gc, "workloads")
 	if !strings.HasSuffix(p.WorkloadDir, "workloads/g/a") {
 		t.Errorf("WorkloadDir = %q", p.WorkloadDir)
 	}

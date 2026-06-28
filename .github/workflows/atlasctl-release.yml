@@ -78,23 +78,23 @@ jobs:
         with:
           name: atlasctl ${{ github.ref_name }}
           body: |
-            **atlasctl** — CLI для управления жизненным циклом workload-ов на Atlas IDP.
+            **atlasctl** — Workload lifecycle management CLI for Atlas IDP.
 
-            ## Установка
+            ## Installation
             ```bash
             curl -Lo atlasctl https://github.com/aldoshkineg/atlas-idp/releases/download/$(curl -s https://api.github.com/repos/aldoshkineg/atlas-idp/releases/latest | grep tag_name | cut -d'"' -f4)/atlasctl-linux-amd64
             chmod +x atlasctl
             sudo mv atlasctl /usr/local/bin/
             ```
 
-            ## Команды
-            - `new` — создать workload из golden-path шаблонов
-            - `seed` — провижининг PostgreSQL, MinIO S3, Vault
-            - `enable` — промоутить workload в GitOps (ArgoCD Application + gateway listener)
-            - `disable` — удалить workload из GitOps
-            - `delete` — удалить директорию workload-а
-            - `status` — показать статус workload-а
-            - `list` — список всех workload-ов
-            - `logs` — tail логов пода
-            - `backup` — триггер CNPG backup
+            ## Commands
+            - `new` — scaffold a workload from golden-path templates
+            - `seed` — provision PostgreSQL, MinIO S3, and Vault secrets
+            - `enable` — promote workload to GitOps (ArgoCD Application + gateway listener)
+            - `disable` — remove workload from GitOps
+            - `delete` — delete workload directory
+            - `status` — show workload status
+            - `list` — list all registered workloads
+            - `logs` — tail workload logs from Kubernetes
+            - `backup` — trigger a CNPG Backup CR
           files: release-artifacts/*

@@ -181,8 +181,8 @@ func TestValidateParams(t *testing.T) {
 func loadTestConfig(t *testing.T) *config.Config {
 	t.Helper()
 	return &config.Config{
-		Templates: config.TemplatesConfig{Path: "templates", GoldDir: "gold"},
-		Scaffold:  config.ScaffoldConfig{Directory: "workloads"},
+		Templates: config.TemplatesConfig{Dir: "templates/gold"},
+		Scaffold:  config.ScaffoldConfig{Dir: "workloads"},
 		Gitops: config.GitopsConfig{
 			WorkloadsDir:     "gitops/workloads",
 			GatewayFile:      "gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml",

@@ -56,7 +56,7 @@ var statusCmd = &cobra.Command{
 			return err
 		}
 
-		workloadDir := filepath.Join(Cfg.Scaffold.Directory, group, app)
+		workloadDir := filepath.Join(Cfg.Scaffold.Dir, group, app)
 		gitopsFile := filepath.Join(Cfg.Gitops.WorkloadsDir, group, app+".yaml")
 
 		if _, err := os.Stat(workloadDir); os.IsNotExist(err) {

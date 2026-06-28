@@ -26,6 +26,14 @@ from scaffolding golden-path templates to GitOps promotion via Argo CD.
   backup    Trigger CNPG backup`,
 
 	Version: Version,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if Cfg == nil {
+			if err := InitCfg(); err != nil {
+				return err
+			}
+		}
+		return nil
+	},
 }
 
 func Execute() {

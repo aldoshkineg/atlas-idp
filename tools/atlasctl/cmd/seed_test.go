@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -38,17 +37,8 @@ func TestSeedCmd_DryRun(t *testing.T) {
 	resetNewFlags()
 	resetSeedFlags()
 
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	repoRoot := filepath.Dir(filepath.Dir(origDir))
-	if _, err := os.Stat(filepath.Join(repoRoot, "templates")); os.IsNotExist(err) {
-		t.Skip("templates not found")
-	}
-
-	InitTemplateFS()
+	dir := setupRepoRoot(t)
+	defer chdir(t, dir)()
 
 	os.MkdirAll("workloads/testgroup/testapp", 0755)
 	seedContent := `# TESTGROUP_TESTAPP - atlasctl seed

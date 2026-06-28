@@ -39,7 +39,7 @@ Reads .secret-seed and vault/seed-mapping.conf from the workload directory.`,
 		wl := seed.Workload{
 			Group: group,
 			App:   app,
-			Dir:   filepath.Join(Cfg.Scaffold.Directory, group, app),
+			Dir:   filepath.Join(Cfg.Scaffold.Dir, group, app),
 		}
 
 		if !seedCmdFlags.force {

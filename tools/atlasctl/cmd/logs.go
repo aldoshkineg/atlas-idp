@@ -28,7 +28,7 @@ var logsCmd = &cobra.Command{
 		}
 
 		namespace := group + "-" + app
-		appYaml := filepath.Join(Cfg.Scaffold.Directory, group, app, "app.yaml")
+		appYaml := filepath.Join(Cfg.Scaffold.Dir, group, app, "app.yaml")
 		if data, err := os.ReadFile(appYaml); err == nil {
 			var appSpec struct {
 				Spec struct {

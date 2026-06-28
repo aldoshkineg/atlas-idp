@@ -38,6 +38,12 @@ Required:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		app := args[0]
 
+		if TemplatesFS == nil {
+			if err := InitTemplatesFS(); err != nil {
+				return fmt.Errorf("cannot load templates: %w", err)
+			}
+		}
+
 		if newCmdFlags.group == "" {
 			return fmt.Errorf("--group is required")
 		}
@@ -56,7 +62,7 @@ Required:
 			sa = app
 		}
 
-		workloadDir := filepath.Join(Cfg.Scaffold.Directory, newCmdFlags.group, app)
+		workloadDir := filepath.Join(Cfg.Scaffold.Dir, newCmdFlags.group, app)
 		if _, err := os.Stat(workloadDir); err == nil {
 			return fmt.Errorf("workload already exists: %s", workloadDir)
 		} else if !os.IsNotExist(err) {
@@ -143,7 +149,7 @@ func indentLines(s, indent string) string {
 }
 
 func renderAllTemplates(workloadDir string, v template.Vars) error {
-	srcPrefix := Cfg.Templates.GoldDir
+	srcPrefix := "."
 
 	return fs.WalkDir(TemplatesFS, srcPrefix, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

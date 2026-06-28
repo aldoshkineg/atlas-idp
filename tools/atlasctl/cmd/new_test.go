@@ -3,7 +3,6 @@ package cmd
 import (
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -47,19 +46,8 @@ func TestNewCmd_NoApp(t *testing.T) {
 
 func TestNewCmd_FullScaffold(t *testing.T) {
 	resetNewFlags()
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(origDir)
-
-	repoRoot := filepath.Dir(filepath.Dir(origDir))
-	if _, err := os.Stat(filepath.Join(repoRoot, "templates")); os.IsNotExist(err) {
-		t.Skip("templates directory not found")
-	}
-
-	InitTemplateFS()
+	dir := setupRepoWithTemplates(t)
+	defer chdir(t, dir)()
 
 	rootCmd.SetArgs([]string{"new", "testapp", "--group", "testgroup", "--repo", "https://github.com/test/test.git", "-y"})
 	err := rootCmd.Execute()
@@ -86,8 +74,7 @@ func TestNewCmd_FullScaffold(t *testing.T) {
 	}
 
 	for _, f := range expectedFiles {
-		path := filepath.Join(tmpDir, f)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
+		if _, err := os.Stat(f); os.IsNotExist(err) {
 			t.Errorf("expected file not created: %s", f)
 		}
 	}
@@ -95,19 +82,8 @@ func TestNewCmd_FullScaffold(t *testing.T) {
 
 func TestNewCmd_AlreadyExists(t *testing.T) {
 	resetNewFlags()
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(origDir)
-
-	repoRoot := filepath.Dir(filepath.Dir(origDir))
-	if _, err := os.Stat(filepath.Join(repoRoot, "templates")); os.IsNotExist(err) {
-		t.Skip("templates directory not found")
-	}
-
-	InitTemplateFS()
+	dir := setupRepoWithTemplates(t)
+	defer chdir(t, dir)()
 
 	os.MkdirAll("workloads/testgroup/testapp", 0755)
 
@@ -123,17 +99,8 @@ func TestNewCmd_AlreadyExists(t *testing.T) {
 
 func TestNewCmd_NamespaceDefault(t *testing.T) {
 	resetNewFlags()
-	tmpDir := t.TempDir()
-	origDir, _ := os.Getwd()
-	os.Chdir(tmpDir)
-	defer os.Chdir(origDir)
-
-	repoRoot := filepath.Dir(filepath.Dir(origDir))
-	if _, err := os.Stat(filepath.Join(repoRoot, "templates")); os.IsNotExist(err) {
-		t.Skip("templates not found")
-	}
-
-	InitTemplateFS()
+	dir := setupRepoWithTemplates(t)
+	defer chdir(t, dir)()
 
 	restore := suppressOutput()
 	rootCmd.SetArgs([]string{"new", "myapp", "--group", "mygroup", "--repo", "https://example.com/repo.git", "-y"})

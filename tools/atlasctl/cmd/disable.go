@@ -32,13 +32,8 @@ gateway route file, and empty group directory. Keeps the workload directory.`,
 			return err
 		}
 
-		repoRoot, err := findRepoRoot()
-		if err != nil {
-			return err
-		}
-
 		ref := gitops.WorkloadRef{Group: group, App: app}
-		p := gitops.ResolvePaths(repoRoot, ref, &Cfg.Gitops, Cfg.Scaffold.Directory)
+		p := gitops.ResolvePaths(ref, &Cfg.Gitops, Cfg.Scaffold.Dir)
 
 		if _, err := os.Stat(p.GitopsFile); os.IsNotExist(err) {
 			return fmt.Errorf("not enabled — %s does not exist", p.GitopsFile)
@@ -113,19 +108,19 @@ gateway route file, and empty group directory. Keeps the workload directory.`,
 		gitops.RemoveEmptyDir(p.GitopsDir)
 
 		if disableCmdFlags.sync {
-			gitArgs := []string{"-C", repoRoot, "add", "-A", "--", p.GitopsDir, p.GatewayFile}
+			gitArgs := []string{"add", "-A", "--", p.GitopsDir, p.GatewayFile}
 			if hasGateway {
 				gitArgs = append(gitArgs, p.GatewayRouteFile)
 			}
 			exec.Command("git", gitArgs...).Run()
 
-			if out, err := exec.Command("git", "-C", repoRoot, "commit",
+			if out, err := exec.Command("git", "commit",
 				"-m", fmt.Sprintf("disable(workloads): remove %s/%s", group, app)).CombinedOutput(); err != nil {
 				fmt.Printf("   (nothing to commit: %s)", string(out))
 			}
 
 			if disableCmdFlags.push {
-				if out, err := exec.Command("git", "-C", repoRoot, "push").CombinedOutput(); err != nil {
+				if out, err := exec.Command("git", "push").CombinedOutput(); err != nil {
 					return fmt.Errorf("git push: %s: %w", string(out), err)
 				}
 				fmt.Println("  [push] Changes pushed")

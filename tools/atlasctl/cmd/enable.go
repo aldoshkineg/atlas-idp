@@ -35,13 +35,8 @@ to the shared gateway.`,
 			return err
 		}
 
-		repoRoot, err := findRepoRoot()
-		if err != nil {
-			return err
-		}
-
 		ref := gitops.WorkloadRef{Group: group, App: app}
-		p := gitops.ResolvePaths(repoRoot, ref, &Cfg.Gitops, Cfg.Scaffold.Directory)
+		p := gitops.ResolvePaths(ref, &Cfg.Gitops, Cfg.Scaffold.Dir)
 
 		if !enableCmdFlags.force {
 			if _, err := os.Stat(p.WorkloadDir); os.IsNotExist(err) {
@@ -129,7 +124,7 @@ to the shared gateway.`,
 		}
 
 		if enableCmdFlags.sync {
-			if err := gitCommitAndMaybePush(repoRoot, app, group, p, enableCmdFlags.push); err != nil {
+			if err := gitCommitAndMaybePush(app, group, p, enableCmdFlags.push); err != nil {
 				return err
 			}
 		}
@@ -149,8 +144,8 @@ func init() {
 	enableCmd.Flags().BoolVarP(&enableCmdFlags.skipConfirm, "yes", "y", false, "Skip confirmation prompt")
 }
 
-func gitCommitAndMaybePush(repoRoot, app, group string, p gitops.Paths, push bool) error {
-	gitArgs := []string{"-C", repoRoot, "add", p.GitopsFile, p.GitopsResources}
+func gitCommitAndMaybePush(app, group string, p gitops.Paths, push bool) error {
+	gitArgs := []string{"add", p.GitopsFile, p.GitopsResources}
 	if _, err := os.Stat(p.GatewayRouteFile); err == nil {
 		gitArgs = append(gitArgs, p.GatewayFile, p.GatewayRouteFile)
 	}
@@ -158,13 +153,13 @@ func gitCommitAndMaybePush(repoRoot, app, group string, p gitops.Paths, push boo
 		return fmt.Errorf("git add: %s: %w", string(out), err)
 	}
 
-	if out, err := exec.Command("git", "-C", repoRoot, "commit",
+	if out, err := exec.Command("git", "commit",
 		"-m", fmt.Sprintf("enable(workloads): promote %s/%s", group, app)).CombinedOutput(); err != nil {
 		fmt.Printf("   (nothing to commit: %s)", string(out))
 	}
 
 	if push {
-		if out, err := exec.Command("git", "-C", repoRoot, "push").CombinedOutput(); err != nil {
+		if out, err := exec.Command("git", "push").CombinedOutput(); err != nil {
 			return fmt.Errorf("git push: %s: %w", string(out), err)
 		}
 		fmt.Println("  [push] Changes pushed")

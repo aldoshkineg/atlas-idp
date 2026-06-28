@@ -20,7 +20,6 @@ type WorkloadRef struct {
 func (w WorkloadRef) String() string { return w.Group + "/" + w.App }
 
 type Paths struct {
-	RepoRoot         string
 	WorkloadDir      string
 	GitopsDir        string
 	GitopsFile       string
@@ -30,18 +29,17 @@ type Paths struct {
 	GatewayRouteFile string
 }
 
-func ResolvePaths(repoRoot string, ref WorkloadRef, cfg *config.GitopsConfig, scaffoldDir string) Paths {
+func ResolvePaths(ref WorkloadRef, cfg *config.GitopsConfig, scaffoldDir string) Paths {
 	groupDir := filepath.Join(cfg.WorkloadsDir, ref.Group)
 	resourcesDir := filepath.Join(groupDir, ref.App, "resources")
 	return Paths{
-		RepoRoot:         repoRoot,
 		WorkloadDir:      filepath.Join(scaffoldDir, ref.Group, ref.App),
-		GitopsDir:        filepath.Join(repoRoot, groupDir),
-		GitopsFile:       filepath.Join(repoRoot, groupDir, ref.App+".yaml"),
-		GitopsResources:  filepath.Join(repoRoot, resourcesDir),
-		GatewayFile:      filepath.Join(repoRoot, cfg.GatewayFile),
-		GatewayRoutesDir: filepath.Join(repoRoot, cfg.GatewayRoutesDir),
-		GatewayRouteFile: filepath.Join(repoRoot, cfg.GatewayRoutesDir, ref.App+".yaml"),
+		GitopsDir:        filepath.Join(groupDir),
+		GitopsFile:       filepath.Join(groupDir, ref.App+".yaml"),
+		GitopsResources:  filepath.Join(resourcesDir),
+		GatewayFile:      cfg.GatewayFile,
+		GatewayRoutesDir: cfg.GatewayRoutesDir,
+		GatewayRouteFile: filepath.Join(cfg.GatewayRoutesDir, ref.App+".yaml"),
 	}
 }
 
