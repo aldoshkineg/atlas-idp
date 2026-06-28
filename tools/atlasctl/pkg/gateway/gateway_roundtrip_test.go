@@ -1,42 +1,119 @@
 package gateway
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestMarshalRoundTrip(t *testing.T) {
-	gw := &Gateway{}
-	gw.AddListener("https-app", "app.atlas", "app-cert")
-	gw.AddListener("https-other", "other.atlas", "other-cert")
-
 	path := t.TempDir() + "/gw.yaml"
-	if err := SaveGateway(path, gw); err != nil {
+
+	input := `apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: platform-gateway
+  namespace: nginx-gateway-fabric
+spec:
+  gatewayClassName: nginx
+  listeners:
+    - name: https-app
+      port: 443
+      protocol: HTTPS
+      hostname: "app.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: app-cert
+    - name: https-other
+      port: 443
+      protocol: HTTPS
+      hostname: "other.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: other-cert
+`
+	if err := os.WriteFile(path, []byte(input), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	loaded, err := LoadGateway(path)
+	if !HasListenerInFile(path, "app") || !HasListenerInFile(path, "other") {
+		t.Error("missing listeners after load")
+	}
+
+	removed, err := RemoveListenerFromFile(path, "app")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if len(loaded.Spec.Listeners) != 2 {
-		t.Errorf("expected 2 listeners, got %d", len(loaded.Spec.Listeners))
+	if !removed {
+		t.Fatal("expected removed=true")
 	}
 
-	for _, name := range []string{"https-app", "https-other"} {
-		if !loaded.HasListener(name) {
-			t.Errorf("missing listener %s after round-trip", name)
-		}
+	if HasListenerInFile(path, "app") {
+		t.Error("https-app should be removed")
+	}
+	if !HasListenerInFile(path, "other") {
+		t.Error("https-other should remain")
 	}
 }
 
 func TestGateway_RemoveAll(t *testing.T) {
-	gw := &Gateway{}
-	gw.AddListener("https-a", "a.atlas", "a-cert")
-	gw.AddListener("https-b", "b.atlas", "b-cert")
+	path := t.TempDir() + "/gw.yaml"
 
-	gw.RemoveListener("https-a")
-	gw.RemoveListener("https-b")
+	input := `spec:
+  listeners:
+    - name: https-a
+      port: 443
+      protocol: HTTPS
+      hostname: "a.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: a-cert
+    - name: https-b
+      port: 443
+      protocol: HTTPS
+      hostname: "b.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: b-cert
+`
+	if err := os.WriteFile(path, []byte(input), 0644); err != nil {
+		t.Fatal(err)
+	}
 
-	if len(gw.Spec.Listeners) != 0 {
-		t.Errorf("expected 0 listeners after removing all, got %d", len(gw.Spec.Listeners))
+	RemoveListenerFromFile(path, "a")
+	RemoveListenerFromFile(path, "b")
+
+	if HasListenerInFile(path, "a") || HasListenerInFile(path, "b") {
+		t.Error("all listeners should be removed")
+	}
+}
+
+func TestGateway_AppendToNonExistent(t *testing.T) {
+	path := t.TempDir() + "/empty.yaml"
+	if err := os.WriteFile(path, []byte("spec:\n  listeners: []\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := AppendListenerToFile(path, ListenerData{Name: "https-test", Port: 443, Hostname: "test.atlas", CertName: "test-cert"}); err != nil {
+		t.Fatal(err)
+	}
+
+	if !HasListenerInFile(path, "test") {
+		t.Error("listener should be added")
 	}
 }

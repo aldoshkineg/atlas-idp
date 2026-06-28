@@ -1,0 +1,11 @@
+    - name: {{.Name}}
+      port: {{.Port}}
+      protocol: HTTPS
+      hostname: "{{.Hostname}}"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: {{.CertName}}

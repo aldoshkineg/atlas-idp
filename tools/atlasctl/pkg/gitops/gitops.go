@@ -185,30 +185,29 @@ type GatewayListenerChange struct {
 }
 
 func ApplyGatewayListener(gwPath string, change GatewayListenerChange) (string, error) {
-	gw, err := gateway.LoadGateway(gwPath)
-	if err != nil {
-		return "", fmt.Errorf("load gateway: %w", err)
-	}
-
 	listenerName := "https-" + change.App
-	var action string
 
 	if change.Add {
-		if gw.HasListener(listenerName) {
+		if gateway.HasListenerInFile(gwPath, change.App) {
 			return fmt.Sprintf("  [gateway] Listener '%s' already exists — skipping", listenerName), nil
 		}
-		gw.AddListener(listenerName, change.Hostname, change.CertName)
-		action = "Added"
-	} else {
-		if gw.RemoveListener(listenerName) {
-			action = "Removed"
-		} else {
-			return fmt.Sprintf("  [gateway] Listener '%s' not found — skipping", listenerName), nil
+		if err := gateway.AppendListenerToFile(gwPath, gateway.ListenerData{
+			Name:     listenerName,
+			Port:     443,
+			Hostname: change.Hostname,
+			CertName: change.CertName,
+		}); err != nil {
+			return "", err
 		}
+		return fmt.Sprintf("  [gateway] Added listener '%s' (%s)", listenerName, change.Hostname), nil
 	}
 
-	if err := gateway.SaveGateway(gwPath, gw); err != nil {
-		return "", err
+	removed, err := gateway.RemoveListenerFromFile(gwPath, change.App)
+	if err != nil {
+		return "", fmt.Errorf("remove gateway listener: %w", err)
 	}
-	return fmt.Sprintf("  [gateway] %s listener '%s' (%s)", action, listenerName, change.Hostname), nil
+	if !removed {
+		return fmt.Sprintf("  [gateway] Listener '%s' not found — skipping", listenerName), nil
+	}
+	return fmt.Sprintf("  [gateway] Removed listener '%s' (%s)", listenerName, change.Hostname), nil
 }

@@ -1,109 +1,167 @@
 package gateway
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
 
-func TestGateway_AddListener(t *testing.T) {
-	gw := &Gateway{}
-	gw.AddListener("https-myapp", "myapp.atlas", "myapp-cert")
+func writeTestGateway(t *testing.T, names []string) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "gateway.yaml")
 
-	if !gw.HasListener("https-myapp") {
-		t.Error("listener should exist after add")
-	}
-	if len(gw.Spec.Listeners) != 1 {
-		t.Errorf("expected 1 listener, got %d", len(gw.Spec.Listeners))
+	y := `apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: platform-gateway
+  namespace: nginx-gateway-fabric
+spec:
+  gatewayClassName: nginx
+  listeners:
+`
+	for _, n := range names {
+		y += `    - name: ` + n + `
+      port: 443
+      protocol: HTTPS
+      hostname: "` + n + `.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: ` + n + `-cert
+`
 	}
 
-	l := gw.Spec.Listeners[0]
-	if l.Port != 443 {
-		t.Errorf("expected port 443, got %d", l.Port)
+	if err := os.WriteFile(path, []byte(y), 0644); err != nil {
+		t.Fatal(err)
 	}
-	if l.Protocol != "HTTPS" {
-		t.Errorf("expected HTTPS protocol, got %s", l.Protocol)
+	return path
+}
+
+func TestRemoveListener(t *testing.T) {
+	path := writeTestGateway(t, []string{"https-a", "https-seal", "https-c"})
+
+	removed, err := RemoveListenerFromFile(path, "seal")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if l.Hostname != "myapp.atlas" {
-		t.Errorf("expected hostname 'myapp.atlas', got %s", l.Hostname)
+	if !removed {
+		t.Fatal("expected removed=true")
 	}
-	if l.TLS.Mode != "Terminate" {
-		t.Errorf("expected TLS mode Terminate, got %s", l.TLS.Mode)
+
+	if HasListenerInFile(path, "seal") {
+		t.Error("https-seal should be removed")
 	}
-	if len(l.TLS.CertificateRefs) != 1 || l.TLS.CertificateRefs[0].Name != "myapp-cert" {
-		t.Errorf("expected cert ref 'myapp-cert', got %v", l.TLS.CertificateRefs)
+	if !HasListenerInFile(path, "a") || !HasListenerInFile(path, "c") {
+		t.Error("other listeners should remain")
 	}
 }
 
-func TestGateway_RemoveListener(t *testing.T) {
-	gw := &Gateway{}
-	gw.AddListener("https-a", "a.atlas", "a-cert")
-	gw.AddListener("https-b", "b.atlas", "b-cert")
-	gw.AddListener("https-c", "c.atlas", "c-cert")
+func TestRemoveNonExistent(t *testing.T) {
+	path := writeTestGateway(t, []string{"https-a", "https-b"})
 
-	if !gw.RemoveListener("https-b") {
-		t.Error("RemoveListener should return true when removed")
+	removed, err := RemoveListenerFromFile(path, "nonexistent")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(gw.Spec.Listeners) != 2 {
-		t.Errorf("expected 2 listeners after removal, got %d", len(gw.Spec.Listeners))
-	}
-	if gw.HasListener("https-b") {
-		t.Error("listener https-b should be removed")
+	if removed {
+		t.Error("should return false for non-existent listener")
 	}
 }
 
-func TestGateway_RemoveNonExistent(t *testing.T) {
-	gw := &Gateway{}
-	if gw.RemoveListener("nonexistent") {
-		t.Error("RemoveListener should return false for non-existent")
-	}
-}
-
-func TestGateway_HasListener(t *testing.T) {
-	gw := &Gateway{}
-	gw.AddListener("https-app", "app.atlas", "app-cert")
+func TestHasListener(t *testing.T) {
+	path := writeTestGateway(t, []string{"https-seal", "https-grafana"})
 
 	tests := []struct {
-		name     string
+		app      string
 		expected bool
 	}{
-		{"https-app", true},
-		{"https-other", false},
-		{"", false},
+		{"seal", true},
+		{"grafana", true},
+		{"vault", false},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := gw.HasListener(tt.name); got != tt.expected {
-				t.Errorf("HasListener(%q) = %v, want %v", tt.name, got, tt.expected)
+		t.Run(tt.app, func(t *testing.T) {
+			if got := HasListenerInFile(path, tt.app); got != tt.expected {
+				t.Errorf("HasListenerInFile(%q) = %v, want %v", tt.app, got, tt.expected)
 			}
 		})
 	}
 }
 
-func TestGateway_LoadSave(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "gateway.yaml")
+func TestAppendListener(t *testing.T) {
+	path := writeTestGateway(t, []string{"https-a", "https-b"})
 
-	gw := &Gateway{}
-	gw.AddListener("https-app", "app.atlas", "app-cert")
-
-	if err := SaveGateway(path, gw); err != nil {
-		t.Fatalf("SaveGateway: %v", err)
+	if err := AppendListenerToFile(path, ListenerData{Name: "https-c", Port: 443, Hostname: "c.atlas", CertName: "c-cert"}); err != nil {
+		t.Fatal(err)
 	}
 
-	loaded, err := LoadGateway(path)
-	if err != nil {
-		t.Fatalf("LoadGateway: %v", err)
+	if !HasListenerInFile(path, "c") {
+		t.Error("https-c should exist after append")
 	}
-
-	if !loaded.HasListener("https-app") {
-		t.Error("loaded gateway should have https-app listener")
+	if !HasListenerInFile(path, "a") || !HasListenerInFile(path, "b") {
+		t.Error("original listeners should remain")
 	}
 }
 
-func TestGateway_LoadFileNotFound(t *testing.T) {
-	_, err := LoadGateway("/nonexistent/path")
-	if err == nil {
-		t.Error("expected error for nonexistent file")
+func TestRemoveLastListener(t *testing.T) {
+	path := writeTestGateway(t, []string{"https-onlyone"})
+
+	removed, err := RemoveListenerFromFile(path, "onlyone")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !removed {
+		t.Fatal("expected removed=true")
+	}
+
+	if HasListenerInFile(path, "onlyone") {
+		t.Error("should be removed")
+	}
+}
+
+func TestRemoveFirstListener(t *testing.T) {
+	path := writeTestGateway(t, []string{"https-first", "https-second", "https-third"})
+
+	removed, err := RemoveListenerFromFile(path, "first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !removed {
+		t.Fatal("expected removed=true")
+	}
+
+	if HasListenerInFile(path, "first") {
+		t.Error("https-first should be removed")
+	}
+	if !HasListenerInFile(path, "second") || !HasListenerInFile(path, "third") {
+		t.Error("other listeners should remain")
+	}
+}
+
+func TestRenderListener(t *testing.T) {
+	got, err := RenderListener(ListenerData{Name: "https-test", Port: 443, Hostname: "test.atlas", CertName: "test-cert"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := `    - name: https-test
+      port: 443
+      protocol: HTTPS
+      hostname: "test.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: test-cert
+`
+	if got != want {
+		t.Errorf("rendered template mismatch:\ngot:\n%s\nwant:\n%s", got, want)
 	}
 }

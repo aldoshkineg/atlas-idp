@@ -75,7 +75,7 @@ spec:
     - name: https-seal
       port: 443
       protocol: HTTPS
-      hostname: seal.atlas
+      hostname: "seal.atlas"
       allowedRoutes:
         namespaces:
           from: All

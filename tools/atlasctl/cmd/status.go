@@ -88,11 +88,7 @@ var statusCmd = &cobra.Command{
 			enabled = true
 		}
 
-		gwListener := false
-		gwPath := filepath.Join(Cfg.Gitops.GatewayFile)
-		if gw, err := gateway.LoadGateway(gwPath); err == nil {
-			gwListener = gw.HasListener("https-" + app)
-		}
+		gwListener := gateway.HasListenerInFile(Cfg.Gitops.GatewayFile, app)
 
 		var argocdSync *string
 		ac := argocd.New()
