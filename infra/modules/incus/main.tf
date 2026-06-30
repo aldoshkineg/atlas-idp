@@ -1,0 +1,200 @@
+# 1. Manual bridge + NAT + DHCP (Incus nftables broken on Gentoo)
+resource "null_resource" "bridge_setup" {
+  triggers = {
+    bridge_name   = var.bridge_name
+    bridge_subnet = var.bridge_subnet
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      BRIDGE="${var.bridge_name}"
+      SUBNET="${var.bridge_subnet}"
+      GATEWAY="${split("/", var.bridge_subnet)[0]}"
+
+      if ! ip link show "$BRIDGE" >/dev/null 2>&1; then
+        sudo ip link add "$BRIDGE" type bridge
+        sudo ip addr add "${var.bridge_subnet}" dev "$BRIDGE"
+        sudo ip link set "$BRIDGE" up
+      fi
+
+      WAN=$(ip route get 8.8.8.8 | grep -oP 'dev \K\S+')
+      sudo iptables -C FORWARD -i "$BRIDGE" -o "$WAN" -j ACCEPT 2>/dev/null ||
+        sudo iptables -I FORWARD 1 -i "$BRIDGE" -o "$WAN" -j ACCEPT
+      sudo iptables -C FORWARD -i "$WAN" -o "$BRIDGE" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null ||
+        sudo iptables -I FORWARD 2 -i "$WAN" -o "$BRIDGE" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+      sudo iptables -t nat -C POSTROUTING -s "$SUBNET" -o "$WAN" -j MASQUERADE 2>/dev/null ||
+        sudo iptables -t nat -A POSTROUTING -s "$SUBNET" -o "$WAN" -j MASQUERADE
+
+      if ! pgrep -x dnsmasq >/dev/null 2>&1; then
+        sudo dnsmasq --interface="$BRIDGE" \
+          --dhcp-range="10.200.10.50,10.200.10.99,12h" \
+          --dhcp-option=3,"$GATEWAY" \
+          --port=0 --bind-interfaces
+      fi
+    EOT
+  }
+}
+
+# 2. VM profile (root disk + bridged NIC)
+resource "incus_profile" "talos_vm" {
+  name    = "talos-vm"
+  project = var.project
+
+  device {
+    name = "root"
+    type = "disk"
+    properties = {
+      path = "/"
+      pool = "default"
+      size = var.disk_size
+    }
+  }
+
+  device {
+    name = "eth0"
+    type = "nic"
+    properties = {
+      nictype = "bridged"
+      parent  = var.bridge_name
+    }
+  }
+}
+
+# 3. Download + import Talos image with metadata tarball
+resource "null_resource" "import_image" {
+  triggers = {
+    image_path = var.talos_image_file
+    image_url  = var.talos_image_url
+    alias      = var.image_alias
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+
+      if [ ! -f '${var.talos_image_file}' ]; then
+        echo "=== Downloading from ${var.talos_image_url} ==="
+        mkdir -p "$(dirname '${var.talos_image_file}')"
+        curl -L -o '${var.talos_image_file}' '${var.talos_image_url}'
+      fi
+
+      TMP_DIR=$(mktemp -d)
+      cat <<EOF > "$TMP_DIR/metadata.yaml"
+architecture: "x86_64"
+creation_date: $(date +%s)
+properties:
+  description: "Talos OS Cloud-Native Image"
+  os: "talos"
+  type: "virtual-machine"
+EOF
+      tar -czf "$TMP_DIR/metadata.tar.gz" -C "$TMP_DIR" metadata.yaml
+
+      echo "=== Importing image with alias '${var.image_alias}' ==="
+      incus image delete '${var.image_alias}' 2>/dev/null || true
+      incus image import "$TMP_DIR/metadata.tar.gz" '${var.talos_image_file}' --alias '${var.image_alias}'
+
+      rm -rf "$TMP_DIR"
+    EOT
+  }
+}
+
+# 4. Image data source (resolves fingerprint)
+data "incus_image" "talos" {
+  depends_on = [null_resource.import_image]
+  name       = var.image_alias
+  project    = var.project
+}
+
+# 5. VM name derivation
+locals {
+  cp_names = [for i in range(nonsensitive(length(var.controlplane_configs))) : "${var.cluster_name}-cp-${i + 1}"]
+  wk_count = nonsensitive(length(var.worker_configs))
+  wk_names = [for i in range(local.wk_count) : "${var.cluster_name}-worker-${i + 1}"]
+
+  vm_configs = merge(
+    { for i, name in local.cp_names : name => var.controlplane_configs[i] },
+    { for i, name in local.wk_names : name => var.worker_configs[i] },
+  )
+}
+
+# 6. Seed ISO user-data / meta-data files
+resource "local_sensitive_file" "user_data" {
+  for_each = local.vm_configs
+
+  content  = each.value
+  filename = "${var.seed_iso_dir}/${each.key}/user-data"
+}
+
+resource "local_file" "meta_data" {
+  for_each = local.vm_configs
+
+  content  = "instance-id: ${each.key}\nlocal-hostname: ${each.key}"
+  filename = "${var.seed_iso_dir}/${each.key}/meta-data"
+}
+
+# 7. Seed ISO assembly
+resource "null_resource" "seed_iso" {
+  for_each = local.vm_configs
+
+  depends_on = [
+    local_sensitive_file.user_data,
+    local_file.meta_data,
+  ]
+
+  triggers = {
+    user_data_sha256 = sha256(each.value)
+    meta_data_sha256 = sha256("instance-id: ${each.key}\nlocal-hostname: ${each.key}")
+  }
+
+  provisioner "local-exec" {
+    command = "xorriso -as mkisofs -r -V cidata -J -o '${var.seed_iso_dir}/${each.key}.iso' '${var.seed_iso_dir}/${each.key}/'"
+  }
+}
+
+# 8. Controlplane VMs
+resource "incus_instance" "controlplane" {
+  for_each = toset(local.cp_names)
+
+  project  = var.project
+  name     = each.key
+  image    = data.incus_image.talos.fingerprint
+  type     = "virtual-machine"
+  profiles = [incus_profile.talos_vm.name]
+  running  = true
+
+  config = {
+    "security.secureboot" = "false"
+    "limits.cpu"          = var.cpu
+    "limits.memory"       = var.cp_memory
+    "raw.qemu"            = "-drive file=${var.seed_iso_dir}/${each.key}.iso,if=ide,media=cdrom,format=raw,readonly=on"
+  }
+
+  depends_on = [
+    null_resource.seed_iso,
+    null_resource.bridge_setup,
+  ]
+}
+
+# 9. Worker VMs
+resource "incus_instance" "worker" {
+  for_each = toset(local.wk_names)
+
+  project  = var.project
+  name     = each.key
+  image    = data.incus_image.talos.fingerprint
+  type     = "virtual-machine"
+  profiles = [incus_profile.talos_vm.name]
+  running  = true
+
+  config = {
+    "security.secureboot" = "false"
+    "limits.cpu"          = var.cpu
+    "limits.memory"       = var.worker_memory
+    "raw.qemu"            = "-drive file=${var.seed_iso_dir}/${each.key}.iso,if=ide,media=cdrom,format=raw,readonly=on"
+  }
+
+  depends_on = [
+    null_resource.seed_iso,
+    null_resource.bridge_setup,
+  ]
+}

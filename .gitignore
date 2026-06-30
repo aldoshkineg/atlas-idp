@@ -70,3 +70,9 @@ security/certs/ca*
 .certs/
 
 apps/seal/tests/load/reports
+
+# Talos generated configs (sensitive: CA, keys, kubeconfig)
+infra/**/talos/
+
+# Seed ISO staging
+/var/tmp/atlas/incus/seed/
