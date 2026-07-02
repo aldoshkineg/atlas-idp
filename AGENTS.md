@@ -148,6 +148,32 @@ Pre-commit runs on every commit:
 - **Task CLI:** `task` a distrobox wrapper — use `go-task` directly
 - **Credentials in `.env`:** `GITHUB_TOKEN=ghp_...` (repo, workflow, write:packages, delete:packages)
 
+### Stage: Incus + Talos + Cilium (July 2026)
+
+**Refactored into 6 modules (Feb 2026):**
+
+| Module          | Path                           | Purpose                                               |
+| --------------- | ------------------------------ | ----------------------------------------------------- |
+| `zot-cache`     | `infra/modules/zot-cache/`     | OCI registry pull-through proxy (Docker + Incus)      |
+| `incus`         | `infra/modules/incus/`         | Incus bridge + VM provisioning + seed ISOs            |
+| `talos-config`  | `infra/modules/talos-config/`  | Secrets, patches, machine config generation (NEW)     |
+| `talos-cluster` | `infra/modules/talos-cluster/` | Config apply, bootstrap, kubeconfig retrieval         |
+| `cilium`        | `infra/modules/cilium/`        | Cilium CNI via Helm (Talos + Kind)                    |
+| (root)          | `infra/environments/stage/`    | Orchestration: backend, provider config, coordination |
+
+**`stage/main.tf` reduced from 311→170 lines** — all Talos config generation (secrets, patches, data sources, debug files) extracted into `infra/modules/talos-config/`. Circular dependency broken: `talos-config` outputs config YAMLs consumed by both `incus` (seed ISOs) and `talos-cluster` (apply).
+
+**Generated files moved to `/var/tmp/atlas/talos/`** — kubeconfig, talosconfig, debug YAMLs.
+
+**Cluster running (all green):**
+
+- 3 Talos nodes (1 CP + 2 workers), K8s v1.34.1
+- Cilium v1.18.0, 3 agents + 2 operators + 3 envoy, Hubble enabled
+- LB pool `default-pool` (10.200.10.100-200), 101 IPs
+- Zot registry cache via Incus container
+
+**Next:** Argo CD integration for stage (needs `kubernetes` provider workaround — kubeconfig not available at first plan after destroy).
+
 ### atlasctl (Go CLI)
 
 - **Location:** `tools/atlasctl/` — standalone Go module (`go.mod` at `tools/atlasctl/go.mod`)
@@ -159,31 +185,19 @@ Pre-commit runs on every commit:
 - **Vet:** `go-task -t tools/atlasctl/Taskfile.yml vet`
 - **Coverage:** `go-task -t tools/atlasctl/Taskfile.yml cover`
 - **Clean:** `go-task -t tools/atlasctl/Taskfile.yml clean`
-- **Package structure:**
-  ```
-  tools/atlasctl/
-  ├── main.go              # Entry point → cmd.Execute()
-  ├── cmd/                 # Cobra command implementations
-  │   ├── root.go          # Root command (--help, --version)
-  │   ├── new.go / seed.go / enable.go / disable.go / delete.go
-  │   └── status.go / list.go / logs.go / backup.go
-  ├── pkg/
-  │   ├── template/        # Template rendering (templates/gold/)
-  │   ├── seed/            # DB/S3/Vault provisioning
-  │   ├── gitops/          # GitOps file management
-  │   ├── k8s/             # Kubernetes client wrapper
-  │   ├── vault/           # Vault API client
-  │   └── gateway/         # Gateway resource management
-  ├── go.mod / go.sum
-  ├── Taskfile.yml
-  └── .gitignore
-  ```
-- **Current status:** all 9 commands implemented (new, seed, enable, disable, delete, status, list, logs, backup); all tests green
+- **Current status:** all 9 commands implemented; all tests green
 - **Release:** `git tag vX.Y.Z && git push origin vX.Y.Z` triggers `.github/workflows/atlasctl-release.yml` — builds for linux/darwin (amd64+arm64), injects version via `-ldflags "-X github.com/aldoshkineg/atlas-idp/tools/atlasctl/cmd.Version=vX.Y.Z"`, publishes to GitHub Release
 - **Version:** `cmd/root.go` has `var Version = "dev"` — overridden by ldflags at release build
-- **Build artifacts excluded via** `tools/atlasctl/.gitignore` (bin/, go.work, _.test, _.out, \*.cov, coverage/)
 
-- 3 pods: `seal-api`, `seal-worker`, `seal-ui` — all running with `ghcr.io/aldoshkineg/*:v0.25.0`
+### Seal Project (July 2026)
+
+- **Images on GHCR:** `ghcr.io/aldoshkineg/seal-{api,worker,ui}` — `v0.25.0` and `0.2.0-alpha`; seal-api/seal-worker also have `latest`
+- **Build:** `go-task -t apps/seal/Taskfile.yml build-all` (local `docker buildx`), `push-images` (tag `:dev` → push)
+- **CI:** `.github/workflows/seal-docker-publish.yml` — push main/push tag `v*`/PR main
+- **act issues:** parallel matrix jobs fail (Docker context canceled); use `go-task act-build`
+- **Task CLI:** `task` is a distrobox wrapper — use `go-task` directly
+- **Credentials in `.env`:** `GITHUB_TOKEN=ghp_...`
+- 3 pods running with `ghcr.io/aldoshkineg/*:v0.25.0`
 - **seal-api** exposed on 8080; needs Postgres (`production-db-rw.database.svc:5432`, user `app`/`MyzuMb6...`), Redis (`redis-master.redis.svc:6379`, pw `e5f2190c...`), MinIO (`minio.minio.svc:9000`, admin creds from Vault)
 - **seal-worker** needs Redis + MinIO
 - **seal-ui** exposed on 3000; no env vars

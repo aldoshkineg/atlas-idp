@@ -72,6 +72,7 @@ resource "helm_release" "cilium" {
   chart      = "cilium"
   version    = var.cilium_chart_version
   namespace  = "kube-system"
+  timeout    = 600
 
   dynamic "set" {
     iterator = s

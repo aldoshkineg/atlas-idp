@@ -1,37 +1,25 @@
-# 1. Manual bridge + NAT + DHCP (Incus nftables broken on Gentoo)
+# 1. Managed Incus bridge (NAT + DHCP + DNS)
 resource "null_resource" "bridge_setup" {
   triggers = {
-    bridge_name   = var.bridge_name
-    bridge_subnet = var.bridge_subnet
+    bridge_name = var.bridge_name
+    subnet      = var.bridge_subnet
   }
 
   provisioner "local-exec" {
     command = <<-EOT
-      BRIDGE="${var.bridge_name}"
-      SUBNET="${var.bridge_subnet}"
-      GATEWAY="${split("/", var.bridge_subnet)[0]}"
-
-      if ! ip link show "$BRIDGE" >/dev/null 2>&1; then
-        sudo ip link add "$BRIDGE" type bridge
-        sudo ip addr add "${var.bridge_subnet}" dev "$BRIDGE"
-        sudo ip link set "$BRIDGE" up
-      fi
-
-      WAN=$(ip route get 8.8.8.8 | grep -oP 'dev \K\S+')
-      sudo iptables -C FORWARD -i "$BRIDGE" -o "$WAN" -j ACCEPT 2>/dev/null ||
-        sudo iptables -I FORWARD 1 -i "$BRIDGE" -o "$WAN" -j ACCEPT
-      sudo iptables -C FORWARD -i "$WAN" -o "$BRIDGE" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT 2>/dev/null ||
-        sudo iptables -I FORWARD 2 -i "$WAN" -o "$BRIDGE" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-      sudo iptables -t nat -C POSTROUTING -s "$SUBNET" -o "$WAN" -j MASQUERADE 2>/dev/null ||
-        sudo iptables -t nat -A POSTROUTING -s "$SUBNET" -o "$WAN" -j MASQUERADE
-
-      if ! pgrep -x dnsmasq >/dev/null 2>&1; then
-        sudo dnsmasq --interface="$BRIDGE" \
-          --dhcp-range="10.200.10.50,10.200.10.99,12h" \
-          --dhcp-option=3,"$GATEWAY" \
-          --port=0 --bind-interfaces
+      if ! incus network show "${var.bridge_name}" >/dev/null 2>&1; then
+        incus network create "${var.bridge_name}" \
+          ipv4.address="${var.bridge_subnet}" \
+          ipv4.nat=true \
+          ipv6.address=none
       fi
     EOT
+  }
+
+  provisioner "local-exec" {
+    when       = destroy
+    on_failure = continue
+    command    = "incus network delete '${self.triggers["bridge_name"]}' 2>/dev/null; true"
   }
 }
 

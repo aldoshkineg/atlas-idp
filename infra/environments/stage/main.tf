@@ -1,246 +1,107 @@
-locals {
-  cluster_name  = "talos-incus"
-  cluster_vip   = "10.200.10.10"
-  cp_endpoint   = "https://${local.cluster_vip}:6443"
-  cp_ips        = ["10.200.10.11", "10.200.10.12", "10.200.10.13"]
-  worker_ips    = ["10.200.10.20", "10.200.10.21"]
-  talos_image   = "/var/tmp/atlas/incus/talos-drbd.qcow2"
-  talos_version = "v1.11.2"
-  gateway       = "10.200.10.1"
-  cluster_cidr  = "10.200.10.0/24"
-  lb_pool_start = "10.200.10.100"
-  lb_pool_end   = "10.200.10.200"
-}
-
-# Generate cluster secrets (CA, service account keys, etc.)
-resource "talos_machine_secrets" "this" {
-  talos_version = local.talos_version
-}
-
-# Talos API client configuration (used by all talos provider resources below)
-data "talos_client_configuration" "this" {
-  cluster_name         = local.cluster_name
-  client_configuration = talos_machine_secrets.this.client_configuration
-  nodes                = concat(local.cp_ips, local.worker_ips)
-  endpoints            = [local.cluster_vip]
-}
-
-# Write talosconfig for talosctl
-resource "local_sensitive_file" "talosconfig" {
-  content  = data.talos_client_configuration.this.talos_config
-  filename = "${abspath(path.module)}/talos/talosconfig"
-}
-
-# Controlplane machine configurations (one per CP with unique IP)
-data "talos_machine_configuration" "controlplane" {
-  count            = length(local.cp_ips)
-  cluster_name     = local.cluster_name
-  cluster_endpoint = local.cp_endpoint
-  machine_type     = "controlplane"
-  machine_secrets  = talos_machine_secrets.this.machine_secrets
-  talos_version    = local.talos_version
-
-  config_patches = concat([
-    <<-EOT
-      machine:
-        install:
-          disk: /dev/sda
-        network:
-          interfaces:
-            - deviceSelector:
-                busPath: "0*"
-              addresses:
-                - "${local.cp_ips[count.index]}/24"
-              %{if count.index == 0}
-              vip:
-                ip: ${local.cluster_vip}
-              %{endif}
-              routes:
-                - network: "0.0.0.0/0"
-                  gateway: "${local.gateway}"
-        kubelet:
-          image: ghcr.io/siderolabs/kubelet:v1.34.1
-          nodeIP:
-            validSubnets:
-              - "${local.cluster_cidr}"
-    EOT
-    ,
-    <<-EOT
-      cluster:
-        proxy:
-          disabled: true
-        network:
-          cni:
-            name: "none"
-        apiServer:
-          image: registry.k8s.io/kube-apiserver:v1.34.1
-        controllerManager:
-          image: registry.k8s.io/kube-controller-manager:v1.34.1
-        scheduler:
-          image: registry.k8s.io/kube-scheduler:v1.34.1
-    EOT
-    ,
-  ])
-}
-
-# Worker machine configurations (one per worker with unique IP)
-data "talos_machine_configuration" "worker" {
-  count            = length(local.worker_ips)
-  cluster_name     = local.cluster_name
-  cluster_endpoint = local.cp_endpoint
-  machine_type     = "worker"
-  machine_secrets  = talos_machine_secrets.this.machine_secrets
-  talos_version    = local.talos_version
-
-  config_patches = [
-    <<-EOT
-      machine:
-        install:
-          disk: /dev/sda
-        network:
-          interfaces:
-            - deviceSelector:
-                busPath: "0*"
-              addresses:
-                - "${local.worker_ips[count.index]}/24"
-              routes:
-                - network: "0.0.0.0/0"
-                  gateway: "${local.gateway}"
-        kubelet:
-          image: ghcr.io/siderolabs/kubelet:v1.34.1
-          nodeIP:
-            validSubnets:
-              - "${local.cluster_cidr}"
-    EOT
-    ,
-    <<-EOT
-      cluster:
-        proxy:
-          disabled: true
-        network:
-          cni:
-            name: "none"
-        apiServer:
-          image: registry.k8s.io/kube-apiserver:v1.34.1
-        controllerManager:
-          image: registry.k8s.io/kube-controller-manager:v1.34.1
-        scheduler:
-          image: registry.k8s.io/kube-scheduler:v1.34.1
-    EOT
-  ]
-}
-
-# Save generated configs to disk (useful for manual inspection / debug)
-resource "local_sensitive_file" "controlplane_config" {
-  for_each = {
-    for i, ip in local.cp_ips : "cp-${i + 1}" => {
-      config = data.talos_machine_configuration.controlplane[i].machine_configuration
-      ip     = ip
-    }
+terraform {
+  backend "local" {
+    path = "/var/tmp/atlas/terraform/terraform.tfstate"
   }
-  content  = each.value.config
-  filename = "${abspath(path.module)}/talos/cp-${each.key}.yaml"
 }
 
-resource "local_sensitive_file" "worker_config_file" {
-  for_each = {
-    for i in range(length(local.worker_ips)) : "worker-${i + 1}" => {
-      config = data.talos_machine_configuration.worker[i].machine_configuration
-    }
-  }
-  content  = each.value.config
-  filename = "${abspath(path.module)}/talos/${each.key}.yaml"
+# === Talos config generation (secrets, patches, machine configs) ===
+module "talos_config" {
+  source = "../../modules/talos-config"
+
+  cluster_name       = var.cluster_name
+  talos_version      = var.talos_version
+  k8s_version        = var.k8s_version
+  gateway            = var.gateway
+  cluster_cidr       = var.cluster_cidr
+  cp_ips             = var.cp_ips
+  worker_ips         = var.worker_ips
+  cluster_vip        = var.cluster_vip
+  controlplane_count = var.controlplane_count
+  files_dir          = var.files_dir
 }
 
-# Config lists for incus module
-locals {
-  cp_config_list = [for c in data.talos_machine_configuration.controlplane : c.machine_configuration]
-  worker_config_list = [
-    for w in data.talos_machine_configuration.worker : w.machine_configuration
-  ]
+# === Zot registry cache ===
+module "zot_cache" {
+  source = "../../modules/zot-cache"
+
+  enable   = true
+  platform = "incus"
+
+  container_name     = "zot-cache"
+  port               = var.zot_port
+  cache_dir          = var.zot_cache_dir
+  incus_network      = "incusbr0"
+  incus_proxy_listen = "tcp:${var.gateway}:5000"
+  incus_image_alias  = "zot-cache"
+  incus_image_ref    = var.zot_image_ref
+
+  depends_on = [module.incus]
 }
 
-# Phase 1: Incus infrastructure (bridge, profile, image, VMs)
+# === Incus VMs ===
 module "incus" {
   source = "../../modules/incus"
 
-  cluster_name         = local.cluster_name
-  talos_image_file     = local.talos_image
-  image_alias          = "talos-${replace(local.talos_version, "v", "")}-drbd"
-  controlplane_configs = local.cp_config_list
-  worker_configs       = local.worker_config_list
-  cp_memory            = "2GiB"
-  worker_memory        = "2GiB"
-  cpu                  = "2"
-  disk_size            = "10GiB"
+  cluster_name         = var.cluster_name
+  talos_image_file     = var.talos_image_path
+  image_alias          = "talos-${replace(var.talos_version, "v", "")}-drbd"
+  controlplane_configs = module.talos_config.cp_configs
+  worker_configs       = module.talos_config.worker_configs
+  cp_memory            = var.cp_memory
+  worker_memory        = var.worker_memory
+  cpu                  = var.vm_cpu
+  disk_size            = var.vm_disk_size
 }
 
-# Phase 2-a: Apply config to all controlplane nodes
-resource "talos_machine_configuration_apply" "controlplane" {
-  count = length(local.cp_ips)
+# === Bootstrap: apply configs, bootstrap, get kubeconfig ===
+module "talos_cluster" {
+  source = "../../modules/talos-cluster"
 
-  depends_on = [module.incus]
+  controlplane_configs = module.talos_config.cp_configs
+  worker_configs       = module.talos_config.worker_configs
+  client_configuration = module.talos_config.client_configuration
+  cp_ips               = module.talos_config.cp_ips
+  worker_ips           = module.talos_config.worker_ips
+  files_dir            = var.files_dir
 
-  machine_configuration_input = data.talos_machine_configuration.controlplane[count.index].machine_configuration
-  client_configuration        = talos_machine_secrets.this.client_configuration
-  node                        = local.cp_ips[count.index]
-  endpoint                    = local.cp_ips[count.index]
-  apply_mode                  = "auto"
+  depends_on = [module.incus, module.zot_cache]
 }
 
-# Phase 2-b: Bootstrap the cluster (first CP only)
-resource "talos_machine_bootstrap" "this" {
-  depends_on = [talos_machine_configuration_apply.controlplane]
-
-  client_configuration = talos_machine_secrets.this.client_configuration
-  node                 = local.cp_ips[0]
-  endpoint             = local.cp_ips[0]
-}
-
-# Phase 3: Get kubeconfig
-resource "talos_cluster_kubeconfig" "this" {
-  depends_on = [talos_machine_bootstrap.this]
-
-  client_configuration = talos_machine_secrets.this.client_configuration
-  node                 = local.cp_ips[0]
-  endpoint             = local.cp_ips[0]
-}
-
-resource "local_sensitive_file" "kubeconfig" {
-  content  = talos_cluster_kubeconfig.this.kubeconfig_raw
-  filename = "${abspath(path.module)}/talos/kubeconfig"
-}
-
-# Phase 4: Apply worker configs (join them to cluster)
-resource "talos_machine_configuration_apply" "worker" {
-  count = length(local.worker_ips)
-
-  depends_on = [talos_machine_bootstrap.this]
-
-  machine_configuration_input = data.talos_machine_configuration.worker[count.index].machine_configuration
-  client_configuration        = talos_machine_secrets.this.client_configuration
-  node                        = local.worker_ips[count.index]
-  endpoint                    = local.worker_ips[count.index]
-  apply_mode                  = "no_reboot"
-}
-
-# Phase 5: Deploy Cilium CNI (kube-proxy replacement)
+# === Helm provider ===
 provider "helm" {
   kubernetes {
-    config_path = local_sensitive_file.kubeconfig.filename
+    config_path = module.talos_cluster.kubeconfig_path
   }
 }
 
+# === Wait for API server before installing platform services ===
+resource "null_resource" "wait_for_api" {
+  depends_on = [module.talos_cluster]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      for i in $(seq 1 36); do
+        if kubectl --kubeconfig ${module.talos_cluster.kubeconfig_path} get nodes >/dev/null 2>&1; then
+          echo "API server is ready"
+          exit 0
+        fi
+        echo "Waiting for API server... (attempt $${i}/36)"
+        sleep 5
+      done
+      echo "API server not ready after 180s"
+      exit 1
+    EOT
+  }
+}
+
+# === Cilium CNI ===
 module "cilium" {
   source = "../../modules/cilium"
 
-  depends_on = [
-    talos_machine_configuration_apply.worker,
-    talos_cluster_kubeconfig.this,
-  ]
+  depends_on = [null_resource.wait_for_api]
 
-  cluster_name         = local.cluster_name
-  cilium_chart_version = "1.18.0"
+  cluster_name         = var.cluster_name
+  cilium_chart_version = var.cilium_chart_version
   talos                = true
 
   cilium_settings = [
@@ -252,11 +113,12 @@ module "cilium" {
   ]
 }
 
+# === Cilium LoadBalancer IP Pool ===
 resource "null_resource" "cilium_lb_pool" {
-  depends_on = [module.cilium]
+  depends_on = [module.cilium, module.talos_cluster]
 
   triggers = {
-    kubeconfig = local_sensitive_file.kubeconfig.filename
+    kubeconfig = module.talos_cluster.kubeconfig_path
     pool_spec  = <<-EOT
       apiVersion: cilium.io/v2
       kind: CiliumLoadBalancerIPPool
@@ -264,14 +126,14 @@ resource "null_resource" "cilium_lb_pool" {
         name: default-pool
       spec:
         blocks:
-          - start: ${local.lb_pool_start}
-            stop: ${local.lb_pool_end}
+          - start: ${var.lb_pool_start}
+            stop: ${var.lb_pool_end}
     EOT
   }
 
   provisioner "local-exec" {
     command = <<-CMD
-      kubectl --kubeconfig ${local_sensitive_file.kubeconfig.filename} apply -f - <<'MANIFEST'
+      kubectl --kubeconfig ${self.triggers["kubeconfig"]} apply -f - <<'MANIFEST'
       ${self.triggers["pool_spec"]}
       MANIFEST
     CMD
@@ -286,18 +148,19 @@ resource "null_resource" "cilium_lb_pool" {
   }
 }
 
+# === Outputs ===
 output "cp_ips" {
-  value = local.cp_ips
+  value = module.talos_config.cp_ips
 }
 
 output "worker_ips" {
-  value = local.worker_ips
+  value = module.talos_config.worker_ips
 }
 
 output "talosconfig" {
-  value = local_sensitive_file.talosconfig.filename
+  value = module.talos_config.talos_config_path
 }
 
 output "kubeconfig" {
-  value = local_sensitive_file.kubeconfig.filename
+  value = module.talos_cluster.kubeconfig_path
 }
