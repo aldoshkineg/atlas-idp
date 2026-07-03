@@ -159,6 +159,7 @@ resource "incus_instance" "controlplane" {
 
   depends_on = [
     null_resource.seed_iso,
+    incus_profile.talos_vm,
     null_resource.bridge_setup,
   ]
 }
@@ -183,6 +184,7 @@ resource "incus_instance" "worker" {
 
   depends_on = [
     null_resource.seed_iso,
+    incus_profile.talos_vm,
     null_resource.bridge_setup,
   ]
 }

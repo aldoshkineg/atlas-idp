@@ -11,77 +11,35 @@ locals {
 # Talos machine patches
 locals {
   common_config_patches = [
-    # mirrors с реальными endpoints — чтобы Talos включил config_path в containerd
-    # machine.files ниже перезаписывает hosts.toml с server= (без fallback)
+    # Mirrors с endpoints на Zot + skipFallback — только кэш, без upstream
     <<-EOT
       machine:
         registries:
           mirrors:
             registry.k8s.io:
               endpoints:
-                - http://${var.gateway}:5000
+                - "http://${var.gateway}:5000"
+              skipFallback: true
             quay.io:
               endpoints:
-                - http://${var.gateway}:5000
+                - "http://${var.gateway}:5000"
+              skipFallback: true
             ghcr.io:
               endpoints:
-                - http://${var.gateway}:5000
+                - "http://${var.gateway}:5000"
+              skipFallback: true
             docker.io:
               endpoints:
-                - http://${var.gateway}:5000
+                - "http://${var.gateway}:5000"
+              skipFallback: true
             public.ecr.aws:
               endpoints:
-                - http://${var.gateway}:5000
+                - "http://${var.gateway}:5000"
+              skipFallback: true
             gcr.io:
               endpoints:
-                - http://${var.gateway}:5000
-    EOT
-    ,
-    <<-EOT
-      machine:
-        files:
-          - content: |
-              server = "http://${var.gateway}:5000"
-
-              [host."http://${var.gateway}:5000"]
-                capabilities = ["pull", "resolve"]
-            path: /etc/cri/conf.d/hosts/registry.k8s.io/hosts.toml
-            op: overwrite
-          - content: |
-              server = "http://${var.gateway}:5000"
-
-              [host."http://${var.gateway}:5000"]
-                capabilities = ["pull", "resolve"]
-            path: /etc/cri/conf.d/hosts/ghcr.io/hosts.toml
-            op: overwrite
-          - content: |
-              server = "http://${var.gateway}:5000"
-
-              [host."http://${var.gateway}:5000"]
-                capabilities = ["pull", "resolve"]
-            path: /etc/cri/conf.d/hosts/quay.io/hosts.toml
-            op: overwrite
-          - content: |
-              server = "http://${var.gateway}:5000"
-
-              [host."http://${var.gateway}:5000"]
-                capabilities = ["pull", "resolve"]
-            path: /etc/cri/conf.d/hosts/docker.io/hosts.toml
-            op: overwrite
-          - content: |
-              server = "http://${var.gateway}:5000"
-
-              [host."http://${var.gateway}:5000"]
-                capabilities = ["pull", "resolve"]
-            path: /etc/cri/conf.d/hosts/public.ecr.aws/hosts.toml
-            op: overwrite
-          - content: |
-              server = "http://${var.gateway}:5000"
-
-              [host."http://${var.gateway}:5000"]
-                capabilities = ["pull", "resolve"]
-            path: /etc/cri/conf.d/hosts/gcr.io/hosts.toml
-            op: overwrite
+                - "http://${var.gateway}:5000"
+              skipFallback: true
     EOT
     ,
     <<-EOT

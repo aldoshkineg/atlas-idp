@@ -97,7 +97,7 @@ variable "files_dir" {
 variable "zot_cache_dir" {
   description = "Zot registry cache directory on the host"
   type        = string
-  default     = "/var/tmp/atlas/zot_cache/zot-cache-data"
+  default     = "/var/tmp/atlas/zot-cache-data-test"
 }
 
 variable "zot_image_ref" {

@@ -52,14 +52,44 @@ locals {
       type  = "auto"
     },
     {
+      name  = "envoy.image.tag"
+      value = "v1.34.4-1753677767-266d5a01d1d55bd1d60148f991b98dac0390d363"
+    },
+    {
       name  = "hubble.relay.image.useDigest"
       value = "false"
       type  = "auto"
     },
     {
+      name  = "hubble.relay.image.tag"
+      value = "v${var.cilium_chart_version}"
+    },
+    {
       name  = "certgen.image.useDigest"
       value = "false"
       type  = "auto"
+    },
+    {
+      name  = "certgen.image.tag"
+      value = "v0.2.4"
+    },
+    {
+      name  = "hubble.ui.backend.image.useDigest"
+      value = "false"
+      type  = "auto"
+    },
+    {
+      name  = "hubble.ui.backend.image.tag"
+      value = "v0.13.2"
+    },
+    {
+      name  = "hubble.ui.frontend.image.useDigest"
+      value = "false"
+      type  = "auto"
+    },
+    {
+      name  = "hubble.ui.frontend.image.tag"
+      value = "v0.13.2"
     },
   ]))
 

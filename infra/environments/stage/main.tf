@@ -4,6 +4,8 @@ terraform {
   }
 }
 
+
+
 # === Talos config generation (secrets, patches, machine configs) ===
 module "talos_config" {
   source = "../../modules/talos-config"
@@ -68,9 +70,10 @@ module "talos_cluster" {
 }
 
 # === Helm provider ===
+# Uses a fixed path known at plan time (file created during talos_cluster apply)
 provider "helm" {
   kubernetes {
-    config_path = module.talos_cluster.kubeconfig_path
+    config_path = "${var.files_dir}/kubeconfig"
   }
 }
 
@@ -80,7 +83,7 @@ resource "null_resource" "wait_for_api" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      for i in $(seq 1 36); do
+      for i in $(seq 1 200); do
         if kubectl --kubeconfig ${module.talos_cluster.kubeconfig_path} get nodes >/dev/null 2>&1; then
           echo "API server is ready"
           exit 0

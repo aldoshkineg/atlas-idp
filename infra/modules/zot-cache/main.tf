@@ -82,11 +82,31 @@ resource "null_resource" "zot_image" {
   }
 }
 
+# Clean stale .sync directories from previous container runs
+# (Zot creates .sync dirs for on-demand syncs; if the container is
+# destroyed mid-sync, they persist and confuse the new instance)
+resource "null_resource" "cleanup_sync" {
+  count = var.platform == "incus" && var.enable ? 1 : 0
+
+  triggers = {
+    cache_dir = var.cache_dir
+  }
+
+  provisioner "local-exec" {
+    command = "rm -rf \"${var.cache_dir}\"/*/.sync \"${var.cache_dir}\"/*/*/.sync \"${var.cache_dir}\"/*/*/*/.sync 2>/dev/null; true"
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "echo 'Preserving cache for next use'"
+  }
+}
+
 # Incus: Zot container instance
 resource "incus_instance" "zot" {
   count = var.platform == "incus" && var.enable ? 1 : 0
 
-  depends_on = [null_resource.zot_image]
+  depends_on = [null_resource.zot_image, null_resource.cleanup_sync]
 
   name    = var.incus_image_alias
   image   = var.incus_image_alias
