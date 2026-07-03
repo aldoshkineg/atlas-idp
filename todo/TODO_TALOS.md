@@ -2,50 +2,50 @@ Before we move on to formulating the final technical specification, let us do a 
 
 ### Architectural Analysis of the Stack
 
-1. **Incus + Terraform:** Отличная связка. Провайдер `lxc/incus` зрелый, позволяет декларативно описать не только виртуалки, но и диски для LINSTOR, а также сети, на которых будет жить балансировщик.
-2. **Фиксация терминологии (Важно!):** В тексте указано _«включаем rbd - для linstor»_. Здесь кроется небольшая путаница: **RBD** (RADOS Block Device) — это протокол распределенных дисков из экосистемы **Ceph**. Для **LINSTOR** базовой технологией репликации является **DRBD** (Distributed Replicated Block Device). В системном задании ниже мы зафиксируем именно **DRBD**, так как мы настраиваем LINSTOR.
-3. **Cilium как LoadBalancer:** Великолепный выбор для bare-metal/VM сред. Он позволяет полностью отказаться от `kube-proxy` (через eBPF) и давать балансировщики через **L2 Announcements** (ARP-запросы) или **BGP**.
-4. **Подводный камень (Incus Bridge + Cilium L2):** Если Cilium будет анонсировать IP-адреса балансировщиков через L2 (ARP), мост Incus должен позволять виртуалкам отвечать за IP-адреса, которые не были им выданы изначально через DHCP Incus. По умолчанию управляемый мост Incus может блокировать такой трафик, если включена безопасность (`security.mac_filtering` / `security.ipv4_filtering`). В ТЗ мы учтем, что сетевой профиль должен быть чистым.
+1. **Incus + Terraform:** Excellent combination. The `lxc/incus` provider is mature, enabling declarative description of not only VMs but also disks for LINSTOR, as well as the networks where the load balancer will reside.
+2. **Terminology Clarification (Important):** The text states _"enable rbd for linstor"_. This is slightly misleading: **RBD** (RADOS Block Device) is a distributed disk protocol from the **Ceph** ecosystem. For **LINSTOR**, the underlying replication technology is **DRBD** (Distributed Replicated Block Device). In the spec below we will use **DRBD** since we are setting up LINSTOR.
+3. **Cilium as LoadBalancer:** An excellent choice for bare-metal/VM environments. It allows full elimination of `kube-proxy` (via eBPF) and provides load balancers through **L2 Announcements** (ARP requests) or **BGP**.
+4. **Gotcha (Incus Bridge + Cilium L2):** If Cilium announces load balancer IPs via L2 (ARP), the Incus bridge must allow VMs to respond for IP addresses that were not originally assigned to them via Incus DHCP. By default, a managed Incus bridge may block such traffic if security is enabled (`security.mac_filtering` / `security.ipv4_filtering`). In the spec we will ensure the network profile is clean.
 
 ---
 
 ## System Technical Specification
 
-**Проект:** Развертывание декларативного отказоустойчивого Kubernetes-кластера на базе Talos Linux в среде Incus с использованием IaC (Terraform).
+**Project:** Deployment of a declarative, fault-tolerant Kubernetes cluster based on Talos Linux in an Incus environment using IaC (Terraform).
 
 ---
 
-### 1. Virtualization Layer and IaC (Incus ### 1. Virtualization Layer and IaC (Incus ### 1. Слой виртуализации и IaC (Incus & Terraform) Terraform) Terraform)
+### 1. Virtualization Layer and IaC (Incus & Terraform)
 
-**Цель:** Подготовка инфраструктуры хоста, создание сетей, профилей и виртуальных машин для кластера K8s (1 Control Plane, 2 Workers).
+**Goal:** Prepare host infrastructure, create networks, profiles, and virtual machines for the K8s cluster (1 Control Plane, 2 Workers).
 
 #### Incus Configuration Requirements:
 
-- **Сеть:** Создать выделенный управляемый мост (например, `incusbr1`) с подсетью `10.10.10.0/24`. Отключить фильтрацию IP/MAC на портах (`security.ipv4_filtering = false`), чтобы Cilium мог свободно анонсировать IP балансировщиков.
-- \*\* **Virtual Machine Profile (`talos-vm-profile`):**
-- Тип инстанса: `virtual-machine`.
-- Включить эмуляцию TPM и SecureBoot (при необходимости для Talos, либо отключить для упрощения тестирования).
-- Лимиты для Control Plane: 2 vCPU, 4GiB RAM.
-- Лимиты для Worker нод: 2 vCPU, 4GiB RAM.
+- **Network:** Create a dedicated managed bridge (e.g., `incusbr1`) with subnet `10.10.10.0/24`. Disable IP/MAC filtering on ports (`security.ipv4_filtering = false`) so Cilium can freely announce load balancer IPs.
+- **Virtual Machine Profile (`talos-vm-profile`):**
+- Instance type: `virtual-machine`.
+- Enable TPM emulation and SecureBoot (if required by Talos, or disable for simplified testing).
+- Control Plane limits: 2 vCPU, 4GiB RAM.
+- Worker node limits: 2 vCPU, 4GiB RAM.
 
-- **Дисковая подсистема для LINSTOR:**
-- Каждой Worker-ноде, помимо основного системного диска (`root`), через Terraform должен быть подключен **второй незанятый блочный девайс** (например, `/dev/sdb` или дополнительный диск из пула хранения Incus) объемом от 20GiB для нужд LINSTOR сателлитов.
+- **Disk subsystem for LINSTOR:**
+- Each Worker node, in addition to the main system disk (`root`), must have a **second unformatted block device** attached via Terraform (e.g., `/dev/sdb` or an additional disk from the Incus storage pool) of at least 20GiB for LINSTOR satellite needs.
 
 #### Terraform Specification:
 
-- Использовать официальный провайдер `lxc/incus`.
-- Использовать провайдер `siderolabs/talos` для генерации конфигурации кластера (`machineconfig`) и файлов аутентификации (`talosconfig`).
+- Use the official `lxc/incus` provider.
+- Use the `siderolabs/talos` provider for cluster configuration generation (`machineconfig`) and authentication files (`talosconfig`).
 
 ---
 
-### 2. OS Layer and Storage (Talos Linux ### 2. OS Layer and Storage (Talos Linux ### 2. Слой ОС и Хранилища (Talos Linux & LINSTOR) LINSTOR) LINSTOR)
+### 2. OS Layer and Storage (Talos Linux & LINSTOR)
 
-**Цель:** Развертывание иммутабельной ОС Talos с поддержкой модулей репликации ядра и последующий запуск распределенного хранилища.
+**Goal:** Deploy the immutable Talos OS with kernel replication module support, followed by running distributed storage.
 
 #### Talos Linux Configuration:
 
-- На этапе генерации образов (через Talos Image Factory) или сборки схемы добавить официальное системное расширение ядра: **`siderolabs/drbd`** (версии 9.x).
-- Конфигурация `machineConfig` для Worker-нод должна содержать активацию необходимых модулей ядра при старте:
+- During image generation (via Talos Image Factory) or schema assembly, add the official system kernel extension: **`siderolabs/drbd`** (version 9.x).
+- The `machineConfig` for Worker nodes should include activation of the required kernel modules at startup:
 
 ```yaml
 machine:
@@ -55,37 +55,37 @@ machine:
       - name: drbd_transport_tcp
 ```
 
-Helm):/ Helm):
+#### Piraeus Operator (Helm):
 
-- **Компоненты:** Piraeus Operator версии `2.10.x`.
-- **Конфигурация пула:** Настроить `LinstorCluster` на использование физических дисков, проброшенных из Incus (тип пула `lvmThinPool`), которые смотрят на подготовленный `/dev/sdb`.
-- **StorageClass:** Создать дефолтный класс `linstor-ha` с параметром `autoPlace: "2"` (двухкратная синхронная репликация между worker-нодами).
+- **Components:** Piraeus Operator version `2.10.x`.
+- **Pool configuration:** Configure `LinstorCluster` to use physical disks provisioned from Incus (pool type `lvmThinPool`), targeting the prepared `/dev/sdb`.
+- **StorageClass:** Create a default class `linstor-ha` with parameter `autoPlace: "2"` (double synchronous replication between worker nodes).
 
 ---
 
 ### 3. Network Layer and Load Balancing (Cilium CNI)
 
-**Цель:** Обеспечение сетевой связности Pod-to-Pod, отказоустойчивой маршрутизации и предоставление сервисов типа `LoadBalancer`.
+**Goal:** Provide Pod-to-Pod network connectivity, fault-tolerant routing, and `LoadBalancer` type services.
 
 #### Talos Configuration for Cilium:
 
-- При развертывании Talos отключить стандартный дефолтный CNI (`flannel`), установив значение `cni.provider: none`.
-- Отключить `kube-proxy`, передав в конфигурацию кластера инструкцию по его деактивации, чтобы Cilium взял на себя eBPF-маршрутизацию.
+- During Talos deployment, disable the default CNI (`flannel`) by setting `cni.provider: none`.
+- Disable `kube-proxy` by passing a deactivation instruction in the cluster configuration, so Cilium handles eBPF routing.
 
 #### Cilium Helm Chart Configuration:
 
-- Режим работы: Нативный eBPF-кубпрокси (kubeProxyReplacement=true).
-- **Спецификация LoadBalancer:** Включить модуль **L2 Announcements** и интегрировать его с пулом адресов.
-- **Манифесты пула адресов (`CiliumLoadBalancerIPPool`):** Выделить диапазон IP из сети моста Incus (например, `10.10.10.200-10.10.10.250`), который не пересекается с DHCP-пулом самого Incus.
+- Operation mode: Native eBPF kube-proxy (kubeProxyReplacement=true).
+- **LoadBalancer specification:** Enable **L2 Announcements** and integrate with the address pool.
+- **Address pool manifests (`CiliumLoadBalancerIPPool`):** Allocate an IP range from the Incus bridge network (e.g., `10.10.10.200-10.10.10.250`) that does not overlap with the Incus DHCP pool.
 
 ---
 
 ### 4. Testing Success Criteria (Acceptance Criteria)
 
-1. **Инфраструктура:** `terraform apply` отрабатывает без ошибок, создавая 3 виртуалки в Incus, связанные сетью.
-2. **Кластер K8s:** Команда `talosctl dashboard` показывает статус `Healthy`, все ноды находятся в состоянии `Ready`.
-3. **Хранилище:** Поды LINSTOR сателлитов успешно инициализируют LVM-пулы на вторых дисках виртуалок. Тестовый PVC переходит в статус `Bound`.
-4. **Сеть:** Создание сервиса `type: LoadBalancer` для тестового приложения (например, `nginx`) успешно выделяет IP из пула Cilium (например, `10.10.10.200`). Приложение доступно по этому IP прямо с хост-машины через браузер или `curl`.
+1. **Infrastructure:** `terraform apply` completes without errors, creating 3 VMs in Incus connected by a network.
+2. **K8s Cluster:** The `talosctl dashboard` command shows status `Healthy`, all nodes are in `Ready` state.
+3. **Storage:** LINSTOR satellite pods successfully initialize LVM pools on the secondary VM disks. A test PVC transitions to `Bound` status.
+4. **Network:** Creating a `type: LoadBalancer` service for a test application (e.g., `nginx`) successfully allocates an IP from the Cilium pool (e.g., `10.10.10.200`). The application is accessible at that IP directly from the host machine via browser or `curl`.
 
 ## 1. IaC Layer: Incus Configuration in Terraform (`main.tf`)
 
@@ -101,19 +101,19 @@ terraform {
   }
 }
 
-# 1. Создаем изолированную сеть без фильтрации IP/MAC
+# 1. Create an isolated network without IP/MAC filtering
 resource "incus_network" "k8s_net" {
   name = "k8sbr0"
   config = {
     "ipv4.address"            = "10.10.10.1/24"
     "ipv4.dhcp"               = "true"
     "ipv4.nat"                = "true"
-    "security.ipv4_filtering" = "false" # КРИТИЧНО: разрешает Cilium анонсировать LB IP
+    "security.ipv4_filtering" = "false" # CRITICAL: allows Cilium to announce LB IPs
     "security.mac_filtering"  = "false"
   }
 }
 
-# 2. Создаем выделенные block-тома в Incus пуле для LINSTOR
+# 2. Create dedicated block volumes in the Incus pool for LINSTOR
 resource "incus_storage_volume" "linstor_disk" {
   count        = 2
   name         = "linstor-worker-disk-${count.index + 1}"
@@ -122,11 +122,11 @@ resource "incus_storage_volume" "linstor_disk" {
   size         = "30GiB"
 }
 
-# 3. Пример описания Worker-ноды (повторить для каждой через count/for_each)
+# 3. Example Worker node definition (repeat for each via count/for_each)
 resource "incus_instance" "talos_worker" {
   count     = 2
   name      = "talos-worker-${count.index + 1}"
-  image     = "talos-drbd-custom-image" # Ваш образ с фабрики Talos с DRBD расширением
+  image     = "talos-drbd-custom-image" # Your image from Talos factory with DRBD extension
   type      = "virtual-machine"
   running   = true
 
@@ -139,7 +139,7 @@ resource "incus_instance" "talos_worker" {
     memory = "4GiB"
   }
 
-  # Основной диск ОС
+  # Main OS disk
   device {
     name = "root"
     type = "disk"
@@ -149,7 +149,7 @@ resource "incus_instance" "talos_worker" {
     }
   }
 
-  # ВТОРОЙ ДИСК ДЛЯ LINSTOR (увидится в Talos как /dev/vdb)
+  # SECOND DISK FOR LINSTOR (visible in Talos as /dev/vdb)
   device {
     name = "linstor_backend"
     type = "disk"
@@ -169,13 +169,13 @@ resource "incus_instance" "talos_worker" {
 
 ---
 
-## 2. Слой ОС: Патчи конфигурации Talos Linux
+## 2. OS Layer: Talos Linux Configuration Patches
 
-При генерации конфигурации кластера через `talosctl gen config` или Terraform-провайдер `siderolabs/talos`, нам нужно применить следующие патчи.
+When generating the cluster configuration via `talosctl gen config` or the `siderolabs/talos` Terraform provider, we need to apply the following patches.
 
-### Патч для Control Plane & Workers (`common.yaml`)
+### Patch for Control Plane & Workers (`common.yaml`)
 
-> Отключаем дефолтный Flannel и загружаем модули DRBD.
+> Disable the default Flannel and load DRBD modules.
 
 ```yaml
 machine:
@@ -185,30 +185,30 @@ machine:
       - name: drbd_transport_tcp
   network:
     cni:
-      name: none # Выключаем дефолтный CNI для Cilium
+      name: none # Disable default CNI for Cilium
 cluster:
   proxy:
-    disabled: true # Выключаем kube-proxy, так как Cilium заменит его через eBPF
+    disabled: true # Disable kube-proxy, Cilium will replace it via eBPF
 ```
 
 ---
 
-## 3. Сетевой слой: Helm-values для Cilium
+## 3. Network Layer: Helm values for Cilium
 
-Разворачиваем Cilium без `kube-proxy` с включенным движком L2-анонсов балансировщика.
+Deploy Cilium without `kube-proxy` with the L2 announcement engine for the load balancer enabled.
 
 ### `cilium-values.yaml`
 
 ```yaml
 kubeProxyReplacement: true
-k8sServiceHost: 10.10.10.10 # Укажите статический IP вашего Control Plane в сети Incus
+k8sServiceHost: 10.10.10.10 # Specify the static IP of your Control Plane in the Incus network
 k8sServicePort: 6443
 
-# Активация функционала LoadBalancer
+# Enable LoadBalancer functionality
 l2announcements:
   enabled: true
 
-# Принудительно включаем перенаправление трафика
+# Force enable traffic redirection
 bpf:
   masquerade: true
 
@@ -216,7 +216,7 @@ externalIPs:
   enabled: true
 ```
 
-### Манифесты пула адресов для балансировщика (применять после CNI)
+### Load balancer address pool manifests (apply after CNI)
 
 ```yaml
 apiVersion: "cilium.io/v2alpha1"
@@ -226,7 +226,7 @@ metadata:
   namespace: kube-system
 spec:
   blocks:
-    - cidr: "10.10.10.200/28" # Выделяем IP 10.10.10.200 - 10.10.10.215 под сервисы
+    - cidr: "10.10.10.200/28" # Allocate IPs 10.10.10.200 - 10.10.10.215 for services
 ---
 apiVersion: "cilium.io/v2alpha1"
 kind: CiliumL2AnnouncementPolicy
@@ -235,7 +235,7 @@ metadata:
   namespace: kube-system
 spec:
   interfaces:
-    - ^eth[0-9] # Анонсировать через сетевой интерфейс нод Talos
+    - ^eth[0-9] # Announce through the Talos node network interface
   nodeSelector:
     matchExpressions:
       - key: kubernetes.io/os
@@ -246,11 +246,11 @@ spec:
 
 ---
 
-## 4. Слой хранения: Инициализация пула в LINSTOR
+## 4. Storage Layer: Pool initialization in LINSTOR
 
-Хотя в иммутабельной ОС Talos нет утилит `lvm2` на хосте, ядро поддерживает device-mapper. Контейнер `linstor-satellite` запускается как `privileged: true` и имеет встроенный тулсет LVM. Он сможет самостоятельно нарезать пул прямо поверх диска `/dev/vdb`, который мы пробросили из Incus.
+Although the immutable Talos OS has no `lvm2` utilities on the host, the kernel supports device-mapper. The `linstor-satellite` container runs as `privileged: true` and includes a built-in LVM toolset. It will be able to carve the pool directly on top of the `/dev/vdb` disk that we provisioned from Incus.
 
-### `linstor-cluster-values.yaml` (для ArgoCD/Helm)
+### `linstor-cluster-values.yaml` (for ArgoCD/Helm)
 
 ```yaml
 apiVersion: piraeus.io/v1
@@ -267,17 +267,17 @@ spec:
         lvmThinPool:
           volumeGroup: linstor_vg
           thinPool: thin_pool
-          # Указываем оператору автоматически инициализировать пустые диски vdb
+          # Instruct the operator to automatically initialize empty vdb disks
           devicePaths:
             - /dev/vdb
 ```
 
 ---
 
-### Архитектурный чек-лист перед запуском `terraform apply`:
+### Architectural checklist before running `terraform apply`:
 
-1. [ ] Вы создали кастомный образ Talos Linux с расширением `siderolabs/drbd` (9-й ветки).
-2. [ ] Вы зафиксировали IP-адрес для Control Plane, чтобы Cilium в конфигурации жестко знал `k8sServiceHost`.
-3. [ ] Вы проверили, что подсеть `10.10.10.200/28` для балансировщика Cilium не пересекается с диапазоном выдачи DHCP-сервера Incus.
+1. [ ] You have created a custom Talos Linux image with the `siderolabs/drbd` extension (version 9.x).
+2. [ ] You have fixed the IP address for the Control Plane so that Cilium has a hardcoded `k8sServiceHost` in its configuration.
+3. [ ] You have verified that the `10.10.10.200/28` subnet for the Cilium load balancer does not overlap with the Incus DHCP server's allocation range.
 
-С какого шага начнем сборку — сгенерируем кастомный образ Talos через Factory API или сразу перейдем к оформлению репозитория для ArgoCD?
+Which step shall we start with — generate a custom Talos image via the Factory API, or proceed directly to structuring the repository for ArgoCD?

@@ -207,9 +207,9 @@
   - [x] `status` / `list` — workload status
 - [ ] **atlasctl** (Go CLI) — rewrite as standalone Go binary
 
-  **Тестирование:** каждый пакет сопровождается unit-тестами (table-driven, минимум 70% coverage на пакет).
-  Интеграционные тесты с реальными k8s/vault — опционально, в отдельном `_test.go` с build-тегом `//go:build integration`.
-  Smoke-тест в конце Week 6 проходит полный lifecycle workload-а.
+  **Testing:** each package has unit tests (table-driven, minimum 70% coverage per package).
+  Integration tests with real k8s/vault — optional, in a separate `_test.go` with build tag `//go:build integration`.
+  Smoke test at the end of Week 6 covers the full lifecycle of a workload.
 
   - [ ] **Week 1 — Foundation**
     - [x] `pkg/config/` — YAML-driven config (template groups, defaults, seed keys, overlay via binary-side atlastctl.yaml)
@@ -230,7 +230,7 @@
     - [x] `tools/atlasctl/Taskfile.yml` — build, test, test-integration, cover, vet, lint, clean, tidy
     - [x] `tools/atlasctl/bin/atlasctl` — builds and runs, `--help` shows all 9 commands
     - [x] `AGENTS.md` — add atlasctl Go build/test instructions
-    - [ ] **Тесты Week 1:** структура пакетов должна проходить `go vet`, скелет Cobra root — table-driven test на парсинг флагов
+    - [ ] **Week 1 Tests:** package structure must pass `go vet`, Cobra root skeleton — table-driven test for flag parsing
   - [ ] **Week 2 — Scaffold + Template Engine**
     - [x] `pkg/template/` — render templates/gold/ with `{{VAR}}` via `strings.ReplaceAll`
     - [x] `cmd/new.go` — port `cmd_new`: flags, validation, `.secret-seed` generation with `crypto/rand`
@@ -241,20 +241,20 @@
     - [x] `pkg/vault/` — Vault client via vault-0 pod exec: KVPut, KVGet (stub), root token read
     - [x] `pkg/seed/` — CNPG DB/user creation (psql exec), MinIO bucket/user (mc exec), Vault write
     - [x] `cmd/seed.go` — port cmd_seed fully: --dry-run, --force, -y, validation, confirm prompt
-    - [x] **Тесты Week 3:** `pkg/seed/` — table-driven LoadParams + ValidateParams (with extra secrets); `pkg/k8s/` + `pkg/vault/` — constructor tests + integration build-tag stubs; `cmd/seed.go` — cobra flag tests (no-arg, invalid-format, dry-run)
+    - [x] **Week 3 Tests:** `pkg/seed/` — table-driven LoadParams + ValidateParams (with extra secrets); `pkg/k8s/` + `pkg/vault/` — constructor tests + integration build-tag stubs; `cmd/seed.go` — cobra flag tests (no-arg, invalid-format, dry-run)
   - [ ] **Week 4 — GitOps Management**
     - [x] `pkg/gateway/` — Gateway API listener CRUD (LoadGateway/SaveGateway, AddListener, RemoveListener, HasListener), YAML round-trip via `sigs.k8s.io/yaml`
     - [x] `pkg/gitops/` — file ops: CopyWorkloadManifest, SyncResources (excludes app.yaml, gateway.yaml, .secret-seed, vault, \*.tmpl), RemoveAll, RemoveEmptyDir, ApplyGatewayListener (add/remove)
     - [x] `cmd/enable.go` — port from bash: --dry-run, --sync, --push, --force, -y, copy app.yaml, rsync resources, copy gateway route, add listener, git commit/push
     - [x] `cmd/disable.go` — port from bash: --dry-run, --sync, --push, -y, remove listener, delete gitops files, clean empty dirs, git commit/push
     - [x] `cmd/delete.go` — port from bash: --dry-run, -y, refuses if enabled, removes workload dir + empty group dir
-    - [x] **Тесты Week 4:** `pkg/gateway/` — add/remove/has listener, load/save round-trip, file-not-found; `pkg/gitops/` — SyncResources exclusions, CopyWorkloadManifest creates subdirs, RemoveEmptyDir, ApplyGatewayListener add/remove/duplicate; `cmd/` — flag validation (no-arg, invalid-format), workload-not-found, dry-run, still-enabled checks
+    - [x] **Week 4 Tests:** `pkg/gateway/` — add/remove/has listener, load/save round-trip, file-not-found; `pkg/gitops/` — SyncResources exclusions, CopyWorkloadManifest creates subdirs, RemoveEmptyDir, ApplyGatewayListener add/remove/duplicate; `cmd/` — flag validation (no-arg, invalid-format), workload-not-found, dry-run, still-enabled checks
   - [x] **Week 5 — Read Commands + ArgoCD API**
     - [x] `cmd/status.go`, `cmd/list.go` — port from bash
     - [x] `pkg/argocd/` — ArgoCD API client: `ApplicationService.Get`, sync status, rollout promotion
     - [x] `cmd/logs.go` — `kubectl logs --tail=` via k8s API
     - [x] `cmd/backup.go` — trigger CNPG backup (Backup CR)
-    - [x] **Тесты Week 5:** `pkg/argocd/` — unit tests; `cmd/` — flag validation, dry-run, JSON/plain, detect_features
+    - [x] **Week 5 Tests:** `pkg/argocd/` — unit tests; `cmd/` — flag validation, dry-run, JSON/plain, detect_features
   - [x] **Week 6 — Integration, CI, README**
     - [x] Update `root Taskfile.yml` — alias `atlasctl:build`, `atlasctl:test` via `task: tools/atlasctl`
     - [x] Update CI — build + test Go binary in ci.yaml

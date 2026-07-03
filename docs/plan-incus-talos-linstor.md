@@ -64,7 +64,7 @@ talosctl gen config test-cluster https://10.200.10.11:6443 \
 machine:
   network:
     interfaces:
-      - deviceSelector: { busPath: "0*" }    # вместо interface: eth0
+      - deviceSelector: { busPath: "0*" }    # instead of interface: eth0
         dhcp: false
         addresses:
           - 10.200.10.11/24
@@ -76,7 +76,7 @@ machine:
       validSubnets:
         - 10.200.10.0/24
 
-# --- Seed ISO (работает на этой версии Incus, user.user-data — нет) ---
+# --- Seed ISO (works on this Incus version, user.user-data — not supported) ---
 mkdir -p seed && cp gen/controlplane.yaml seed/user-data
 echo -e "instance-id: test-cp-1\nlocal-hostname: test-cp-1" > seed/meta-data
 xorriso -as mkisofs -r -V cidata -J -o seed.iso seed/
@@ -90,24 +90,24 @@ talosctl --talosconfig gen/talosconfig -n 10.200.10.11 -e 10.200.10.11 bootstrap
 talosctl --talosconfig gen/talosconfig -n 10.200.10.11 -e 10.200.10.11 kubeconfig kubeconfig
 kubectl --kubeconfig kubeconfig get nodes
 
-# --- Diagnostics (если bootstrap застрял) ---
-talosctl -n <IP> get addressstatus          # адреса есть?
-talosctl -n <IP> get nodeaddresses          # routed-no-k8s не пуст?
+# --- Diagnostics (if bootstrap gets stuck) ---
+talosctl -n <IP> get addressstatus          # addresses present?
+talosctl -n <IP> get nodeaddresses          # routed-no-k8s not empty?
 talosctl -n <IP> logs controller-runtime | grep -i "no suitable"
-talosctl -n <IP> get kubeletspecs           # создан?
-talosctl -n <IP> get members                # addresses не пуст?
-talosctl -n <IP> get etcdspec               # создан?
+talosctl -n <IP> get kubeletspecs           # created?
+talosctl -n <IP> get members                # addresses not empty?
+talosctl -n <IP> get etcdspec               # created?
 ```
 
 ### Key Bootstrap Insights
 
 1. **`10.100.10.0/24` overlaps `10.96.0.0/12`** — always verify
-2. **`deviceSelector: {busPath: "0*"}`** надёжнее `interface: eth0` (имя может меняться)
-3. **Seed ISO** — единственный рабочий способ передать конфиг в Incus VM (на этой версии)
-4. **`NodeIPController`** в Talos 1.11.2 смотрит `routed-no-k8s`, а не `default`/`current`
-5. **Race condition:** `NodeIPController` стартует раньше статического IP (разница ~20с в Incus VM из-за virtio-net). DHCP (dnsmasq на хосте) даёт IP за ~5с и обходит race.
-6. **VM memory:** Default 870MB недостаточно для kube-apiserver (~254MB). Установить `limits.memory=2GiB`.
-7. **Bootstrap persistence:** `talosctl bootstrap` переживает остановку/запуск VM. После `bootstrap` и старта apiserver нода регистрируется автоматически.
+2. **`deviceSelector: {busPath: "0*"}`** is more reliable than `interface: eth0` (name may change)
+3. **Seed ISO** — the only working way to pass config to Incus VM (on this version)
+4. **`NodeIPController`** in Talos 1.11.2 watches `routed-no-k8s`, not `default`/`current`
+5. **Race condition:** `NodeIPController` starts before static IP (~20s difference in Incus VM due to virtio-net). DHCP (dnsmasq on host) assigns IP in ~5s and avoids the race.
+6. **VM memory:** Default 870MB insufficient for kube-apiserver (~254MB). Set `limits.memory=2GiB`.
+7. **Bootstrap persistence:** `talosctl bootstrap` survives VM stop/start. After `bootstrap` and apiserver start, node registers automatically.
 
 ---
 
@@ -138,7 +138,7 @@ talosctl -n <IP> get etcdspec               # создан?
 
 | Layer      | Technology          | Purpose                             |
 | ---------- | ------------------- | ----------------------------------- |
-| Hypervisor | Incus               | VMs for Talos, bridge br0           |
+| Hypervisor | Incus               | VMs for Talos, bridge incusbr0      |
 | Cluster OS | Talos Linux         | 1 cp + 2 worker                     |
 | CNI        | Cilium              | No kube-proxy, LB IPAM, L2 ann.     |
 | Storage    | Piraeus/DRBD        | LINSTOR + CSI + DRBD (replica: 1-2) |
@@ -258,9 +258,9 @@ machine:
       - name: drbd_transport_tcp
   network:
     interfaces:
-      - deviceSelector: { busPath: "0*" } # вместо interface: eth0
+      - deviceSelector: { busPath: "0*" } # instead of interface: eth0
         addresses:
-          - 10.200.10.11/24 # вне 10.96.0.0/12!
+          - 10.200.10.11/24 # outside 10.96.0.0/12!
         routes:
           - network: 0.0.0.0/0
             gateway: 10.200.10.1
@@ -274,14 +274,14 @@ cluster:
     endpoint: https://10.200.10.10:6443 # VIP (kube-vip)
   network:
     cni:
-      name: none # Cilium вместо flannel
+      name: none # Cilium instead of flannel
     dnsDomain: cluster.local
     podSubnets:
       - 10.244.0.0/16
     serviceSubnets:
       - 10.96.0.0/12
   proxy:
-    disabled: true # Cilium берет на себя
+    disabled: true # Cilium takes over
 ```
 
 **Machine config for workers (wrk-1, wrk-2):**
@@ -329,7 +329,7 @@ cluster:
 
 ### Phase 3: Seed ISO
 
-Incus на этой версии не читает `user.user-data` для VMs. Конфиг передаётся через
+This Incus version does not read `user.user-data` for VMs. Config is passed via
 seed ISO (cidata):
 
 ```bash
@@ -351,16 +351,16 @@ incus launch talos-1.11.2-drbd cp-1 --vm \
 # Generate secrets bundle with VIP
 talosctl gen config atlas-linstor https://10.200.10.10:6443
 
-# Apply config to cp-1 (seed ISO, см. Phase 3)
+# Apply config to cp-1 (seed ISO, see Phase 3)
 
 # Bootstrap
 talosctl bootstrap --nodes 10.200.10.11 -e 10.200.10.11
 
-# Get kubeconfig (via cp-1 IP, потом поправить endpoint на VIP)
+# Get kubeconfig (via cp-1 IP, then fix endpoint to VIP)
 talosctl kubeconfig -n 10.200.10.11 -e 10.200.10.11
-sed -i 's/10.200.10.11/10.200.10.10/g' kubeconfig  # заменить на VIP
+sed -i 's/10.200.10.11/10.200.10.10/g' kubeconfig  # replace with VIP
 
-# Apply config to workers (тоже seed ISO)
+# Apply config to workers (also seed ISO)
 ```
 
 ### Phase 5: Cilium + Hubble
@@ -721,10 +721,10 @@ resource "kubernetes_manifest" "linstor_sc" {
 sudo ip link add incusbr0 type bridge
 sudo ip addr add 10.200.10.1/24 dev incusbr0
 sudo ip link set incusbr0 up
-# iptables: NAT + FORWARD (см. "Validated Bootstrap Commands" выше)
+# iptables: NAT + FORWARD (see "Validated Bootstrap Commands" above)
 
 # 1. Build seed ISOs for each node
-#    (user-data on cidata volume, user.user-data не работает)
+#    (user-data on cidata volume, user.user-data does not work)
 ./scripts/build-seed-isos.sh
 
 # 2. Launch VMs manually, then bootstrap
@@ -735,7 +735,7 @@ talosctl --talosconfig talosconfig -n 10.200.10.11 -e 10.200.10.11 kubeconfig
 cd infra/environments/stage
 tofu init && tofu apply
 
-# 4. kube-vip (если нужна VIP)
+# 4. kube-vip (if VIP is needed)
 kube-vip manifest pod \
   --interface eth0 --address 10.200.10.10 \
   --controlPlane --services --arp --leaderElection
@@ -802,18 +802,18 @@ Kubernetes service CIDR (`10.96.0.0/12` — `10.96.0.0` to `10.111.255.255`).
 ✓ Manual bridge incusbr0 (10.200.10.1/24) — iptables NAT ok
 ✓ Talos image with DRBD (schematic e048aaf44...) — imported
 ✓ Node IP subnet outside k8s service CIDR (10.200.10.0/24 ∉ 10.96.0.0/12)
-✓ routed-no-k8s не пуст (NodeIPController доволен)
-✓ Bootstrap → EtcdSpec → etcd → kubelet → apiserver — полная цепочка
-✓ Seed ISO — единственный рабочий способ передачи конфига
-✓ VM memory: limits.memory=2GiB (иначе apiserver не стартует)
-⚠ DRBD module — image импортирован, загрузка не проверена
-⚠ Terraform — модули описаны (plan), не реализованы
-⚠ Talos cluster — 1 cp запущен, workers не добавлены
-⚠ Cilium — не установлен (Flannel по умолчанию)
-⚠ Hubble — не установлен
-⚠ L2 announcements — не настроены
-⚠ Piraeus/LINSTOR — не установлен
-⚠ StorageClass — не создан
+✓ routed-no-k8s not empty (NodeIPController satisfied)
+✓ Bootstrap → EtcdSpec → etcd → kubelet → apiserver — full chain
+✓ Seed ISO — the only working way to pass config
+✓ VM memory: limits.memory=2GiB (otherwise apiserver won't start)
+⚠ DRBD module — image imported, loading not verified
+⚠ Terraform — modules described (plan), not implemented
+⚠ Talos cluster — 1 cp running, workers not added
+⚠ Cilium — not installed (Flannel by default)
+⚠ Hubble — not installed
+⚠ L2 announcements — not configured
+⚠ Piraeus/LINSTOR — not installed
+⚠ StorageClass — not created
 ```
 
 ---

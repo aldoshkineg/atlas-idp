@@ -11,7 +11,7 @@ locals {
 # Talos machine patches
 locals {
   common_config_patches = [
-    # Mirrors с endpoints на Zot + skipFallback — только кэш, без upstream
+    # Mirrors with Zot endpoints + skipFallback — cache only, no upstream
     <<-EOT
       machine:
         registries:

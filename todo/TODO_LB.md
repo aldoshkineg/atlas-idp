@@ -1,8 +1,8 @@
-## 1. Создать сеть Docker с предсказуемой подсетью
+## 1. Create Docker network with predictable subnet
 
-Если цель — получить в Kind фиксированный VIP вида `172.20.10.1` для ingress через Cilium и отказаться от MetalLB, я бы делал так.
+To get a fixed VIP like `172.20.10.1` for ingress via Cilium in Kind and drop MetalLB, here's the approach.
 
-Если кластера ещё нет:
+If the cluster doesn't exist yet:
 
 ```bash
 docker network create \
@@ -11,22 +11,22 @@ docker network create \
   kind
 ```
 
-Проверка:
+Verification:
 
 ```bash
 docker network inspect kind
 ```
 
-Запомнить:
+Note down:
 
 - subnet
-- gateway (обычно `172.20.0.1`)
+- gateway (usually `172.20.0.1`)
 
 ---
 
-## 2. Создать Kind без kube-proxy
+## 2. Create Kind without kube-proxy
 
-Для Cilium это предпочтительно.
+For Cilium this is preferred.
 
 `kind-config.yaml`
 
@@ -44,7 +44,7 @@ nodes:
   - role: worker
 ```
 
-Создание:
+Creation:
 
 ```bash
 kind create cluster \
@@ -54,46 +54,46 @@ kind create cluster \
 
 ---
 
-## 3. Установить Cilium
+## 3. Install Cilium
 
-Пример для актуальных версий:
+Example for current versions:
 
 ```bash
 cilium install \
   --set kubeProxyReplacement=true
 ```
 
-Проверка:
+Verification:
 
 ```bash
 cilium status --wait
 ```
 
-Все компоненты должны быть `OK`.
+All components should be `OK`.
 
 ---
 
-## 4. Создать пул LoadBalancer IP
+## 4. Create LoadBalancer IP pool
 
-Например, выделим диапазон:
+For example, allocate a range:
 
 ```text
 172.20.10.1 - 172.20.10.20
 ```
 
-Важно:
+Important:
 
-- не использовать gateway;
-- не использовать адреса контейнеров нод.
+- do not use the gateway;
+- do not use node container addresses.
 
-Проверить занятые IP:
+Check occupied IPs:
 
 ```bash
 docker inspect $(docker ps -q) \
   | grep 172.20.
 ```
 
-Создать пул:
+Create pool:
 
 ```yaml
 apiVersion: cilium.io/v2alpha1
@@ -110,7 +110,7 @@ spec:
 kubectl apply -f pool.yaml
 ```
 
-Проверка:
+Verification:
 
 ```bash
 kubectl get ippools
@@ -118,9 +118,9 @@ kubectl get ippools
 
 ---
 
-## 5. Включить L2 Announcements
+## 5. Enable L2 Announcements
 
-Для VIP нужен механизм анонса адреса.
+The VIP needs an address announcement mechanism.
 
 ```bash
 cilium upgrade \
@@ -128,7 +128,7 @@ cilium upgrade \
   --set l2announcements.enabled=true
 ```
 
-Создать policy:
+Create policy:
 
 ```yaml
 apiVersion: cilium.io/v2alpha1
@@ -153,7 +153,7 @@ kubectl apply -f l2-policy.yaml
 
 ---
 
-## 6. Установить ingress-nginx
+## 6. Install ingress-nginx
 
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -168,9 +168,9 @@ helm install ingress-nginx ingress-nginx/ingress-nginx \
 
 ---
 
-## 7. Зафиксировать VIP
+## 7. Pin the VIP
 
-Патч сервиса:
+Patch the service:
 
 ```yaml
 apiVersion: v1
@@ -183,7 +183,7 @@ spec:
   loadBalancerIP: 172.20.10.1
 ```
 
-Применить:
+Apply:
 
 ```bash
 kubectl apply -f ingress-service.yaml
@@ -191,13 +191,13 @@ kubectl apply -f ingress-service.yaml
 
 ---
 
-## 8. Проверить выдачу адреса
+## 8. Verify address assignment
 
 ```bash
 kubectl get svc -n ingress-nginx
 ```
 
-Ожидаемо:
+Expected output:
 
 ```text
 NAME                       TYPE           EXTERNAL-IP
@@ -206,9 +206,9 @@ ingress-nginx-controller   LoadBalancer   172.20.10.1
 
 ---
 
-## 9. Проверить маршрутизацию
+## 9. Verify routing
 
-С хоста:
+From the host:
 
 ```bash
 ping 172.20.10.1
@@ -220,7 +220,7 @@ curl http://172.20.10.1
 
 ---
 
-## Итоговая схема
+## Final diagram
 
 ```text
 Docker network
@@ -239,7 +239,7 @@ Docker network
         ingress-nginx
 ```
 
-Для домашней лаборатории и CI это сейчас одна из самых чистых схем: Kind + Cilium + LB IPAM + L2 Announcements, без MetalLB вообще. Единственное, что я бы сделал дополнительно — зарезервировал отдельный диапазон вроде `172.20.250.0/24` под все будущие LoadBalancer-сервисы, чтобы не пересечься с адресами нод. Например:
+For a home lab and CI this is currently one of the cleanest setups: Kind + Cilium + LB IPAM + L2 Announcements, without MetalLB at all. The only thing I would add is reserving a separate range like `172.20.250.0/24` for all future LoadBalancer services, so they don't overlap with node addresses. For example:
 
 ```text
 172.20.250.1   ingress

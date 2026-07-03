@@ -1,26 +1,26 @@
-# ADR-005: Управление инфраструктурными секретами через ESO + kms.vyrn.ru
+# ADR-005: Infrastructure Secrets Management via ESO + kms.vyrn.ru
 
-## Статус
+## Status
 
-Принято
+Accepted
 
-## Контекст
+## Context
 
-В репозитории есть два типа секретов:
+The repository contains two types of secrets:
 
-1. **Инфраструктурные** — для установки platform-сервисов (MinIO, Redis, Velero, CNPG backup). Лежат в Helm values inline или raw Secret манифестах в git. 7 файлов с открытыми паролями.
+1. **Infrastructure secrets** — for installing platform services (MinIO, Redis, Velero, CNPG backup). They are stored as Helm values inline or raw Secret manifests in git. 7 files with plaintext passwords.
 
-2. **Прикладные** — для приложения Seal (postgres, redis, minio credentials, pdf-signer cert). Архитектурное решение для них — HashiCorp Vault Agent Injector (этап 2, отдельно).
+2. **Application secrets** — for the Seal application (postgres, redis, minio credentials, pdf-signer cert). The architectural solution for these is HashiCorp Vault Agent Injector (stage 2, separate).
 
-Проблема: инфраструктурные секреты в открытом виде в публичном git-репозитории.
+Problem: infrastructure secrets are stored in plaintext in a public git repository.
 
-Доступен внешний Vault-сервер `kms.vyrn.ru:8200` (HTTPS, публичный сертификат) с уже существующим Vault token'ом.
+An external Vault server `kms.vyrn.ru:8200` (HTTPS, public certificate) is available with an existing Vault token.
 
-## Решение
+## Decision
 
-**External Secrets Operator (ESO)** читает секреты из `kms.vyrn.ru` и создаёт Kubernetes Secrets в кластере. Helm charts ссылаются на эти Secrets.
+**External Secrets Operator (ESO)** reads secrets from `kms.vyrn.ru` and creates Kubernetes Secrets in the cluster. Helm charts reference these Secrets.
 
-### Архитектура
+### Architecture
 
 ```
 ┌─────────────────────────────────┐
@@ -45,27 +45,27 @@
                │ ESO (ExternalSecret → watch)
                ▼
 ┌─────────────────────────────────┐
-│ K8s Secret (в namespace сервиса)│
+│ K8s Secret (in service namespace)│
 │  minio-credentials              │
-│  velero-credentials              │
+│  velero-credentials             │
 │  redis-auth                     │
 │  production-db-backup           │
 └──────────────┬──────────────────┘
                │ Helm chart / Deployment
                ▼
-         Сервис использует Secret
+         Service uses Secret
 ```
 
-### Аутентификация
+### Authentication
 
-ESO подключается к `kms.vyrn.ru` через **Vault Token**.
+ESO connects to `kms.vyrn.ru` using a **Vault Token**.
 
-Token хранится в:
+The token is stored in:
 
-- GitHub Secrets (`VAULT_TOKEN`) — для CI
-- K8s Secret `vault-token` в namespace `external-secrets` — создаётся через Terraform `kubernetes_secret` ресурс
+- GitHub Secrets (`VAULT_TOKEN`) — for CI
+- K8s Secret `vault-token` in namespace `external-secrets` — created via Terraform `kubernetes_secret` resource
 
-ClusterSecretStore ссылается на этот K8s Secret:
+The ClusterSecretStore references this K8s Secret:
 
 ```yaml
 apiVersion: external-secrets.io/v1beta1
@@ -82,16 +82,16 @@ spec:
           key: token
 ```
 
-### Наполнение Vault
+### Vault Seeding
 
-Первичное наполнение — **однократно вручную** через Vault CLI:
+Initial seeding — **one-time manual** via Vault CLI:
 
 ```bash
-# Установить переменные окружения
+# Set environment variables
 export VAULT_ADDR=https://kms.vyrn.ru:8200
 export VAULT_TOKEN=<token>
 
-# Платформенные секреты
+# Platform secrets
 vault kv put secret/data/platform/minio \
   rootUser=minioadmin \
   rootPassword=minioadminpassword
@@ -103,7 +103,7 @@ vault kv put secret/data/platform/backups \
   ACCESS_KEY_ID=minioadmin \
   ACCESS_SECRET_KEY=minioadminpassword
 
-# Прикладные секреты (для этапа 2)
+# Application secrets (for stage 2)
 vault kv put kv/data/seal/seal-api \
   postgres_password=... \
   redis_password=...
@@ -118,11 +118,11 @@ vault kv put kv/data/seal/pdf-signer \
   key=@tls.key
 ```
 
-При повторном развёртывании (CI) секреты уже существуют — наполнение не требуется.
+On redeployment (CI) secrets already exist — no seeding required.
 
-### Какие файлы меняются
+### Files Changed
 
-#### 1. Новые компоненты (Argo CD Application)
+#### 1. New Components (Argo CD Application)
 
 `gitops/platform-kind/layers/security/external-secrets.yaml`:
 
@@ -176,11 +176,11 @@ spec:
           key: token
 ```
 
-Управляется отдельным Application `external-secrets-store` (sync-wave 3, после ESO).
+Managed by a separate Application `external-secrets-store` (sync-wave 3, after ESO).
 
-#### 3. Vault Token в кластер
+#### 3. Vault Token into the Cluster
 
-Token создаётся через Terraform как K8s Secret:
+Token is created via Terraform as a K8s Secret:
 
 ```hcl
 # infra/environments/dev/main.tf
@@ -195,24 +195,24 @@ resource "kubernetes_secret" "vault_token" {
 }
 ```
 
-`vault_token` передаётся через `TF_VAR_vault_token` из GitHub Secrets.
+`vault_token` is passed via `TF_VAR_vault_token` from GitHub Secrets.
 
 #### 4. Helm charts: inline values → existingSecret
 
 **`minio.yaml`:**
 
 ```yaml
-# Было
+# Before
 values: |
   rootUser: minioadmin
   rootPassword: minioadminpassword
 
-# Стало
+# After
 values: |
   existingSecret: minio-credentials
 ```
 
-Плюс ExternalSecret `gitops/platform-kind/layers/storage/resources/minio/external-secret.yaml`:
+Plus ExternalSecret `gitops/platform-kind/layers/storage/resources/minio/external-secret.yaml`:
 
 ```yaml
 apiVersion: external-secrets.io/v1beta1
@@ -237,12 +237,12 @@ spec:
         property: rootPassword
 ```
 
-И Application `gitops/platform-kind/layers/storage/minio-secret.yaml` (sync-wave 4, до minio wave 5).
+And Application `gitops/platform-kind/layers/storage/minio-secret.yaml` (sync-wave 4, before minio wave 5).
 
 **`velero.yaml`:**
 
 ```yaml
-# Было
+# Before
 credentials:
   useSecret: true
   secretContents:
@@ -251,22 +251,22 @@ credentials:
       aws_access_key_id = minioadmin
       aws_secret_access_key = minioadminpassword
 
-# Стало
+# After
 credentials:
   useSecret: true
   existingSecret: velero-credentials
 ```
 
-Плюс ExternalSecret + Application.
+Plus ExternalSecret + Application.
 
-**`resources/redis/secret.yaml` — замена на ExternalSecret:**
+**`resources/redis/secret.yaml` — replaced with ExternalSecret:**
 
 ```yaml
-# Было
+# Before
 apiVersion: v1
 kind: Secret
 ---
-# Стало
+# After
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 metadata:
@@ -285,14 +285,14 @@ spec:
         property: redis-password
 ```
 
-**`resources/postgres-cluster/backup-secret.yaml` — аналогично:**
+**`resources/postgres-cluster/backup-secret.yaml` — similarly:**
 
 ```yaml
-# Было
+# Before
 apiVersion: v1
 kind: Secret
 ---
-# Стало
+# After
 apiVersion: external-secrets.io/v1beta1
 kind: ExternalSecret
 ---
@@ -309,50 +309,50 @@ data:
 
 #### 5. `seal.yaml` (workloads)
 
-На этапе 1 — не меняется (`vault.enabled: false`, secrets в `.Values.secrets.*`). На этапе 2 будет включён Vault Agent Injector с чтением из `kms.vyrn.ru`.
+In stage 1 — unchanged (`vault.enabled: false`, secrets in `.Values.secrets.*`). In stage 2, Vault Agent Injector will be enabled with reads from `kms.vyrn.ru`.
 
-### Синк-вейвы
+### Sync Waves
 
 ```
 Wave 1: vault-operator, cert-manager
 Wave 2: vault-secrets-webhook, cert-manager-issuers
 Wave 3: external-secrets (ESO controller) + external-secrets-store (ClusterSecretStore)
 Wave 4: minio-secret, velero-secret, redis-secret (ExternalSecret CRs)
-Wave 5: minio, velero (Helm charts с existingSecret)
+Wave 5: minio, velero (Helm charts with existingSecret)
 Wave 6: redis, kube-prometheus-stack
-Wave 7+: остальные сервисы
+Wave 7+: remaining services
 ```
 
 ### Pre-commit hooks
 
-Изменений не требуется — все манифесты остаются валидным YAML (ExternalSecret — CRD с plain references, без секретных значений). `yamllint` и `trivy` работают штатно.
+No changes required — all manifests remain valid YAML (ExternalSecret is a CRD with plain references, no secret values). `yamllint` and `trivy` work as usual.
 
-## Последствия
+## Consequences
 
-### Плюсы
+### Pros
 
-- Секретов нет в git (ни открытых, ни зашифрованных)
-- Vault — единый source of truth
-- ESO умеет авто-рефреш при смене секретов в Vault
-- Валидные YAML в git (читаемые diffs, linting работает)
-- Централизованный аудит доступа к секретам (kms.vyrn.ru audit log)
+- No secrets in git (neither plaintext nor encrypted)
+- Vault is the single source of truth
+- ESO supports auto-refresh when secrets change in Vault
+- Valid YAML in git (readable diffs, linting works)
+- Centralized access audit for secrets (kms.vyrn.ru audit log)
 
-### Минусы
+### Cons
 
-- Нужно переписать 5+ манифестов (структурные изменения)
-- Добавляется ESO controller (ещё один компонент в кластере)
-- Зависимость времени синка: kms.vyrn.ru должен быть доступен
-- Vault token в Terraform state (S3, для dev допустимо)
-- Первичное наполнение Vault — ручное (однократно)
+- Need to rewrite 5+ manifests (structural changes)
+- Adds ESO controller (another component in the cluster)
+- Sync timing dependency: kms.vyrn.ru must be reachable
+- Vault token in Terraform state (S3, acceptable for dev)
+- Initial Vault seeding is manual (one-time)
 
-### Что дальше
+### Next Steps
 
-- Этап 2: Vault Agent Injector для приложений Seal (чтение из `kv/data/seal/*` на kms.vyrn.ru)
-- Автоматизация наполнения Vault через CI при смене значений
+- Stage 2: Vault Agent Injector for Seal applications (reads from `kv/data/seal/*` on kms.vyrn.ru)
+- Automate Vault seeding via CI on value changes
 
-## Ссылки
+## References
 
-- ADR-005-v1 (отклонён): SOPS + AGE (заменён на текущее решение)
-- apps/ARCHITECTURE.md — Section 3 (Vault Agent Injection, этап 2)
-- TODO.md:117 — исходное упоминание ESO (теперь реализуется)
+- ADR-005-v1 (rejected): SOPS + AGE (replaced by the current solution)
+- apps/ARCHITECTURE.md — Section 3 (Vault Agent Injection, stage 2)
+- TODO.md:117 — original mention of ESO (now being implemented)
 - External Secrets Operator docs: https://external-secrets.io/latest/provider/hashicorp-vault/
