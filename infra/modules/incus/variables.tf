@@ -71,6 +71,12 @@ variable "disk_size" {
   default = "10GiB"
 }
 
+variable "extra_disk_size" {
+  type        = string
+  description = "Extra disk size for worker VMs (e.g. 5GiB). Empty string to disable."
+  default     = ""
+}
+
 variable "seed_iso_dir" {
   type        = string
   description = "Directory for seed ISO staging"

@@ -11,6 +11,18 @@ locals {
 # Talos machine patches
 locals {
   common_config_patches = [
+    # Custom sandbox (pause) image via containerd CRI customization
+    <<-EOT
+      machine:
+        files:
+          - content: |
+              [plugins]
+              [plugins."io.containerd.cri.v1.images".pinned_images]
+                sandbox = "ghcr.io/aldoshkineg/pause:3.10-amd64"
+            path: /etc/cri/conf.d/20-customization.part
+            op: create
+    EOT
+    ,
     # Mirrors with Zot endpoints + skipFallback — cache only, no upstream
     <<-EOT
       machine:
@@ -89,6 +101,9 @@ locals {
       machine:
         install:
           disk: /dev/sda
+        kernel:
+          modules:
+            - name: drbd
         network:
           interfaces:
             - deviceSelector:

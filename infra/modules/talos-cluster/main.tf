@@ -34,6 +34,7 @@ resource "local_sensitive_file" "kubeconfig" {
   filename = "${var.files_dir}/kubeconfig"
 }
 
+
 resource "talos_machine_configuration_apply" "worker" {
   for_each = { for i, ip in var.worker_ips : "worker-${i + 1}" => i }
 

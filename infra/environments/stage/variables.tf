@@ -97,7 +97,7 @@ variable "files_dir" {
 variable "zot_cache_dir" {
   description = "Zot registry cache directory on the host"
   type        = string
-  default     = "/var/tmp/atlas/zot-cache-data-test"
+  default     = "/var/tmp/atlas/zot_cache/zot-cache-data"
 }
 
 variable "zot_image_ref" {
@@ -133,7 +133,13 @@ variable "vm_cpu" {
 }
 
 variable "vm_disk_size" {
-  description = "VM disk size"
+  description = "Root disk size for each Talos VM"
   type        = string
   default     = "10GiB"
+}
+
+variable "worker_extra_disk" {
+  description = "Extra disk size for worker VMs (e.g. 5GiB for LINSTOR). Empty string to disable."
+  type        = string
+  default     = "5GiB"
 }

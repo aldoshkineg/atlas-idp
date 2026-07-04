@@ -53,6 +53,7 @@ module "incus" {
   worker_memory        = var.worker_memory
   cpu                  = var.vm_cpu
   disk_size            = var.vm_disk_size
+  extra_disk_size      = var.worker_extra_disk
 }
 
 # === Bootstrap: apply configs, bootstrap, get kubeconfig ===

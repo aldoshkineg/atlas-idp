@@ -67,6 +67,25 @@ terraform destroy -target=module.zot_cache
 
 The cache directory on the host (`/var/tmp/atlas/zot_cache/zot-cache-data`) is preserved across destroys.
 
+## Pre-caching a custom image
+
+To replace an upstream image with a custom single-arch variant (e.g., to avoid multi-arch manifest issues), copy it directly into Zot using `skopeo copy`:
+
+```bash
+# Copy a custom pause image from GHCR into Zot under the registry.k8s.io/pause name
+skopeo copy --override-arch amd64 --dest-tls-verify=false \
+  docker://ghcr.io/aldoshkineg/pause:3.10-amd64 \
+  docker://10.200.10.1:5000/registry.k8s.io/pause:3.10
+```
+
+The image persists on disk across Zot restarts. To revert to the upstream original, delete the cached manifest:
+
+```bash
+curl -X DELETE http://10.200.10.1:5000/v2/registry.k8s.io/pause/manifests/3.10
+```
+
+On the next request Zot will on-demand sync the original multi-arch image from the upstream registry.
+
 ## Notes
 
 - Requires the `kind` Docker network to already exist — add `depends_on = [module.kind_cluster]` in the caller

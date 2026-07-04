@@ -11,7 +11,10 @@ resource "null_resource" "bridge_setup" {
         incus network create "${var.bridge_name}" \
           ipv4.address="${var.bridge_subnet}" \
           ipv4.nat=true \
+          ipv4.dhcp=false \
           ipv6.address=none
+      else
+        incus network set "${var.bridge_name}" ipv4.dhcp=false
       fi
     EOT
   }
@@ -164,7 +167,35 @@ resource "incus_instance" "controlplane" {
   ]
 }
 
-# 9. Worker VMs
+# 9. LVM storage pool for block volumes (used by worker extra disks)
+resource "incus_storage_pool" "extra" {
+  count  = var.extra_disk_size != "" ? 1 : 0
+  name   = "extra-pool"
+  driver = "lvm"
+
+  config = {
+    size               = "15GiB"
+    "lvm.vg_name"      = "incus-extra"
+    "lvm.use_thinpool" = "false"
+  }
+}
+
+# 10. Worker extra storage volumes (for LINSTOR)
+resource "incus_storage_volume" "worker_extra" {
+  count = var.extra_disk_size != "" ? length(local.wk_names) : 0
+
+  name         = "${local.wk_names[count.index]}-data"
+  pool         = incus_storage_pool.extra[0].name
+  content_type = "block"
+
+  config = {
+    size = var.extra_disk_size
+  }
+
+  depends_on = [incus_storage_pool.extra]
+}
+
+# 11. Worker VMs
 resource "incus_instance" "worker" {
   for_each = toset(local.wk_names)
 
@@ -182,9 +213,22 @@ resource "incus_instance" "worker" {
     "raw.qemu"            = "-drive file=${var.seed_iso_dir}/${each.key}.iso,if=ide,media=cdrom,format=raw,readonly=on"
   }
 
+  dynamic "device" {
+    for_each = var.extra_disk_size != "" ? ["data"] : []
+    content {
+      name = "sdb"
+      type = "disk"
+      properties = {
+        pool   = incus_storage_pool.extra[0].name
+        source = "${each.key}-data"
+      }
+    }
+  }
+
   depends_on = [
     null_resource.seed_iso,
     incus_profile.talos_vm,
     null_resource.bridge_setup,
+    incus_storage_volume.worker_extra,
   ]
 }
