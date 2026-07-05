@@ -34,6 +34,12 @@ variable "files_dir" {
   default     = ""
 }
 
+variable "api_server_port" {
+  type        = number
+  description = "Kubernetes API server port (default 6443)"
+  default     = 6443
+}
+
 variable "apply_mode" {
   type        = string
   description = "Talos config apply mode (auto, no_reboot, interactive)"

@@ -1,7 +1,5 @@
 output "container_name" {
-  value = var.enable ? (
-    var.platform == "docker" ? docker_container.zot[0].name : incus_instance.zot[0].name
-  ) : null
+  value = var.enable ? incus_instance.zot[0].name : null
 }
 
 output "port" {
@@ -9,5 +7,5 @@ output "port" {
 }
 
 output "network" {
-  value = var.platform == "docker" ? data.docker_network.kind[0].name : var.incus_network
+  value = var.network
 }

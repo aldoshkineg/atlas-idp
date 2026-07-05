@@ -10,5 +10,9 @@ terraform {
       source  = "hashicorp/local"
       version = "~> 2.5"
     }
+    terracurl = {
+      source  = "devops-rob/terracurl"
+      version = "~> 1.0"
+    }
   }
 }

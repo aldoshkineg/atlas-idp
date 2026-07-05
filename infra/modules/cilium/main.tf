@@ -53,7 +53,7 @@ locals {
     },
     {
       name  = "envoy.image.tag"
-      value = "v1.34.4-1753677767-266d5a01d1d55bd1d60148f991b98dac0390d363"
+      value = var.envoy_image_tag
     },
     {
       name  = "hubble.relay.image.useDigest"
@@ -71,7 +71,7 @@ locals {
     },
     {
       name  = "certgen.image.tag"
-      value = "v0.2.4"
+      value = var.certgen_image_tag
     },
     {
       name  = "hubble.ui.backend.image.useDigest"
@@ -80,7 +80,7 @@ locals {
     },
     {
       name  = "hubble.ui.backend.image.tag"
-      value = "v0.13.2"
+      value = var.hubble_ui_backend_tag
     },
     {
       name  = "hubble.ui.frontend.image.useDigest"
@@ -89,7 +89,7 @@ locals {
     },
     {
       name  = "hubble.ui.frontend.image.tag"
-      value = "v0.13.2"
+      value = var.hubble_ui_frontend_tag
     },
   ]))
 

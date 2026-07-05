@@ -52,29 +52,39 @@ variable "worker_configs" {
 }
 
 variable "cp_memory" {
-  type    = string
-  default = "2GiB"
+  type        = string
+  description = "Memory allocation for controlplane VMs"
+  default     = "2GiB"
 }
 
 variable "worker_memory" {
-  type    = string
-  default = "2GiB"
+  type        = string
+  description = "Memory allocation for worker VMs"
+  default     = "2GiB"
 }
 
 variable "cpu" {
-  type    = string
-  default = "2"
+  type        = string
+  description = "CPU count for all VMs"
+  default     = "2"
 }
 
 variable "disk_size" {
-  type    = string
-  default = "10GiB"
+  type        = string
+  description = "Root disk size for each Talos VM"
+  default     = "10GiB"
 }
 
 variable "extra_disk_size" {
   type        = string
   description = "Extra disk size for worker VMs (e.g. 5GiB). Empty string to disable."
   default     = ""
+}
+
+variable "extra_pool_size" {
+  type        = string
+  description = "Total size of the LVM pool for extra worker disks"
+  default     = "15GiB"
 }
 
 variable "seed_iso_dir" {

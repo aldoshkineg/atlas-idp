@@ -1,68 +1,10 @@
-locals {
-  config_path = abspath("${path.module}/zot-config.json")
-}
-
-data "docker_network" "kind" {
-  count = var.platform == "docker" && var.enable ? 1 : 0
-  name  = var.network_name
-}
-
-resource "docker_image" "zot" {
-  count = var.platform == "docker" && var.enable ? 1 : 0
-
-  name         = "ghcr.io/project-zot/zot:${var.image_tag}"
-  keep_locally = true
-}
-
-resource "local_file" "zot_config" {
-  count = var.platform == "docker" && var.enable ? 1 : 0
-
-  content  = file(local.config_path)
-  filename = "${var.config_dir}/zot_config.json"
-}
-
-resource "docker_container" "zot" {
-  count = var.platform == "docker" && var.enable ? 1 : 0
-
-  name    = var.container_name
-  image   = docker_image.zot[0].name
-  restart = "always"
-
-  networks_advanced {
-    name = data.docker_network.kind[0].name
-  }
-
-  ports {
-    internal = var.port
-    external = var.port
-    ip       = "127.0.0.1"
-  }
-
-  volumes {
-    host_path      = local_file.zot_config[0].filename
-    container_path = "/etc/zot/config.json"
-    read_only      = true
-  }
-
-  volumes {
-    host_path      = var.cache_dir
-    container_path = "/var/lib/registry"
-  }
-
-  ulimit {
-    name = "nofile"
-    soft = 65535
-    hard = 65535
-  }
-}
-
 # Incus: copy image from OCI registry (skipped if already present)
 resource "null_resource" "zot_image" {
-  count = var.platform == "incus" && var.enable ? 1 : 0
+  count = var.enable ? 1 : 0
 
   triggers = {
-    image_ref = var.incus_image_ref
-    alias     = var.incus_image_alias
+    image_ref = var.image_ref
+    alias     = var.image_alias
   }
 
   provisioner "local-exec" {
@@ -83,10 +25,8 @@ resource "null_resource" "zot_image" {
 }
 
 # Clean stale .sync directories from previous container runs
-# (Zot creates .sync dirs for on-demand syncs; if the container is
-# destroyed mid-sync, they persist and confuse the new instance)
 resource "null_resource" "cleanup_sync" {
-  count = var.platform == "incus" && var.enable ? 1 : 0
+  count = var.enable ? 1 : 0
 
   triggers = {
     cache_dir = var.cache_dir
@@ -104,12 +44,12 @@ resource "null_resource" "cleanup_sync" {
 
 # Incus: Zot container instance
 resource "incus_instance" "zot" {
-  count = var.platform == "incus" && var.enable ? 1 : 0
+  count = var.enable ? 1 : 0
 
   depends_on = [null_resource.zot_image, null_resource.cleanup_sync]
 
-  name    = var.incus_image_alias
-  image   = var.incus_image_alias
+  name    = var.image_alias
+  image   = var.image_alias
   type    = "container"
   running = true
 
@@ -122,7 +62,7 @@ resource "incus_instance" "zot" {
     type = "nic"
 
     properties = {
-      network = var.incus_network
+      network = var.network
     }
   }
 
@@ -130,7 +70,7 @@ resource "incus_instance" "zot" {
     name = "zot-port"
     type = "proxy"
     properties = {
-      listen  = var.incus_proxy_listen
+      listen  = var.proxy_listen
       connect = "tcp:127.0.0.1:${var.port}"
     }
   }
@@ -139,7 +79,7 @@ resource "incus_instance" "zot" {
     name = "config"
     type = "disk"
     properties = {
-      source   = local.config_path
+      source   = abspath("${path.module}/zot-config.json")
       path     = "/etc/zot/config.json"
       readonly = "true"
     }

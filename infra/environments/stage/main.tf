@@ -4,6 +4,20 @@ terraform {
   }
 }
 
+# === Derived locals ===
+locals {
+  worker_ips    = length(var.worker_ips) > 0 ? var.worker_ips : [for i in range(var.worker_count) : cidrhost(var.cluster_cidr, 20 + i)]
+  lb_pool_start = var.lb_pool_start != "" ? var.lb_pool_start : cidrhost(var.cluster_cidr, 100)
+  lb_pool_end   = var.lb_pool_end != "" ? var.lb_pool_end : cidrhost(var.cluster_cidr, 200)
+
+  # K8s connection config shared between helm and kubernetes providers
+  k8s_connection = {
+    host                   = module.talos_cluster.kubernetes_client_config.host
+    cluster_ca_certificate = base64decode(module.talos_cluster.kubernetes_client_config.ca_certificate)
+    client_certificate     = base64decode(module.talos_cluster.kubernetes_client_config.client_certificate)
+    client_key             = base64decode(module.talos_cluster.kubernetes_client_config.client_key)
+  }
+}
 
 
 # === Talos config generation (secrets, patches, machine configs) ===
@@ -16,36 +30,35 @@ module "talos_config" {
   gateway            = var.gateway
   cluster_cidr       = var.cluster_cidr
   cp_ips             = var.cp_ips
-  worker_ips         = var.worker_ips
+  worker_ips         = local.worker_ips
   cluster_vip        = var.cluster_vip
   controlplane_count = var.controlplane_count
   files_dir          = var.files_dir
+  pause_image        = var.pause_image
+  skip_fallback      = var.skip_fallback
 }
 
 # === Zot registry cache ===
 module "zot_cache" {
   source = "../../modules/zot-cache"
 
-  enable   = true
-  platform = "incus"
-
-  container_name     = "zot-cache"
-  port               = var.zot_port
-  cache_dir          = var.zot_cache_dir
-  incus_network      = "incusbr0"
-  incus_proxy_listen = "tcp:${var.gateway}:5000"
-  incus_image_alias  = "zot-cache"
-  incus_image_ref    = var.zot_image_ref
-
-  depends_on = [module.incus]
+  enable       = var.zot_enable
+  port         = var.zot_port
+  cache_dir    = var.zot_cache_dir
+  network      = module.incus.bridge_name
+  proxy_listen = "tcp:${var.gateway}:${var.zot_port}"
+  image_alias  = "zot-cache"
+  image_ref    = var.zot_image_ref
 }
 
 # === Incus VMs ===
 module "incus" {
   source = "../../modules/incus"
 
+  bridge_subnet        = "${var.gateway}/${split("/", var.cluster_cidr)[1]}"
   cluster_name         = var.cluster_name
   talos_image_file     = var.talos_image_path
+  talos_image_url      = "https://github.com/siderolabs/talos/releases/download/${var.talos_version}/ncloud-amd64.qcow2"
   image_alias          = "talos-${replace(var.talos_version, "v", "")}-drbd"
   controlplane_configs = module.talos_config.cp_configs
   worker_configs       = module.talos_config.worker_configs
@@ -54,6 +67,8 @@ module "incus" {
   cpu                  = var.vm_cpu
   disk_size            = var.vm_disk_size
   extra_disk_size      = var.worker_extra_disk
+  extra_pool_size      = var.extra_pool_size
+  seed_iso_dir         = var.seed_iso_dir
 }
 
 # === Bootstrap: apply configs, bootstrap, get kubeconfig ===
@@ -71,30 +86,13 @@ module "talos_cluster" {
 }
 
 # === Helm provider ===
-# Uses a fixed path known at plan time (file created during talos_cluster apply)
+# Uses inline k8s config from talos_cluster output (known after apply → defers until apply)
 provider "helm" {
   kubernetes {
-    config_path = "${var.files_dir}/kubeconfig"
-  }
-}
-
-# === Wait for API server before installing platform services ===
-resource "null_resource" "wait_for_api" {
-  depends_on = [module.talos_cluster]
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      for i in $(seq 1 200); do
-        if kubectl --kubeconfig ${module.talos_cluster.kubeconfig_path} get nodes >/dev/null 2>&1; then
-          echo "API server is ready"
-          exit 0
-        fi
-        echo "Waiting for API server... (attempt $${i}/36)"
-        sleep 5
-      done
-      echo "API server not ready after 180s"
-      exit 1
-    EOT
+    host                   = local.k8s_connection.host
+    cluster_ca_certificate = local.k8s_connection.cluster_ca_certificate
+    client_certificate     = local.k8s_connection.client_certificate
+    client_key             = local.k8s_connection.client_key
   }
 }
 
@@ -102,7 +100,7 @@ resource "null_resource" "wait_for_api" {
 module "cilium" {
   source = "../../modules/cilium"
 
-  depends_on = [null_resource.wait_for_api]
+  depends_on = [module.talos_cluster]
 
   cluster_name         = var.cluster_name
   cilium_chart_version = var.cilium_chart_version
@@ -118,8 +116,9 @@ module "cilium" {
 }
 
 # === Cilium LoadBalancer IP Pool ===
+# TODO: move to Argo CD (network config) as CiliumLoadBalancerIPPool manifest
 resource "null_resource" "cilium_lb_pool" {
-  depends_on = [module.cilium, module.talos_cluster]
+  depends_on = [module.cilium]
 
   triggers = {
     kubeconfig = module.talos_cluster.kubeconfig_path
@@ -130,8 +129,8 @@ resource "null_resource" "cilium_lb_pool" {
         name: default-pool
       spec:
         blocks:
-          - start: ${var.lb_pool_start}
-            stop: ${var.lb_pool_end}
+          - start: ${local.lb_pool_start}
+            stop: ${local.lb_pool_end}
     EOT
   }
 
@@ -150,21 +149,4 @@ resource "null_resource" "cilium_lb_pool" {
       kubectl --kubeconfig ${self.triggers["kubeconfig"]} delete --ignore-not-found ciliumloadbalancerippool default-pool
     CMD
   }
-}
-
-# === Outputs ===
-output "cp_ips" {
-  value = module.talos_config.cp_ips
-}
-
-output "worker_ips" {
-  value = module.talos_config.worker_ips
-}
-
-output "talosconfig" {
-  value = module.talos_config.talos_config_path
-}
-
-output "kubeconfig" {
-  value = module.talos_cluster.kubeconfig_path
 }

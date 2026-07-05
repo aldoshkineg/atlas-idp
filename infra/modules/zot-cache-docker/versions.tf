@@ -2,17 +2,13 @@ terraform {
   required_version = ">= 1.9.0"
 
   required_providers {
-    incus = {
-      source  = "lxc/incus"
-      version = "~> 1.1"
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0"
     }
     local = {
       source  = "hashicorp/local"
       version = "~> 2.5"
-    }
-    null = {
-      source  = "hashicorp/null"
-      version = "~> 3.2"
     }
   }
 }

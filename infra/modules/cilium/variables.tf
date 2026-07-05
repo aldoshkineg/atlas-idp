@@ -41,3 +41,27 @@ variable "talos" {
   type        = bool
   default     = false
 }
+
+variable "envoy_image_tag" {
+  description = "Tag for Cilium Envoy sidecar image"
+  type        = string
+  default     = "v1.34.4-1753677767-266d5a01d1d55bd1d60148f991b98dac0390d363"
+}
+
+variable "certgen_image_tag" {
+  description = "Tag for Cilium certgen init container image"
+  type        = string
+  default     = "v0.2.4"
+}
+
+variable "hubble_ui_backend_tag" {
+  description = "Tag for Hubble UI backend image"
+  type        = string
+  default     = "v0.13.2"
+}
+
+variable "hubble_ui_frontend_tag" {
+  description = "Tag for Hubble UI frontend image"
+  type        = string
+  default     = "v0.13.2"
+}

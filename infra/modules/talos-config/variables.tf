@@ -50,3 +50,21 @@ variable "files_dir" {
   type        = string
   description = "Directory for generated Talos configs, kubeconfig, and talosconfig"
 }
+
+variable "pause_image" {
+  type        = string
+  description = "Sandbox (pause) image for containerd CRI"
+  default     = "registry.k8s.io/pause:3.10"
+}
+
+variable "api_server_port" {
+  type        = number
+  description = "Kubernetes API server port (default 6443)"
+  default     = 6443
+}
+
+variable "skip_fallback" {
+  type        = bool
+  description = "Prevent falling back to upstream registries when mirror is unreachable"
+  default     = true
+}

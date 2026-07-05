@@ -71,7 +71,7 @@ module "kind_cluster" {
 
 # Zot registry cache (pull-through proxy for container images)
 module "zot_cache" {
-  source = "../../modules/zot-cache"
+  source = "../../modules/zot-cache-docker"
 
   enable         = local.enable_zot_cache
   container_name = "kind-zot-registry"

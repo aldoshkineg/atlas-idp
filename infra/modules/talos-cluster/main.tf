@@ -46,3 +46,17 @@ resource "talos_machine_configuration_apply" "worker" {
   endpoint                    = var.worker_ips[each.value]
   apply_mode                  = "no_reboot"
 }
+
+# Poll kube-apiserver /livez until it returns 200 OK.
+# Kuberenetes and Helm providers will connect only after this succeeds.
+resource "terracurl_request" "wait_k8s_api" {
+  depends_on = [talos_machine_bootstrap.this]
+
+  name            = "wait_k8s_api"
+  url             = "https://${var.cp_ips[0]}:${var.api_server_port}/livez"
+  method          = "GET"
+  skip_tls_verify = true
+  max_retry       = 30
+  retry_interval  = 10
+  response_codes  = [200, 401]
+}

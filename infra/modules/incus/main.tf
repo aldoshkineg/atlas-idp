@@ -1,28 +1,13 @@
-# 1. Managed Incus bridge (NAT + DHCP + DNS)
-resource "null_resource" "bridge_setup" {
-  triggers = {
-    bridge_name = var.bridge_name
-    subnet      = var.bridge_subnet
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      if ! incus network show "${var.bridge_name}" >/dev/null 2>&1; then
-        incus network create "${var.bridge_name}" \
-          ipv4.address="${var.bridge_subnet}" \
-          ipv4.nat=true \
-          ipv4.dhcp=false \
-          ipv6.address=none
-      else
-        incus network set "${var.bridge_name}" ipv4.dhcp=false
-      fi
-    EOT
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    on_failure = continue
-    command    = "incus network delete '${self.triggers["bridge_name"]}' 2>/dev/null; true"
+# 1. Managed Incus bridge (NAT, no DHCP)
+resource "incus_network" "talos_bridge" {
+  name    = var.bridge_name
+  project = var.project
+  type    = "bridge"
+  config = {
+    "ipv4.address" = var.bridge_subnet
+    "ipv4.nat"     = "true"
+    "ipv4.dhcp"    = "false"
+    "ipv6.address" = "none"
   }
 }
 
@@ -46,57 +31,87 @@ resource "incus_profile" "talos_vm" {
     type = "nic"
     properties = {
       nictype = "bridged"
-      parent  = var.bridge_name
+      parent  = incus_network.talos_bridge.name
     }
   }
+
+  depends_on = [incus_network.talos_bridge]
 }
 
-# 3. Download + import Talos image with metadata tarball
-resource "null_resource" "import_image" {
+# Timestamp for metadata — derived from qcow2 mtime, not current time
+locals {
+  image_dir = abspath(dirname(var.talos_image_file))
+}
+
+# 3. Download Talos qcow2 image (only if missing)
+resource "null_resource" "download_image" {
   triggers = {
     image_path = var.talos_image_file
     image_url  = var.talos_image_url
-    alias      = var.image_alias
   }
 
   provisioner "local-exec" {
     command = <<-EOT
-      set -e
-
       if [ ! -f '${var.talos_image_file}' ]; then
         echo "=== Downloading from ${var.talos_image_url} ==="
         mkdir -p "$(dirname '${var.talos_image_file}')"
         curl -L -o '${var.talos_image_file}' '${var.talos_image_url}'
       fi
+    EOT
+  }
+}
 
-      TMP_DIR=$(mktemp -d)
-      cat <<EOF > "$TMP_DIR/metadata.yaml"
+# 4. Metadata tarball for VM image import (stable across applies)
+resource "null_resource" "metadata_yaml" {
+  triggers = {
+    image_path = var.talos_image_file
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      FILE='${var.talos_image_file}'
+      DIR='${local.image_dir}'
+      if [ ! -f "$DIR/metadata.tar.gz" ]; then
+        MTIME=$(stat -c %Y "$FILE" 2>/dev/null || echo 0)
+        cat <<EOF > "$DIR/metadata.yaml"
 architecture: "x86_64"
-creation_date: $(date +%s)
+creation_date: $MTIME
 properties:
   description: "Talos OS Cloud-Native Image"
   os: "talos"
   type: "virtual-machine"
 EOF
-      tar -czf "$TMP_DIR/metadata.tar.gz" -C "$TMP_DIR" metadata.yaml
-
-      echo "=== Importing image with alias '${var.image_alias}' ==="
-      incus image delete '${var.image_alias}' 2>/dev/null || true
-      incus image import "$TMP_DIR/metadata.tar.gz" '${var.talos_image_file}' --alias '${var.image_alias}'
-
-      rm -rf "$TMP_DIR"
+        tar -czf "$DIR/metadata.tar.gz" -C "$DIR" metadata.yaml
+      fi
     EOT
   }
+
+  depends_on = [null_resource.download_image]
 }
 
-# 4. Image data source (resolves fingerprint)
+# 5. Import image into Incus (native resource)
+resource "incus_image" "talos" {
+  project = var.project
+  source_file = {
+    data_path     = var.talos_image_file
+    metadata_path = "${local.image_dir}/metadata.tar.gz"
+  }
+  alias {
+    name = var.image_alias
+  }
+
+  depends_on = [null_resource.download_image, null_resource.metadata_yaml]
+}
+
+# 6. Image data source (resolves fingerprint)
 data "incus_image" "talos" {
-  depends_on = [null_resource.import_image]
+  depends_on = [incus_image.talos]
   name       = var.image_alias
   project    = var.project
 }
 
-# 5. VM name derivation
+# 7. VM name derivation
 locals {
   cp_names = [for i in range(nonsensitive(length(var.controlplane_configs))) : "${var.cluster_name}-cp-${i + 1}"]
   wk_count = nonsensitive(length(var.worker_configs))
@@ -108,7 +123,7 @@ locals {
   )
 }
 
-# 6. Seed ISO user-data / meta-data files
+# 8. Seed ISO user-data / meta-data files
 resource "local_sensitive_file" "user_data" {
   for_each = local.vm_configs
 
@@ -123,7 +138,7 @@ resource "local_file" "meta_data" {
   filename = "${var.seed_iso_dir}/${each.key}/meta-data"
 }
 
-# 7. Seed ISO assembly
+# 9. Seed ISO assembly
 resource "null_resource" "seed_iso" {
   for_each = local.vm_configs
 
@@ -134,7 +149,7 @@ resource "null_resource" "seed_iso" {
 
   triggers = {
     user_data_sha256 = sha256(each.value)
-    meta_data_sha256 = sha256("instance-id: ${each.key}\nlocal-hostname: ${each.key}")
+    meta_data_sha256 = sha256(local_file.meta_data[each.key].content)
   }
 
   provisioner "local-exec" {
@@ -142,7 +157,7 @@ resource "null_resource" "seed_iso" {
   }
 }
 
-# 8. Controlplane VMs
+# 10. Controlplane VMs
 resource "incus_instance" "controlplane" {
   for_each = toset(local.cp_names)
 
@@ -163,24 +178,24 @@ resource "incus_instance" "controlplane" {
   depends_on = [
     null_resource.seed_iso,
     incus_profile.talos_vm,
-    null_resource.bridge_setup,
+    incus_network.talos_bridge,
   ]
 }
 
-# 9. LVM storage pool for block volumes (used by worker extra disks)
+# 11. LVM storage pool for block volumes (used by worker extra disks)
 resource "incus_storage_pool" "extra" {
   count  = var.extra_disk_size != "" ? 1 : 0
   name   = "extra-pool"
   driver = "lvm"
 
   config = {
-    size               = "15GiB"
+    size               = var.extra_pool_size
     "lvm.vg_name"      = "incus-extra"
     "lvm.use_thinpool" = "false"
   }
 }
 
-# 10. Worker extra storage volumes (for LINSTOR)
+# 12. Worker extra storage volumes (for LINSTOR)
 resource "incus_storage_volume" "worker_extra" {
   count = var.extra_disk_size != "" ? length(local.wk_names) : 0
 
@@ -195,7 +210,7 @@ resource "incus_storage_volume" "worker_extra" {
   depends_on = [incus_storage_pool.extra]
 }
 
-# 11. Worker VMs
+# 13. Worker VMs
 resource "incus_instance" "worker" {
   for_each = toset(local.wk_names)
 
@@ -228,7 +243,7 @@ resource "incus_instance" "worker" {
   depends_on = [
     null_resource.seed_iso,
     incus_profile.talos_vm,
-    null_resource.bridge_setup,
+    incus_network.talos_bridge,
     incus_storage_volume.worker_extra,
   ]
 }

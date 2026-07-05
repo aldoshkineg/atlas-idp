@@ -4,7 +4,7 @@ locals {
     for i in range(var.controlplane_count) : "10.200.10.1${i + 1}"
   ]
   use_vip       = length(local.cp_ips) > 1 && var.cluster_vip != ""
-  cp_endpoint   = "https://${local.use_vip ? var.cluster_vip : local.cp_ips[0]}:6443"
+  cp_endpoint   = "https://${local.use_vip ? var.cluster_vip : local.cp_ips[0]}:${var.api_server_port}"
   kubelet_image = "ghcr.io/siderolabs/kubelet:${var.k8s_version}"
 }
 
@@ -18,7 +18,7 @@ locals {
           - content: |
               [plugins]
               [plugins."io.containerd.cri.v1.images".pinned_images]
-                sandbox = "ghcr.io/aldoshkineg/pause:3.10-amd64"
+                sandbox = "${var.pause_image}"
             path: /etc/cri/conf.d/20-customization.part
             op: create
     EOT
@@ -31,27 +31,27 @@ locals {
             registry.k8s.io:
               endpoints:
                 - "http://${var.gateway}:5000"
-              skipFallback: true
+              skipFallback: ${var.skip_fallback}
             quay.io:
               endpoints:
                 - "http://${var.gateway}:5000"
-              skipFallback: true
+              skipFallback: ${var.skip_fallback}
             ghcr.io:
               endpoints:
                 - "http://${var.gateway}:5000"
-              skipFallback: true
+              skipFallback: ${var.skip_fallback}
             docker.io:
               endpoints:
                 - "http://${var.gateway}:5000"
-              skipFallback: true
+              skipFallback: ${var.skip_fallback}
             public.ecr.aws:
               endpoints:
                 - "http://${var.gateway}:5000"
-              skipFallback: true
+              skipFallback: ${var.skip_fallback}
             gcr.io:
               endpoints:
                 - "http://${var.gateway}:5000"
-              skipFallback: true
+              skipFallback: ${var.skip_fallback}
     EOT
     ,
     <<-EOT
