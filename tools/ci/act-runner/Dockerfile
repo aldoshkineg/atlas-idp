@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     python3-pip \
     python3-setuptools \
+    xorriso \
     && rm -rf /var/lib/apt/lists/*
 
 COPY install-tools.sh /usr/local/bin/install-tools.sh

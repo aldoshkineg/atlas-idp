@@ -70,6 +70,15 @@ yamllint)
 
   ;;
 
+incus)
+
+  curl -fsSL -o incus \
+    https://github.com/lxc/incus/releases/download/v${VERSION}/bin.linux.incus.x86_64
+
+  chmod +x incus
+  sudo mv incus /usr/local/bin/
+  ;;
+
 *)
 
   echo "Unknown tool"

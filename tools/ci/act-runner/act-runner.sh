@@ -41,6 +41,7 @@ build() {
     [kind]=KIND_VERSION
     [trivy]=TRIVY_VERSION
     [yamllint]=YAMLLINT_VERSION
+    [incus]=INCUS_VERSION
   )
 
   for tool in "${!TOOL_VARS[@]}"; do
@@ -81,17 +82,45 @@ run_ci() {
     "$@"
 }
 
+run_apply() {
+  run_ci "$@"
+}
+
+run_destroy() {
+  shift
+  require_file "$REPO_ROOT/security/certs/ca.crt"
+  require_file "$REPO_ROOT/security/certs/ca.key"
+
+  if ! docker image inspect act-runner:latest &>/dev/null; then
+    echo "act-runner:latest not found. Run 'make act-build' or 'act-runner.sh build' first." >&2
+    exit 1
+  fi
+
+  mkdir -p "$CACHE_DIR/tf" "$CACHE_DIR/home" /var/tmp/atlas
+
+  act -W "$REPO_ROOT/.github/workflows/destroy-stage.yaml" \
+    --input confirm=destroy \
+    --container-options "-v $CACHE_DIR/tf:/opt/terraform/plugin-cache -v $CACHE_DIR/home:/root -v /var/tmp/atlas:/var/tmp/atlas -v /var/lib/incus/unix.socket:/var/lib/incus/unix.socket" \
+    -s ATLAS_CA_CRT="$(cat "$REPO_ROOT/security/certs/ca.crt")" \
+    -s ATLAS_CA_KEY="$(cat "$REPO_ROOT/security/certs/ca.key")" \
+    "$@"
+}
+
 case "${1:-}" in
   build)
     build
     ;;
 
-  ci)
-    run_ci "$@"
+  ci|apply)
+    run_apply "$@"
+    ;;
+
+  destroy)
+    run_destroy "$@"
     ;;
 
   *)
-    echo "Usage: $0 {build|ci}"
+    echo "Usage: $0 {build|ci|apply|destroy}"
     exit 1
     ;;
 esac

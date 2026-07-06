@@ -4,7 +4,7 @@
 	argocd-login vault-seed vault-seed-from-env github-secrets-ca seed-ca \
 	atlasctl atlasctl-seed atlasctl-list \
 	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-undeploy \
-	act-build act-ci
+	act-build act-ci act-stage-apply act-stage-destroy
 
 CLUSTER_NAME     ?= atlas-idp
 KIND_CONFIG      ?= clusters/kind/cluster.yaml
@@ -47,7 +47,9 @@ help:
 	@echo ""
 	@echo "Act (Local CI Runner):"
 	@echo "  act-build         Build custom act runner image (parses action.yml for tool versions)"
-	@echo "  act-ci            Run CI workflow via act"
+	@echo "  act-ci            Run full CI workflow via act (tools + checks + terraform apply)"
+	@echo "  act-stage-apply   Deploy stage infrastructure via act (alias for act-ci)"
+	@echo "  act-stage-destroy Destroy stage infrastructure via act"
 	@echo ""
 	@echo "ArgoCD:"
 	@echo "  argocd-login      Login to ArgoCD via CLI"
@@ -288,3 +290,8 @@ act-build:
 
 act-ci:
 	tools/ci/act-runner/act-runner.sh ci
+
+act-stage-apply: act-ci
+
+act-stage-destroy:
+	tools/ci/act-runner/act-runner.sh destroy

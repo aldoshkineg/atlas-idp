@@ -13,6 +13,7 @@ runs:
         KIND_VERSION: "0.29.0"
         TRIVY_VERSION: "0.70.0"
         YAMLLINT_VERSION: "1.35.1"
+        INCUS_VERSION: "7.2.0"
       run: |
         chmod +x .github/scripts/install-tools.sh
         .github/scripts/install-tools.sh vault $VAULT_VERSION
@@ -21,6 +22,7 @@ runs:
         .github/scripts/install-tools.sh kind $KIND_VERSION
         .github/scripts/install-tools.sh trivy $TRIVY_VERSION
         .github/scripts/install-tools.sh yamllint $YAMLLINT_VERSION
+        .github/scripts/install-tools.sh incus $INCUS_VERSION
 
     - name: Verify tools
       shell: bash
@@ -31,3 +33,4 @@ runs:
         kind version
         trivy version
         yamllint --version
+        incus version
