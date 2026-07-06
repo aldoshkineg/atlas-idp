@@ -1,0 +1,43 @@
+name: Destroy Stage
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "destroy" to confirm'
+        required: true
+
+jobs:
+  destroy:
+    if: ${{ github.event.inputs.confirm == 'destroy' }}
+    runs-on: [self-hosted]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: ./.github/actions/tools
+
+      - name: Terraform Init
+        shell: bash
+        working-directory: ./infra/environments/stage
+        env:
+          TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+        run: |
+          mkdir -p /opt/terraform/plugin-cache
+          n=0
+          until [ "$n" -ge 3 ]; do
+            terraform init -reconfigure && break
+            n=$((n+1))
+            echo "Terraform init failed. Retry $n/3"
+            sleep 15
+          done
+          [ "$n" -lt 3 ] || exit 1
+
+      - name: Terraform Destroy
+        shell: bash
+        working-directory: ./infra/environments/stage
+        env:
+          TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+        run: terraform destroy -auto-approve -lock-timeout=5m
