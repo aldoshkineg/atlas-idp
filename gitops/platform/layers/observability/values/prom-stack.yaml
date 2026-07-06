@@ -60,7 +60,7 @@ grafana:
     storageClassName: linstor-replicated
     accessModes:
       - ReadWriteOnce
-    size: 1Gi
+    size: 512Mi
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1

@@ -205,15 +205,15 @@ variable "vm_disk_size" {
 }
 
 variable "worker_extra_disk" {
-  description = "Extra disk size for worker VMs (e.g. 5GiB for LINSTOR). Empty string to disable."
+  description = "Extra disk size for worker VMs (e.g. 7GiB for LINSTOR). Empty string to disable."
   type        = string
-  default     = "5GiB"
+  default     = "7GiB"
 }
 
 variable "extra_pool_size" {
   description = "Total size of the LVM pool for extra worker disks"
   type        = string
-  default     = "15GiB"
+  default     = "21GiB"
 }
 
 variable "root_app_path" {
