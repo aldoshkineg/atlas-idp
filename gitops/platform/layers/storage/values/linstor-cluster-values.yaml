@@ -46,8 +46,6 @@ linstorSatelliteConfigurations:
                   - name: drbd-shutdown-guard
                     $patch: delete
                 volumes:
-                  - name: lib-modules
-                    $patch: delete
                   - name: usr-src
                     $patch: delete
                   - name: run-systemd-system
