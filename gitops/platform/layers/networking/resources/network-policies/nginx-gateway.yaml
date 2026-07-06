@@ -1,7 +1,7 @@
 apiVersion: "cilium.io/v2"
 kind: CiliumNetworkPolicy
 metadata:
-  name: platform-ingress
+  name: cilium-gateway-ingress
   namespace: kube-system
 spec:
   endpointSelector:
