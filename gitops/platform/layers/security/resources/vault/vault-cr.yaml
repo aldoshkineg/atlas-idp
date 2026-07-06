@@ -1,0 +1,89 @@
+apiVersion: vault.banzaicloud.com/v1alpha1
+kind: Vault
+metadata:
+  name: vault
+  namespace: vault
+spec:
+  # Single replica for dev/test environment
+  size: 1
+  serviceAccount: vault
+  # Use a stable Vault image
+  image: hashicorp/vault:1.18.0
+
+  # Minimal Vault config for Kind (no TLS, file storage)
+  config:
+    storage:
+      file:
+        path: /vault/file
+    listener:
+      tcp:
+        address: 0.0.0.0:8200
+        tls_disable: true
+    api_addr: http://vault.vault:8200
+    cluster_addr: https://vault.vault:8201
+    ui: true
+
+  # Bank-Vaults sidecar image
+  bankVaultsImage: ghcr.io/bank-vaults/bank-vaults:v1.33.1
+
+  # Store unseal keys in a Kubernetes secret
+  unsealConfig:
+    kubernetes:
+      secretNamespace: vault
+      secretName: vault-unseal-keys
+
+  # NodePort for external access via vault.atlas gateway
+  serviceType: NodePort
+
+  # Persistent storage for Vault data across pod restarts
+  volumeClaimTemplates:
+    - metadata:
+        name: vault-file
+      spec:
+        storageClassName: linstor-replicated
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 256Mi
+
+  # Vault config: kubernetes auth, policies, roles, secrets engine
+  externalConfig:
+    auth:
+      - type: kubernetes
+        config:
+          kubernetes_host: https://kubernetes.default.svc
+
+    policies:
+      - name: platform-read
+        rules: |
+          path "secret/data/platform/*" {
+            capabilities = ["read", "list"]
+          }
+
+    secrets:
+      - path: secret
+        type: kv
+        description: KV secrets engine
+        options:
+          version: 2
+        configuration:
+          config:
+            - max_versions: 10
+
+  # Resource limits for Kind (adjust for production)
+  resources:
+    vault:
+      requests:
+        memory: 256Mi
+        cpu: 500m
+      limits:
+        memory: 512Mi
+        cpu: 1000m
+    bankVaults:
+      requests:
+        memory: 64Mi
+        cpu: 50m
+      limits:
+        memory: 128Mi
+        cpu: 100m

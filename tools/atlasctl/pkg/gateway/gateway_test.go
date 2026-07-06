@@ -15,7 +15,7 @@ func writeTestGateway(t *testing.T, names []string) string {
 kind: Gateway
 metadata:
   name: platform-gateway
-  namespace: nginx-gateway-fabric
+  namespace: kube-system
 spec:
   gatewayClassName: nginx
   listeners:

@@ -6,7 +6,7 @@ metadata:
 spec:
   parentRefs:
     - name: platform-gateway
-      namespace: nginx-gateway-fabric
+      namespace: kube-system
       sectionName: https-{{APP}}
   hostnames:
     - {{HOSTNAME}}
@@ -19,7 +19,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{APP}}-cert
-  namespace: nginx-gateway-fabric
+  namespace: kube-system
 spec:
   secretName: {{APP}}-cert
   issuerRef:

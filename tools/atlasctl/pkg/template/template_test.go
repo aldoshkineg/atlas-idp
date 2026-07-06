@@ -128,7 +128,7 @@ metadata:
 spec:
   parentRefs:
     - name: platform-gateway
-      namespace: nginx-gateway-fabric
+      namespace: kube-system
       sectionName: https-{{APP}}
   hostnames:
     - {{HOSTNAME}}
@@ -145,7 +145,7 @@ metadata:
 spec:
   parentRefs:
     - name: platform-gateway
-      namespace: nginx-gateway-fabric
+      namespace: kube-system
       sectionName: https-seal
   hostnames:
     - seal.atlas

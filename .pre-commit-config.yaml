@@ -36,13 +36,13 @@ repos:
         files: ^gitops/.*\.(yaml|yml)$
         exclude: |
           (?x)^(
-            gitops/platform-kind/layers/data/resources/postgres-cluster/backup-secret\.yaml|
-            gitops/platform-kind/layers/data/resources/redis/secret\.yaml|
-            gitops/platform-kind/layers/observability/values/prom-stack\.yaml|
-            gitops/platform-kind/layers/storage/values/minio-values\.yaml|
-            gitops/platform-kind/layers/storage/values/velero-values\.yaml|
-            gitops/platform-kind/layers/storage/linstor/operator-values\.yaml|
-            gitops/platform-kind/layers/storage/linstor/linstor-cluster-values\.yaml
+            gitops/platform/layers/data/resources/postgres-cluster/backup-secret\.yaml|
+            gitops/platform/layers/data/resources/redis/secret\.yaml|
+            gitops/platform/layers/observability/values/prom-stack\.yaml|
+            gitops/platform/layers/storage/values/minio-values\.yaml|
+            gitops/platform/layers/storage/values/velero-values\.yaml|
+            gitops/platform/layers/storage/values/operator-values\.yaml|
+            gitops/platform/layers/storage/values/linstor-cluster-values\.yaml
           )$|^.*\.enc\.yaml$|templates/|values/
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform

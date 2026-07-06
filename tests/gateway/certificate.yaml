@@ -11,7 +11,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: test-ca-cert
-  namespace: nginx-gateway-fabric
+  namespace: kube-system
 spec:
   secretName: test-ca-cert
   duration: 2160h

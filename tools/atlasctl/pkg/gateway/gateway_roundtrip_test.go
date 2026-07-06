@@ -12,7 +12,7 @@ func TestMarshalRoundTrip(t *testing.T) {
 kind: Gateway
 metadata:
   name: platform-gateway
-  namespace: nginx-gateway-fabric
+  namespace: kube-system
 spec:
   gatewayClassName: nginx
   listeners:

@@ -9,7 +9,7 @@ metadata:
 spec:
   parentRefs:
     - name: platform-gateway
-      namespace: nginx-gateway-fabric
+      namespace: kube-system
       sectionName: {{ .Values.gateway.sectionName }}
   hostnames:
     - {{ .Values.gateway.hostname }}

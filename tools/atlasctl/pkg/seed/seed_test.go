@@ -185,8 +185,8 @@ func loadTestConfig(t *testing.T) *config.Config {
 		Scaffold:  config.ScaffoldConfig{Dir: "workloads"},
 		Gitops: config.GitopsConfig{
 			WorkloadsDir:     "gitops/workloads",
-			GatewayFile:      "gitops/platform-kind/layers/networking/values/gateway-resources/gateway.yaml",
-			GatewayRoutesDir: "gitops/platform-kind/layers/networking/values/gateway-routes",
+			GatewayFile:      "gitops/platform/layers/networking/values/gateway-resources/gateway.yaml",
+			GatewayRoutesDir: "gitops/platform/layers/networking/values/gateway-routes",
 		},
 		Defaults: config.DefaultsConfig{
 			RepoPath: ".", GatewayPort: "8080",

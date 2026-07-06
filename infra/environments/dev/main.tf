@@ -24,7 +24,7 @@ locals {
     client_key             = module.kind_cluster.client_key
   }
 
-  # Host port contracts for NodePort ingress (nginx-gateway-fabric)
+  # Host port contracts for NodePort ingress (cilium)
   ports = {
     http  = 30081
     https = 30444
@@ -54,7 +54,7 @@ module "kind_cluster" {
   # Disable kindnet + kube-proxy for Cilium eBPF
   disable_default_cni = true
 
-  # Expose ports for NodePort ingress (nginx-gateway-fabric)
+  # Expose ports for NodePort ingress (cilium)
   extra_port_mappings = [
     {
       container_port = local.ports.http

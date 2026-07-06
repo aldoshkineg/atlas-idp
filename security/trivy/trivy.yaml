@@ -7,4 +7,3 @@ scan:
     - .git
     - kind-kubeconfig
   skip-files:
-    - platform-kind/layers/storage/values/csi-hostpath/csi-hostpath-plugin.yaml
