@@ -2,14 +2,14 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: wait-vault
-  namespace: vault
+  name: wait-linstor
+  namespace: piraeus-datastore
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: wait-vault
-  namespace: vault
+  name: wait-linstor
+  namespace: piraeus-datastore
 rules:
   - apiGroups: [""]
     resources: ["pods"]
@@ -18,21 +18,21 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: wait-vault
-  namespace: vault
+  name: wait-linstor
+  namespace: piraeus-datastore
 subjects:
   - kind: ServiceAccount
-    name: wait-vault
+    name: wait-linstor
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: wait-vault
+  name: wait-linstor
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: wait-vault
-  namespace: vault
+  name: wait-linstor
+  namespace: piraeus-datastore
   annotations:
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
@@ -41,14 +41,14 @@ spec:
   template:
     spec:
       restartPolicy: Never
-      serviceAccountName: wait-vault
+      serviceAccountName: wait-linstor
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
         runAsGroup: 1001
         fsGroup: 1001
       containers:
-        - name: wait-vault
+        - name: wait-linstor
           image: bitnamilegacy/kubectl:1.33.4
           securityContext:
             allowPrivilegeEscalation: false
@@ -63,10 +63,18 @@ spec:
             - /bin/sh
             - -c
             - |
-              echo "Waiting for vault-0 to become Ready..."
+              echo "Waiting for LINSTOR controller pod to be Ready..."
               kubectl wait \
-                --namespace=vault \
+                --namespace=piraeus-datastore \
                 --for=condition=Ready \
-                pod/vault-0 \
+                pod -l app.kubernetes.io/component=controller \
                 --timeout=600s
-              echo "vault-0 is Ready"
+              echo "Controller is Ready"
+
+              echo "Waiting for LINSTOR satellite pods to be Ready..."
+              kubectl wait \
+                --namespace=piraeus-datastore \
+                --for=condition=Ready \
+                pod -l app.kubernetes.io/component=node \
+                --timeout=600s
+              echo "Satellites are Ready"

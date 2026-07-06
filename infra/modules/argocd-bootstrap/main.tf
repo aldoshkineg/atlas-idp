@@ -63,6 +63,12 @@ locals {
 
     controller = {
       resources = local.argocd_controller_resources
+      env = [
+        {
+          name  = "ARGOCD_SYNC_WAVE_DELAY"
+          value = "30s"
+        }
+      ]
     }
 
     applicationSet = {
