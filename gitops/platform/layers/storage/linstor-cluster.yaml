@@ -24,9 +24,6 @@ spec:
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       ref: values
-    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
-      targetRevision: main
-      path: gitops/platform/layers/storage/resources/linstor-cluster
   destination:
     server: https://kubernetes.default.svc
     namespace: piraeus-datastore
