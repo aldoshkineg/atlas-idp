@@ -130,6 +130,12 @@ Pre-commit runs on every commit:
 
 ## Session Context
 
+### Cluster Access
+
+- **KUBECONFIG**: `/var/tmp/atlas/talos/kubeconfig`
+- **Talosconfig**: `/var/tmp/atlas/talos/talosconfig`
+- **ArgoCD CLI**: `argocd --kubeconfig /var/tmp/atlas/talos/kubeconfig --grpc-web --server argocd.atlas --auth-token <token>`
+
 ### CNPG / PostgreSQL Cluster State (June 2026)
 
 - **Cluster:** `production-db` in `database` namespace, 1 instance, PG 17.6, csi-hostpath-sc

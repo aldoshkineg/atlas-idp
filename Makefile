@@ -4,7 +4,9 @@
 	argocd-login vault-seed vault-seed-from-env github-secrets-ca seed-ca \
 	atlasctl atlasctl-seed atlasctl-list \
 	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-undeploy \
-	act-build act-ci act-stage-apply act-stage-destroy
+	act-build act-ci act-stage-apply act-stage-destroy \
+	incus-snap-create incus-snap-restore incus-snap-list incus-snap-delete \
+	incus-vm-stop incus-vm-start
 
 CLUSTER_NAME     ?= atlas-idp
 KIND_CONFIG      ?= clusters/kind/cluster.yaml
@@ -82,6 +84,14 @@ help:
 	@echo ""
 	@echo "CA Certificates:"
 	@echo "  seed-ca           Create atlas-ca-secret for cert-manager from security/certs/"
+	@echo ""
+	@echo "Incus Snapshots:"
+	@echo "  incus-snap-create    Snapshot all Talos VMs (for rollback before destructive changes)"
+	@echo "  incus-snap-restore   Restore all Talos VMs from a snapshot (stops VMs, restores, starts)"
+	@echo "  incus-snap-list      List snapshots for all Talos VMs"
+	@echo "  incus-snap-delete    Delete a named snapshot from all Talos VMs"
+	@echo "  incus-vm-stop        Stop all Talos VMs (hard stop)"
+	@echo "  incus-vm-start       Start all Talos VMs"
 	@echo ""
 
 # --- Infrastructure Management ---
@@ -298,3 +308,33 @@ act-stage-destroy:
 
 stage-destroy:
 	./tools/ci/stage-terrafrom-destroy.sh
+
+# --- Incus Snapshots ---
+INCUS_SNAP_SCRIPT ?= tools/incus/incus-control.sh
+
+incus-snap-create:
+	@chmod +x $(INCUS_SNAP_SCRIPT)
+	$(INCUS_SNAP_SCRIPT) create $(filter-out $@,$(MAKECMDGOALS))
+
+incus-snap-restore:
+	@chmod +x $(INCUS_SNAP_SCRIPT)
+	$(INCUS_SNAP_SCRIPT) restore $(filter-out $@,$(MAKECMDGOALS))
+
+incus-snap-list:
+	@chmod +x $(INCUS_SNAP_SCRIPT)
+	$(INCUS_SNAP_SCRIPT) list
+
+incus-snap-delete:
+	@chmod +x $(INCUS_SNAP_SCRIPT)
+	$(INCUS_SNAP_SCRIPT) delete $(filter-out $@,$(MAKECMDGOALS))
+
+incus-vm-stop:
+	@chmod +x $(INCUS_SNAP_SCRIPT)
+	$(INCUS_SNAP_SCRIPT) stop
+
+incus-vm-start:
+	@chmod +x $(INCUS_SNAP_SCRIPT)
+	$(INCUS_SNAP_SCRIPT) start
+
+# Swallow extra args passed to incus-snap targets (e.g. make incus-snap-restore my-snap)
+%:;

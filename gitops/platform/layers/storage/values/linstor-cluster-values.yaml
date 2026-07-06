@@ -24,7 +24,7 @@ linstorSatelliteConfigurations:
       - name: lvm-pool
         lvmThinPool:
           volumeGroup: linstor-vg
-          thinPoolName: linstor-thin
+          thinPool: linstor-thin
         source:
           hostDevices:
             - /dev/sdb

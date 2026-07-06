@@ -68,7 +68,7 @@ spec:
               kubectl wait \
                 --namespace=piraeus-datastore \
                 --for=condition=Ready \
-                pod -l app.kubernetes.io/component=controller \
+                pod -l app.kubernetes.io/component=linstor-controller \
                 --timeout=600s
               echo "Controller is Ready"
 
@@ -76,6 +76,13 @@ spec:
               kubectl wait \
                 --namespace=piraeus-datastore \
                 --for=condition=Ready \
-                pod -l app.kubernetes.io/component=node \
+                pod -l app.kubernetes.io/component=linstor-satellite \
                 --timeout=600s
               echo "Satellites are Ready"
+
+              echo "Waiting for linstor-csi-node DaemonSet to be ready..."
+              kubectl rollout status \
+                --namespace=piraeus-datastore \
+                daemonset/linstor-csi-node \
+                --timeout=600s
+              echo "CSI DaemonSet is ready"
