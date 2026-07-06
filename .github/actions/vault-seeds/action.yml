@@ -28,7 +28,7 @@ runs:
         VL_GRAFANA_PASSWORD: ${{ inputs.vl_grafana_password }}
       run: |
         unset VAULT_ADDR
-        export KUBECONFIG="${KUBECONFIG:-${HOME}/.kube/kind}"
+        export KUBECONFIG="${KUBECONFIG:-/var/tmp/atlas/talos/kubeconfig}"
 
         echo "===> Waiting for Vault availability..."
         ./security/vault/wait-vault.sh

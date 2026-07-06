@@ -183,19 +183,19 @@ variable "zot_address" {
 variable "cp_memory" {
   description = "Controlplane VM memory"
   type        = string
-  default     = "2GiB"
+  default     = "4GiB"
 }
 
 variable "worker_memory" {
   description = "Worker VM memory"
   type        = string
-  default     = "2GiB"
+  default     = "5GiB"
 }
 
 variable "vm_cpu" {
-  description = "VM CPU count"
+  description = "VM CPU count (applied to all nodes)"
   type        = string
-  default     = "2"
+  default     = "4"
 }
 
 variable "vm_disk_size" {

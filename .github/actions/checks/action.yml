@@ -10,13 +10,15 @@ runs:
 
     - name: Terraform Validate
       shell: bash
-      working-directory: infra/environments/dev
       env:
         TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
       run: |
         mkdir -p /opt/terraform/plugin-cache
-        terraform init -backend=false
-        terraform validate
+        for env in dev stage; do
+          echo "=== Validating infra/environments/$env ==="
+          terraform -chdir=infra/environments/$env init -backend=false
+          terraform -chdir=infra/environments/$env validate
+        done
 
     - name: Install yamllint
       shell: bash

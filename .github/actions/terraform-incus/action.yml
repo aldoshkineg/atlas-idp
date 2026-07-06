@@ -1,0 +1,69 @@
+name: Terraform Incus
+description: "Deploy Talos cluster via Terraform + Incus"
+inputs:
+  atlas_ca_crt:
+    description: "CA certificate for dev cluster"
+    required: false
+  atlas_ca_key:
+    description: "CA key for dev cluster"
+    required: false
+runs:
+  using: composite
+  steps:
+    - name: Terraform Init
+      shell: bash
+      working-directory: ./infra/environments/stage
+      env:
+        TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+      run: |
+        mkdir -p /opt/terraform/plugin-cache
+        n=0
+        until [ "$n" -ge 3 ]; do
+          terraform init -reconfigure && break
+          n=$((n+1))
+          echo "Terraform init failed. Retry $n/3"
+          sleep 15
+        done
+        [ "$n" -lt 3 ] || exit 1
+
+    - name: Terraform Plan
+      shell: bash
+      working-directory: ./infra/environments/stage
+      env:
+        TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+      run: terraform plan -lock-timeout=5m -refresh=false -out=tfplan
+
+    - name: Terraform Apply
+      shell: bash
+      working-directory: ./infra/environments/stage
+      env:
+        KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
+        TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+      run: terraform apply -auto-approve tfplan
+
+    - name: Check cluster
+      shell: bash
+      env:
+        KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+
+    - name: Wait nodes
+      shell: bash
+      env:
+        KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
+      run: |
+        kubectl wait --for=condition=Ready node --all --timeout=300s
+
+    - name: Create CA Secret for cert-manager
+      shell: bash
+      env:
+        KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
+      run: |
+        kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create secret tls atlas-ca-secret \
+        --cert=<(echo "${{ inputs.atlas_ca_crt }}") \
+        --key=<(echo "${{ inputs.atlas_ca_key }}") \
+        -n cert-manager \
+        --dry-run=client -o yaml | kubectl apply -f -
