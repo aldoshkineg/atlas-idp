@@ -89,6 +89,21 @@ locals {
       params = {
         "reposerver.parallelism.limit" = "2"
       }
+      cm = {
+        "resource.customizations.health.batch_Job" = <<EOF
+hs = {}
+if obj.status ~= nil then
+  if obj.status.succeeded ~= nil and obj.status.succeeded == 1 then
+    hs.status = "Healthy"
+    hs.message = "Job completed successfully"
+    return hs
+  end
+end
+hs.status = "Progressing"
+hs.message = "Waiting for job to complete"
+return hs
+EOF
+      }
       repositories = var.repo_url != "" ? {
         "atlas-idp-repo" = {
           url   = var.repo_url
