@@ -30,27 +30,27 @@ locals {
           mirrors:
             registry.k8s.io:
               endpoints:
-                - "http://${var.gateway}:5000"
+                - "http://${var.zot_address}:5000"
               skipFallback: ${var.skip_fallback}
             quay.io:
               endpoints:
-                - "http://${var.gateway}:5000"
+                - "http://${var.zot_address}:5000"
               skipFallback: ${var.skip_fallback}
             ghcr.io:
               endpoints:
-                - "http://${var.gateway}:5000"
+                - "http://${var.zot_address}:5000"
               skipFallback: ${var.skip_fallback}
             docker.io:
               endpoints:
-                - "http://${var.gateway}:5000"
+                - "http://${var.zot_address}:5000"
               skipFallback: ${var.skip_fallback}
             public.ecr.aws:
               endpoints:
-                - "http://${var.gateway}:5000"
+                - "http://${var.zot_address}:5000"
               skipFallback: ${var.skip_fallback}
             gcr.io:
               endpoints:
-                - "http://${var.gateway}:5000"
+                - "http://${var.zot_address}:5000"
               skipFallback: ${var.skip_fallback}
     EOT
     ,
@@ -87,7 +87,7 @@ locals {
               %{endif}
               routes:
                 - network: "0.0.0.0/0"
-                  gateway: "${var.gateway}"
+                  gateway: "${var.zot_address}"
         kubelet:
           image: ${local.kubelet_image}
           nodeIP:
@@ -112,7 +112,7 @@ locals {
                 - "${ip}/24"
               routes:
                 - network: "0.0.0.0/0"
-                  gateway: "${var.gateway}"
+                  gateway: "${var.zot_address}"
         kubelet:
           image: ${local.kubelet_image}
           nodeIP:

@@ -62,22 +62,16 @@ resource "incus_instance" "zot" {
     type = "nic"
 
     properties = {
-      network = var.network
-    }
-  }
-
-  device {
-    name = "zot-port"
-    type = "proxy"
-    properties = {
-      listen  = var.proxy_listen
-      connect = "tcp:127.0.0.1:${var.port}"
+      nictype        = "routed"
+      parent         = var.network
+      "ipv4.address" = var.static_ip
     }
   }
 
   device {
     name = "config"
     type = "disk"
+
     properties = {
       source   = abspath("${path.module}/zot-config.json")
       path     = "/etc/zot/config.json"
@@ -88,9 +82,16 @@ resource "incus_instance" "zot" {
   device {
     name = "cache"
     type = "disk"
+
     properties = {
       source = var.cache_dir
       path   = "/var/lib/registry"
     }
+  }
+
+  file {
+    content     = "nameserver ${var.gateway}\nnameserver 8.8.8.8\n"
+    target_path = "/etc/resolv.conf"
+    mode        = "0644"
   }
 }

@@ -167,6 +167,17 @@ variable "zot_port" {
   default     = 5000
 }
 
+variable "zot_address" {
+  description = "Zot container static IP address (for routed NIC)"
+  type        = string
+  default     = "10.200.10.2"
+
+  validation {
+    condition     = can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", var.zot_address))
+    error_message = "zot_address must be a valid IPv4 address."
+  }
+}
+
 # === VM Resources ===
 
 variable "cp_memory" {

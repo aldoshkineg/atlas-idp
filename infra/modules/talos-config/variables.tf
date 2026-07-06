@@ -13,14 +13,14 @@ variable "k8s_version" {
   description = "Kubernetes version for Talos kubelet and control plane images"
 }
 
-variable "gateway" {
-  type        = string
-  description = "Network gateway address (used as Zot mirror endpoint)"
-}
-
 variable "cluster_cidr" {
   type        = string
   description = "Cluster pod/service CIDR for kubelet nodeIP validSubnets"
+}
+
+variable "zot_address" {
+  type        = string
+  description = "Zot registry cache IP address (used as containerd mirror endpoint)"
 }
 
 variable "cp_ips" {

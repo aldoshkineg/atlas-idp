@@ -9,3 +9,7 @@ output "port" {
 output "network" {
   value = var.network
 }
+
+output "ip_address" {
+  value = var.enable ? incus_instance.zot[0].ipv4_address : null
+}

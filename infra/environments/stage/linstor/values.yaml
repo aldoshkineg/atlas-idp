@@ -1,7 +1,0 @@
-cluster:
-  controller:
-    replicas: 1
-  csi:
-    enabled: true
-  monitoring:
-    enabled: true

@@ -27,7 +27,7 @@ module "talos_config" {
   cluster_name       = var.cluster_name
   talos_version      = var.talos_version
   k8s_version        = var.k8s_version
-  gateway            = var.gateway
+  zot_address        = var.zot_address
   cluster_cidr       = var.cluster_cidr
   cp_ips             = var.cp_ips
   worker_ips         = local.worker_ips
@@ -42,13 +42,14 @@ module "talos_config" {
 module "zot_cache" {
   source = "../../modules/zot-cache"
 
-  enable       = var.zot_enable
-  port         = var.zot_port
-  cache_dir    = var.zot_cache_dir
-  network      = module.incus.bridge_name
-  proxy_listen = "tcp:${var.gateway}:${var.zot_port}"
-  image_alias  = "zot-cache"
-  image_ref    = var.zot_image_ref
+  enable      = var.zot_enable
+  port        = var.zot_port
+  cache_dir   = var.zot_cache_dir
+  network     = module.incus.bridge_name
+  gateway     = var.gateway
+  image_alias = "zot-cache"
+  image_ref   = var.zot_image_ref
+  static_ip   = var.zot_address
 }
 
 # === Incus VMs ===
@@ -136,6 +137,10 @@ resource "null_resource" "cilium_lb_pool" {
 
   provisioner "local-exec" {
     command = <<-CMD
+      until kubectl --kubeconfig ${self.triggers["kubeconfig"]} get crd ciliumloadbalancerippools.cilium.io >/dev/null 2>&1; do
+        echo "Waiting for Cilium CRD..."
+        sleep 5
+      done
       kubectl --kubeconfig ${self.triggers["kubeconfig"]} apply -f - <<'MANIFEST'
       ${self.triggers["pool_spec"]}
       MANIFEST

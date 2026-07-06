@@ -248,29 +248,20 @@ spec:
 
 ## 4. Storage Layer: Pool initialization in LINSTOR
 
-Although the immutable Talos OS has no `lvm2` utilities on the host, the kernel supports device-mapper. The `linstor-satellite` container runs as `privileged: true` and includes a built-in LVM toolset. It will be able to carve the pool directly on top of the `/dev/vdb` disk that we provisioned from Incus.
+**Superseded** — the current LINSTOR configuration lives in:
 
-### `linstor-cluster-values.yaml` (for ArgoCD/Helm)
+- Values: `gitops/platform-kind/layers/storage/linstor/`
+- Documentation: `docs/linstor.md`
 
-```yaml
-apiVersion: piraeus.io/v1
-kind: LinstorCluster
-metadata:
-  name: linstor-storage
-  namespace: piraeus-datastore
-spec:
-  controller:
-    enabled: true
-  satelliteSet:
-    storagePools:
-      - name: lvm-thin-pool
-        lvmThinPool:
-          volumeGroup: linstor_vg
-          thinPool: thin_pool
-          # Instruct the operator to automatically initialize empty vdb disks
-          devicePaths:
-            - /dev/vdb
-```
+Key differences from the superseded design below:
+
+- Uses `LinstorSatelliteConfiguration` patches (not `LinstorCluster.spec.patches` — operator bug v2.10.x)
+- `LVM` pool (not `LVMThinPool`)
+- Volume group `linstor-vg` (not `linstor_vg`)
+- Device `/dev/sdb` (not `/dev/vdb`)
+- Strategic merge `$patch: delete` for Talos-specific removals (drbd-module-loader, drbd-shutdown-guard, etc.)
+
+See `docs/linstor.md` for installation, verification, and known issues.
 
 ---
 

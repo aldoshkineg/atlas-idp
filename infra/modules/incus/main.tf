@@ -1,4 +1,4 @@
-# 1. Managed Incus bridge (NAT, no DHCP)
+# 1. Managed Incus bridge (NAT, no DHCP — VMs use static Talos config)
 resource "incus_network" "talos_bridge" {
   name    = var.bridge_name
   project = var.project

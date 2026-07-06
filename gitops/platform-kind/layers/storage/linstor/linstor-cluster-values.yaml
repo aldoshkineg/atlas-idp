@@ -1,0 +1,77 @@
+fullnameOverride: linstor
+
+linstorCluster:
+  nodeSelector:
+    kubernetes.io/os: linux
+  controller:
+    enabled: true
+  csiController:
+    enabled: true
+  csiNode:
+    enabled: true
+  affinityController:
+    enabled: true
+  highAvailabilityController:
+    enabled: false
+  nfsServer:
+    enabled: false
+
+linstorSatelliteConfigurations:
+  - name: talos
+    nodeSelector:
+      kubernetes.io/os: linux
+    storagePools:
+      - name: lvm-pool
+        lvmPool:
+          volumeGroup: linstor-vg
+        source:
+          hostDevices:
+            - /dev/sdb
+    patches:
+      - target:
+          kind: DaemonSet
+          name: linstor-satellite
+        patch: |
+          apiVersion: apps/v1
+          kind: DaemonSet
+          metadata:
+            name: linstor-satellite
+          spec:
+            template:
+              spec:
+                initContainers:
+                  - name: drbd-module-loader
+                    $patch: delete
+                  - name: drbd-shutdown-guard
+                    $patch: delete
+                volumes:
+                  - name: lib-modules
+                    $patch: delete
+                  - name: usr-src
+                    $patch: delete
+                  - name: run-systemd-system
+                    $patch: delete
+                  - name: run-drbd-shutdown-guard
+                    $patch: delete
+                  - name: systemd-bus-socket
+                    $patch: delete
+                  - name: etc-lvm-archive
+                    hostPath:
+                      path: /var/etc/lvm/archive
+                  - name: etc-lvm
+                    hostPath:
+                      path: /var/etc/lvm
+                  - name: etc-lvm-backup
+                    hostPath:
+                      path: /var/etc/lvm/backup
+
+storageClasses:
+  - name: linstor-replicated
+    annotations:
+      storageclass.kubernetes.io/is-default-class: "true"
+    allowVolumeExpansion: true
+    volumeBindingMode: WaitForFirstConsumer
+    reclaimPolicy: Delete
+    parameters:
+      autoPlace: "2"
+      storagePool: lvm-pool

@@ -1,0 +1,5 @@
+installCRDs: true
+
+# Metrics proxy disabled in dev — enable in production for auth on :8443
+kubeRbacProxy:
+  enabled: false

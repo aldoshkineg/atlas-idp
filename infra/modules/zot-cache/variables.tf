@@ -21,8 +21,8 @@ variable "network" {
   type        = string
 }
 
-variable "proxy_listen" {
-  description = "Proxy listen address, e.g. tcp:10.200.10.1:5000"
+variable "gateway" {
+  description = "Bridge gateway IP (used for resolv.conf nameserver)"
   type        = string
 }
 
@@ -36,4 +36,10 @@ variable "image_ref" {
   description = "Remote image reference for incus image copy (e.g. ghcr-oci:project-zot/zot:v2.1.16)"
   type        = string
   default     = "ghcr-oci:project-zot/zot:v2.1.16"
+}
+
+variable "static_ip" {
+  description = "Static IPv4 address for the Zot container (e.g. 10.200.10.2)"
+  type        = string
+  default     = "10.200.10.2"
 }
