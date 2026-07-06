@@ -10,6 +10,9 @@ locals {
   lb_pool_start = var.lb_pool_start != "" ? var.lb_pool_start : cidrhost(var.cluster_cidr, 100)
   lb_pool_end   = var.lb_pool_end != "" ? var.lb_pool_end : cidrhost(var.cluster_cidr, 200)
 
+  # Root Application manifest path
+  root_app_path = var.root_app_path != "" ? var.root_app_path : "${path.root}/../../../gitops/bootstrap/root-app.yaml"
+
   # K8s connection config shared between helm and kubernetes providers
   k8s_connection = {
     host                   = module.talos_cluster.kubernetes_client_config.host
@@ -154,4 +157,56 @@ resource "null_resource" "cilium_lb_pool" {
       kubectl --kubeconfig ${self.triggers["kubeconfig"]} delete --ignore-not-found ciliumloadbalancerippool default-pool
     CMD
   }
+}
+
+# Kubernetes provider (uses Talos cluster kubeconfig)
+provider "kubernetes" {
+  host                   = local.k8s_connection.host
+  cluster_ca_certificate = local.k8s_connection.cluster_ca_certificate
+  client_certificate     = local.k8s_connection.client_certificate
+  client_key             = local.k8s_connection.client_key
+}
+
+# Root Application manifest exists
+check "root_app_manifest" {
+  assert {
+    condition     = fileexists(local.root_app_path)
+    error_message = "root_app_path must point to an existing root Application manifest."
+  }
+}
+
+# Argo CD bootstrap
+module "argocd_bootstrap" {
+  source = "../../modules/argocd-bootstrap"
+
+  argocd_namespace     = "argocd"
+  argocd_chart_version = "7.7.5"
+  insecure_mode        = true
+  create_namespace     = true
+
+  repo_url  = "https://github.com/aldoshkineg/atlas-idp"
+  repo_type = "git"
+
+  depends_on = [
+    module.cilium
+  ]
+}
+
+# Bootstrap root app once; Argo CD owns it after apply
+resource "null_resource" "argocd_root_app" {
+  triggers = {
+    root_app_sha1 = filesha1(local.root_app_path)
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      kubectl wait --for=condition=available deployment/argocd-server \
+        -n argocd --timeout=120s --kubeconfig=${module.talos_cluster.kubeconfig_path}
+
+      kubectl apply -f ${local.root_app_path} \
+        --kubeconfig=${module.talos_cluster.kubeconfig_path}
+    EOT
+  }
+
+  depends_on = [module.argocd_bootstrap]
 }

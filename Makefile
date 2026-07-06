@@ -295,3 +295,6 @@ act-stage-apply: act-ci
 
 act-stage-destroy:
 	tools/ci/act-runner/act-runner.sh destroy
+
+stage-destroy:
+	./tools/ci/stage-terrafrom-destroy.sh

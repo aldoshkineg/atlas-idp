@@ -215,3 +215,14 @@ variable "extra_pool_size" {
   type        = string
   default     = "15GiB"
 }
+
+variable "root_app_path" {
+  description = "Path to the GitOps root Application manifest"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.root_app_path == "" || can(file(var.root_app_path))
+    error_message = "root_app_path must point to an existing file or be empty to use the default path."
+  }
+}
