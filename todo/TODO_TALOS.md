@@ -250,7 +250,7 @@ spec:
 
 **Superseded** — the current LINSTOR configuration lives in:
 
-- Values: `gitops/platform-kind/layers/storage/linstor/`
+- Values: `gitops/platform/layers/storage/linstor/`
 - Documentation: `docs/linstor.md`
 
 Key differences from the superseded design below:

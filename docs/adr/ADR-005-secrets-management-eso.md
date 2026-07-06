@@ -124,7 +124,7 @@ On redeployment (CI) secrets already exist — no seeding required.
 
 #### 1. New Components (Argo CD Application)
 
-`gitops/platform-kind/layers/security/external-secrets.yaml`:
+`gitops/platform/layers/security/external-secrets.yaml`:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -135,7 +135,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 spec:
-  project: platform-kind
+  project: platform
   source:
     repoURL: https://charts.external-secrets.io
     chart: external-secrets
@@ -159,7 +159,7 @@ spec:
 
 #### 2. ClusterSecretStore
 
-`gitops/platform-kind/layers/security/resources/external-secrets/store.yaml`:
+`gitops/platform/layers/security/resources/external-secrets/store.yaml`:
 
 ```yaml
 apiVersion: external-secrets.io/v1beta1
@@ -212,7 +212,7 @@ values: |
   existingSecret: minio-credentials
 ```
 
-Plus ExternalSecret `gitops/platform-kind/layers/storage/resources/minio/external-secret.yaml`:
+Plus ExternalSecret `gitops/platform/layers/storage/resources/minio/external-secret.yaml`:
 
 ```yaml
 apiVersion: external-secrets.io/v1beta1
@@ -237,7 +237,7 @@ spec:
         property: rootPassword
 ```
 
-And Application `gitops/platform-kind/layers/storage/minio-secret.yaml` (sync-wave 4, before minio wave 5).
+And Application `gitops/platform/layers/storage/minio-secret.yaml` (sync-wave 4, before minio wave 5).
 
 **`velero.yaml`:**
 
