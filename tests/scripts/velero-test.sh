@@ -21,13 +21,11 @@ cleanup() {
   velero backup get "$BACKUP_NAME" >/dev/null 2>&1 && velero backup delete --confirm "$BACKUP_NAME" 2>/dev/null || true
   kubectl delete pod -n "$NS" -l "$LABEL" --ignore-not-found --wait=false 2>/dev/null || true
   kubectl delete pvc -n "$NS" -l "$LABEL" --ignore-not-found --wait=false 2>/dev/null || true
-  kubectl delete sc csi-hostpath-sc --ignore-not-found 2>/dev/null || true
 }
 trap cleanup EXIT
 
 echo "=== Deploy test pod with PVC ==="
 kubectl apply -f tests/gateway/namespace.yaml 2>/dev/null || true
-kubectl apply -f tests/velero/storageclass.yaml
 kubectl apply -f tests/velero/pvc.yaml
 kubectl apply -f tests/velero/pod.yaml
 
@@ -52,6 +50,7 @@ echo "=== Create Velero backup (label: $LABEL) ==="
 velero backup create "$BACKUP_NAME" \
   --include-namespaces "$NS" \
   --selector "$LABEL" \
+  --default-volumes-to-fs-backup \
   --wait > /dev/null 2>&1 || {
   fail "backup creation failed"
   exit 1

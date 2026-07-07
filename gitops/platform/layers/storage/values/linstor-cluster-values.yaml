@@ -76,3 +76,12 @@ storageClasses:
     parameters:
       autoPlace: "2"
       storagePool: lvm-pool
+
+volumeSnapshotClasses:
+  - name: linstor-csi-snapshot
+    annotations:
+      snapshot.storage.kubernetes.io/is-default-class: "true"
+    driver: linstor.csi.linbit.com
+    deletionPolicy: Delete
+    parameters:
+      storagePool: lvm-pool

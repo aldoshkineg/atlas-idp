@@ -21,6 +21,8 @@ spec:
       releaseName: velero
       values: |
         snapshotsEnabled: true
+        defaultVolumesToFsBackup: true
+        uploaderType: kopia
         kubectl:
           image:
             repository: bitnamilegacy/kubectl

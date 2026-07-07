@@ -8,7 +8,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: csi-hostpath-sc
+  storageClassName: linstor-replicated
   resources:
     requests:
       storage: 100Mi
