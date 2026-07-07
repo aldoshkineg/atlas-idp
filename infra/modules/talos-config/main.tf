@@ -104,6 +104,7 @@ locals {
         kernel:
           modules:
             - name: drbd
+            - name: dm-thin-pool
         network:
           interfaces:
             - deviceSelector:

@@ -65,16 +65,6 @@ linstorSatelliteConfigurations:
                       path: /var/etc/lvm/backup
                 containers:
                   - name: linstor-satellite
-                    securityContext:
-                      privileged: true
-                      capabilities:
-                        add:
-                          - SYS_MODULE
-                        drop: null
-                    volumeMounts:
-                      - name: lib-modules
-                        mountPath: /lib/modules
-                        readOnly: true
 
 storageClasses:
   - name: linstor-replicated
