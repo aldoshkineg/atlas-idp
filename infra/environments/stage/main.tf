@@ -112,6 +112,7 @@ module "cilium" {
   cilium_settings = [
     { name = "hubble.enabled", value = "true", type = "auto" },
     { name = "gatewayAPI.enabled", value = "true", type = "auto" },
+    { name = "gatewayAPI.enableAlpn", value = "true", type = "auto" },
     { name = "bpf.hostLegacyRouting", value = "true", type = "auto" },
     { name = "l2announcements.enabled", value = "true", type = "auto" },
     { name = "l2announcements.leases.enabled", value = "true", type = "auto" },
