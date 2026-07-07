@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: restart-cilium-operator
+  namespace: kube-system
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: cilium-operator-restart
+      containers:
+        - name: kubectl
+          image: bitnamilegacy/kubectl:1.33.4
+          command:
+            - /bin/sh
+            - -c
+            - |
+              kubectl rollout restart deployment/cilium-operator -n kube-system
+              kubectl rollout status deployment/cilium-operator -n kube-system --timeout=300s
