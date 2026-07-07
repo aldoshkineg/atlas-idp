@@ -62,6 +62,12 @@ linstorSatelliteConfigurations:
                   - name: etc-lvm-backup
                     hostPath:
                       path: /var/etc/lvm/backup
+                containers:
+                  - name: linstor-satellite
+                    volumeMounts:
+                      - name: lib-modules
+                        mountPath: /lib/modules
+                        readOnly: true
 
 storageClasses:
   - name: linstor-replicated
