@@ -3,6 +3,7 @@
 set -eo pipefail
 
 export KUBECONFIG="${KUBECONFIG:-/var/tmp/atlas/talos/kubeconfig}"
+ARGOCD="argocd"
 ARGOCD_SERVER="argocd.atlas"
 ARGOCD_USER="admin"
 SECRET_NAME="argocd-initial-admin-secret"
@@ -22,10 +23,13 @@ fi
 echo "==> Logging into ArgoCD CLI..."
 if expect -c "
     set timeout 10
-    spawn $ARGOCD login $ARGOCD_SERVER --username $ARGOCD_USER --password {$ARGOCD_PASSWORD}
+    spawn $ARGOCD login $ARGOCD_SERVER --username $ARGOCD_USER --password {$ARGOCD_PASSWORD} --insecure
     expect {
         \"Proceed\" { send \"y\r\"; exp_continue }
-        eof
+        \"logged in successfully\" { exit 0 }
+        \"FATA\" { exit 1 }
+        timeout { exit 1 }
+        eof { exit 1 }
     }
 " 2>/dev/null; then
     echo "✅ Login successful."
