@@ -90,6 +90,8 @@ spec:
       kind: "*"
     - group: cert-manager.io
       kind: ClusterIssuer
+    - group: cilium.io
+      kind: "*"
     - group: gateway.networking.k8s.io
       kind: GatewayClass
     - group: rbac.authorization.k8s.io

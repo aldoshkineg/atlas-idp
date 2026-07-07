@@ -8,12 +8,6 @@ ARGOCD_USER="admin"
 SECRET_NAME="argocd-initial-admin-secret"
 NAMESPACE="argocd"
 
-if [ -x ~/.local/bin/argocd ]; then
-    ARGOCD="$HOME/.local/bin/argocd"
-else
-    ARGOCD="argocd"
-fi
-
 echo "==> Fetching admin password..."
 if ! ARGOCD_PASSWORD=$(kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" -o jsonpath="{.data.password}" 2>/dev/null | base64 --decode); then
     echo "⚠️  Failed to fetch password. Enter manually:"
@@ -28,7 +22,7 @@ fi
 echo "==> Logging into ArgoCD CLI..."
 if expect -c "
     set timeout 10
-    spawn $ARGOCD login $ARGOCD_SERVER --username $ARGOCD_USER --password {$ARGOCD_PASSWORD} --insecure
+    spawn $ARGOCD login $ARGOCD_SERVER --username $ARGOCD_USER --password {$ARGOCD_PASSWORD}
     expect {
         \"Proceed\" { send \"y\r\"; exp_continue }
         eof
