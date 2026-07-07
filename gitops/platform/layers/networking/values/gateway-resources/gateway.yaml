@@ -72,6 +72,17 @@ spec:
         mode: Terminate
         certificateRefs:
           - name: argocd-cert
+    - name: https-argocd-cli
+      port: 443
+      protocol: HTTPS
+      hostname: "argocd-cli.atlas"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: argocd-cli-cert
     - name: https-seal
       port: 443
       protocol: HTTPS

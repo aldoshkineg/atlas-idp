@@ -45,7 +45,7 @@ variable "talos" {
 variable "envoy_image_tag" {
   description = "Tag for Cilium Envoy sidecar image"
   type        = string
-  default     = "v1.34.4-1753677767-266d5a01d1d55bd1d60148f991b98dac0390d363"
+  default     = "v1.36.6-1778235340-b87d1e32f522b33bd51701c6476d199326f01496"
 }
 
 variable "certgen_image_tag" {

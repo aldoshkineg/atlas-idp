@@ -1,17 +1,17 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: argocd-cert
+  name: argocd-cli-cert
   namespace: kube-system
 spec:
-  secretName: argocd-cert
+  secretName: argocd-cli-cert
   duration: 2160h
   renewBefore: 360h
   subject:
     organizations:
       - atlas-idp
   dnsNames:
-    - argocd.atlas
+    - argocd-cli.atlas
   issuerRef:
     name: atlas-ca-issuer
     kind: ClusterIssuer
@@ -19,16 +19,16 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: argocd-route
+  name: argocd-cli-route
   namespace: argocd
 spec:
   parentRefs:
     - name: platform-gateway
       namespace: kube-system
-      sectionName: https-argocd
+      sectionName: https-argocd-cli
   hostnames:
-    - argocd.atlas
+    - argocd-cli.atlas
   rules:
     - backendRefs:
         - name: argocd-server
-          port: 80
+          port: 443
