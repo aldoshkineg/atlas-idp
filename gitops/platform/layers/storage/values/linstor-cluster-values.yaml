@@ -22,9 +22,8 @@ linstorSatelliteConfigurations:
       kubernetes.io/os: linux
     storagePools:
       - name: lvm-pool
-        lvmThinPool:
+        lvmPool:
           volumeGroup: linstor-vg
-          thinPool: linstor-thin
         source:
           hostDevices:
             - /dev/sdb
