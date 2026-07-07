@@ -51,7 +51,8 @@ locals {
 
     server = {
       service = {
-        type = "ClusterIP"
+        type                        = "ClusterIP"
+        servicePortHttpsAppProtocol = "kubernetes.io/h2c"
       }
       extraArgs = var.insecure_mode ? ["--insecure"] : []
       resources = local.argocd_server_resources
