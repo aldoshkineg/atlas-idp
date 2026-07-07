@@ -4,7 +4,7 @@ set -eo pipefail
 
 export KUBECONFIG="${KUBECONFIG:-/var/tmp/atlas/talos/kubeconfig}"
 ARGOCD="argocd"
-ARGOCD_SERVER="argocd.atlas"
+ARGOCD_SERVER="argocd-cli.atlas"
 ARGOCD_USER="admin"
 SECRET_NAME="argocd-initial-admin-secret"
 NAMESPACE="argocd"
