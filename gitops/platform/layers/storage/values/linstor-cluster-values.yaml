@@ -66,9 +66,11 @@ linstorSatelliteConfigurations:
                 containers:
                   - name: linstor-satellite
                     securityContext:
+                      privileged: true
                       capabilities:
                         add:
                           - SYS_MODULE
+                        drop: null
                     volumeMounts:
                       - name: lib-modules
                         mountPath: /lib/modules
