@@ -115,7 +115,7 @@ module "cilium" {
     { name = "bpf.hostLegacyRouting", value = "true", type = "auto" },
     { name = "l2announcements.enabled", value = "true", type = "auto" },
     { name = "l2announcements.leases.enabled", value = "true", type = "auto" },
-    { name = "gatewayAPI.alpn.enabled", value = "true", type = "auto" },
+    { name = "gatewayAPI.enableAlpn", value = "true", type = "auto" },
   ]
 }
 

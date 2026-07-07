@@ -51,22 +51,8 @@ locals {
 
     server = {
       service = {
-        type = "ClusterIP"
-        ports = [
-          {
-            name        = "http"
-            port        = 80
-            targetPort  = 8080
-            protocol    = "TCP"
-            appProtocol = "h2c"
-          },
-          {
-            name       = "https"
-            port       = 443
-            targetPort = 8080
-            protocol   = "TCP"
-          },
-        ]
+        type                        = "ClusterIP"
+        servicePortHttpsAppProtocol = "h2c"
       }
       extraArgs = var.insecure_mode ? ["--insecure"] : []
       resources = local.argocd_server_resources
