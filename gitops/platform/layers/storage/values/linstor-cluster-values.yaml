@@ -22,8 +22,9 @@ linstorSatelliteConfigurations:
       kubernetes.io/os: linux
     storagePools:
       - name: lvm-pool
-        lvmPool:
+        lvmThinPool:
           volumeGroup: linstor-vg
+          thinPool: linstor-thin
         source:
           hostDevices:
             - /dev/sdb
@@ -64,6 +65,10 @@ linstorSatelliteConfigurations:
                       path: /var/etc/lvm/backup
                 containers:
                   - name: linstor-satellite
+                    securityContext:
+                      capabilities:
+                        add:
+                          - SYS_MODULE
                     volumeMounts:
                       - name: lib-modules
                         mountPath: /lib/modules
