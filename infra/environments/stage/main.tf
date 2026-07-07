@@ -6,9 +6,8 @@ terraform {
 
 # === Derived locals ===
 locals {
-  worker_ips    = length(var.worker_ips) > 0 ? var.worker_ips : [for i in range(var.worker_count) : cidrhost(var.cluster_cidr, 20 + i)]
-  lb_pool_start = var.lb_pool_start != "" ? var.lb_pool_start : cidrhost(var.cluster_cidr, 100)
-  lb_pool_end   = var.lb_pool_end != "" ? var.lb_pool_end : cidrhost(var.cluster_cidr, 200)
+  worker_ips = length(var.worker_ips) > 0 ? var.worker_ips : [for i in range(var.worker_count) : cidrhost(var.cluster_cidr, 20 + i)]
+
 
   # Root Application manifest path
   root_app_path = var.root_app_path != "" ? var.root_app_path : "${path.root}/../../../gitops/bootstrap/root-app.yaml"
@@ -119,45 +118,8 @@ module "cilium" {
   ]
 }
 
-# === Cilium LoadBalancer IP Pool ===
-# TODO: move to Argo CD (network config) as CiliumLoadBalancerIPPool manifest
-resource "null_resource" "cilium_lb_pool" {
-  depends_on = [module.cilium]
-
-  triggers = {
-    kubeconfig = module.talos_cluster.kubeconfig_path
-    pool_spec  = <<-EOT
-      apiVersion: cilium.io/v2
-      kind: CiliumLoadBalancerIPPool
-      metadata:
-        name: default-pool
-      spec:
-        blocks:
-          - start: ${local.lb_pool_start}
-            stop: ${local.lb_pool_end}
-    EOT
-  }
-
-  provisioner "local-exec" {
-    command = <<-CMD
-      until kubectl --kubeconfig ${self.triggers["kubeconfig"]} get crd ciliumloadbalancerippools.cilium.io >/dev/null 2>&1; do
-        echo "Waiting for Cilium CRD..."
-        sleep 5
-      done
-      kubectl --kubeconfig ${self.triggers["kubeconfig"]} apply -f - <<'MANIFEST'
-      ${self.triggers["pool_spec"]}
-      MANIFEST
-    CMD
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    on_failure = continue
-    command    = <<-CMD
-      kubectl --kubeconfig ${self.triggers["kubeconfig"]} delete --ignore-not-found ciliumloadbalancerippool default-pool
-    CMD
-  }
-}
+# CiliumLoadBalancerIPPool + CiliumL2AnnouncementPolicy managed by Argo CD
+# See: gitops/platform/layers/networking/loadbalancer.yaml
 
 # Kubernetes provider (uses Talos cluster kubeconfig)
 provider "kubernetes" {

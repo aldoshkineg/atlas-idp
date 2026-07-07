@@ -97,30 +97,6 @@ variable "skip_fallback" {
   default     = true
 }
 
-# === Cilium LoadBalancer IP Pool ===
-
-variable "lb_pool_start" {
-  description = "Start of the LoadBalancer IP pool range (auto-derived from cluster_cidr when empty)"
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = var.lb_pool_start == "" || can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", var.lb_pool_start))
-    error_message = "lb_pool_start must be a valid IPv4 address or empty."
-  }
-}
-
-variable "lb_pool_end" {
-  description = "End of the LoadBalancer IP pool range (auto-derived from cluster_cidr when empty)"
-  type        = string
-  default     = ""
-
-  validation {
-    condition     = var.lb_pool_end == "" || can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", var.lb_pool_end))
-    error_message = "lb_pool_end must be a valid IPv4 address or empty."
-  }
-}
-
 # === Paths ===
 
 variable "talos_image_path" {
