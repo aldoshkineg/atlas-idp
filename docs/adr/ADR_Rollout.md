@@ -4,6 +4,15 @@
 
 Accepted
 
+> [!WARNING] > **Implementation diverged from this decision.** This ADR selected
+> "Gateway API + GitOps **without Argo Rollouts**" (two Deployments + HTTPRoute
+> weights via Git commits). The platform actually deployed **Argo Rollouts**
+> (`gitops/platform/delivery/argo-rollouts.yaml`) with traffic routing via
+> **Cilium Gateway API `managedRoutes`** (e.g.
+> `apps/seal/charts/seal/templates/rollout-api.yaml`). The decision record below
+> is kept for history; the **Verification** section reflects the implemented
+> design. The ADR should be superseded/updated to match reality.
+
 ## Context
 
 The task is to implement:
@@ -230,3 +239,67 @@ canary: 0–10%
 - Gateway API + GitOps is a declarative traffic management model
 
 In this architecture, the second approach is preferred due to its simplicity, transparency, and native compatibility with the existing stack (Argo CD + Gateway API + NGINX Gateway Fabric).
+
+---
+
+## Verification (Runbook)
+
+> [!WARNING]
+> The acceptance-criteria checklist and commands below were adapted from the
+> deleted `todo/TODO_ROLLOUT.md` (which targeted NGINX Gateway Fabric + a plugin
+> ConfigMap — **not** the current stack). They have **NOT been validated on a
+> live cluster** and require verification.
+
+### Implemented model (actual)
+
+- **Controller:** Argo Rollouts (`gitops/platform/delivery/`).
+- **Traffic routing:** Cilium Gateway API (Envoy) via
+  `strategy.canary.trafficRouting.managedRoutes` → HTTPRoute name.
+- **Services:** `canaryService` / `stableService` for canary/stable.
+- **Steps:** `strategy.canary.steps` — stepwise weight shift with pauses/analysis.
+
+### Acceptance Criteria
+
+| #   | Criterion                                                                 | How to verify                                                                          |
+| --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 1   | On image update, canary pods of the new version are created               | `kubectl get pods -l app.kubernetes.io/name=seal-api` — new-version ReplicaSet visible |
+| 2   | HTTPRoute weights auto-adjust per strategy steps (10% → 25% → 50% → 100%) | Rollout status: `kubectl argo rollouts get rollout seal-api`                           |
+| 3   | Traffic is split between stable/canary proportionally to weights          | Inspect request distribution (Prometheus metrics / logs)                               |
+| 4   | At 100% weight the canary becomes stable; old version is removed          | Rollout reaches `Healthy`/`Completed`; old ReplicaSet scaled to zero                   |
+| 5   | On failure (analysis/pause failure) rollback is possible                  | Abort with an invalid tag → `kubectl argo rollouts abort` / `undo`                     |
+
+> [!NOTE]
+> Resource names/namespaces (e.g. `seal-api`, `<ns>`, `<seal-route>`) **must be
+> confirmed** against the actual cluster before relying on this checklist.
+
+### Commands (example: seal-api)
+
+```bash
+# 1. Log in to Argo CD
+bash tools/argocd-login.sh
+
+# 2. Start the canary (new image)
+kubectl argo rollouts set image seal-api seal-api=<registry>/seal-api:<new-tag> -n <ns>
+
+# 3. Watch steps (weights, pauses, analysis)
+kubectl argo rollouts get rollout seal-api -n <ns> --watch
+
+# 4. Inspect the HTTPRoute (managed route weights)
+kubectl get httproute <seal-route> -n <ns> -o yaml
+
+# 5. Rollback on failure
+kubectl argo rollouts abort seal-api -n <ns>
+# or
+kubectl argo rollouts undo seal-api -n <ns>
+```
+
+### Limitations (current for managedRoutes)
+
+> [!WARNING]
+> Carried over from the original (NGINX-centric) spec and **require
+> re-validation** for Cilium + managedRoutes:
+
+- Blue/Green strategy of Argo Rollouts is **not supported** via the Gateway API
+  plugin/managedRoutes (only canary / traffic-shifting).
+- The Rollout depends on Gateway API `v1` and a correctly configured Cilium Gateway.
+- When upgrading Argo Rollouts, verify `managedRoutes` compatibility with the new version.
