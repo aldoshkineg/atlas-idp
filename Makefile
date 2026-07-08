@@ -3,7 +3,7 @@
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
 	argocd-login vault-seed vault-seed-from-env github-secrets-ca seed-ca \
 	atlasctl atlasctl-seed atlasctl-list \
-	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-undeploy \
+	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-argocd-rollout test-undeploy \
 	act-build act-ci act-stage-apply act-stage-destroy \
 	incus-snap-create incus-snap-restore incus-snap-list incus-snap-delete \
 	incus-vm-stop incus-vm-start
@@ -69,6 +69,7 @@ help:
 	@echo "  test-network-policy  Test NetworkPolicy isolation between pods"
 	@echo "  test-db-backup       Test CNPG backup/restore to MinIO"
 	@echo "  test-seal            Test Seal deployment (pods, API, documents, gateway)"
+	@echo "  test-argocd-rollout  Test Argo Rollouts canary progression"
 	@echo "  test-undeploy    Remove all test resources"
 	@echo ""
 	@echo "Atlas Workload Management:"
@@ -199,7 +200,7 @@ test-ca-gateway:
 test-vault:
 	./tests/scripts/vault-test.sh
 
-test: test-ca-gateway test-vault test-network-policy test-velero test-keda test-redis test-db-backup
+test: test-ca-gateway test-vault test-network-policy test-velero test-keda test-redis test-db-backup test-argocd-rollout
 
 test-velero:
 	./tests/scripts/velero-test.sh
@@ -219,6 +220,9 @@ test-db-backup:
 test-seal:
 	./tests/scripts/seal-test.sh
 
+test-argocd-rollout:
+	./tests/scripts/argocd-rollout-test.sh
+
 test-undeploy:
 	kubectl delete -f tests/keda --ignore-not-found
 	kubectl delete -f tests/vault --ignore-not-found
@@ -227,6 +231,7 @@ test-undeploy:
 	kubectl delete -f tests/db-backup --ignore-not-found
 	kubectl delete pod -n seal seal-test --ignore-not-found 2>/dev/null || true
 	kubectl delete ns db-backup-test --ignore-not-found
+	kubectl delete ns argocd-rollout-test --ignore-not-found
 	kubectl delete pod -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
 	kubectl delete pvc -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
 	kubectl delete sc csi-hostpath-sc --ignore-not-found 2>/dev/null || true

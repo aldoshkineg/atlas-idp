@@ -21,4 +21,5 @@ Each target deploys and verifies itself.
 | `make test-keda`           | Test KEDA autoscaling via ConfigMap trigger                                            |
 | `make test-db-backup`      | Test CNPG backup/restore to MinIO                                                      |
 | `make test-seal`           | Test Seal deployment (pods, API, document CRUD, worker metrics, MinIO bucket, gateway) |
+| `make test-argocd-rollout` | Test Argo Rollouts canary (controller, CRD, weight steps, promotion, scale-down)       |
 | `make test-undeploy`       | Remove all test resources                                                              |
