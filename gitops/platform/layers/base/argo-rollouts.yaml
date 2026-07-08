@@ -27,6 +27,7 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+      - SkipCrds=true
     retry:
       limit: 10
       backoff:
