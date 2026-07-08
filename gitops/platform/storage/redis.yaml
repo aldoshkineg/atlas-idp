@@ -79,7 +79,7 @@ spec:
     # -----------------------------
     # SECRET (Bitnami Redis auth)
     # -----------------------------
-    - group: ""
+    - group: "*"
       kind: Secret
       jsonPointers:
         # Redis password & replication auth are often generated
@@ -90,7 +90,7 @@ spec:
     # -----------------------------
     # CONFIGMAP (scripts / config templates)
     # -----------------------------
-    - group: ""
+    - group: "*"
       kind: ConfigMap
       jqPathExpressions:
         # Ignore ordering / checksum-style metadata drift
@@ -108,7 +108,7 @@ spec:
     # -----------------------------
     # SERVICE (annotations + LB controller noise)
     # -----------------------------
-    - group: ""
+    - group: "*"
       kind: Service
       jsonPointers:
         - /metadata/annotations
