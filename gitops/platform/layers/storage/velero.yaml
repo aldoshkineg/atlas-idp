@@ -53,6 +53,14 @@ spec:
           useSecret: true
           existingSecret: velero-aws
         deployNodeAgent: true
+        nodeAgent:
+          tolerations:
+            - key: node.kubernetes.io/disk-pressure
+              operator: Exists
+              effect: NoSchedule
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
         schedules:
           weekly-pvc-backup:
             schedule: "0 2 * * 0"
