@@ -94,8 +94,18 @@ gitops/platform/<layer>/
 Six per-layer `AppProject`s (`base`, `security`, `observability`, `storage`,
 `delivery`, `workloads`) plus the built-in `platform` project. They are applied
 first (sync-wave `-1000`) so every layer wrapper has a destination project to
-live in. Each project whitelists only the namespaces/cluster-resources its
-layer needs (tightening / Phase 2 still pending).
+live in.
+
+> **Current state (verified on cluster):** every per-layer project is still
+> wide-open — `DESTINATIONS *,*`, `SOURCES *`, `CLUSTER-RESOURCE-WHITELIST */*`.
+> Narrowing each project to the namespaces/cluster-resources its layer actually
+> needs is a **pending Phase 2 hardening**.
+
+> **Non-goals (decided, not doing):** `metrics-server` stays in `observability`
+> (not moved to `base`); we deliberately keep 6 explicit layer-apps instead of a
+> single `ApplicationSet` (conditional syncPolicy too complex for 6 layers); and
+> we don't use `sync-windows` (manual operator-driven `argocd app sync <layer>`
+> is enough for a single machine).
 
 ## Sync flow — deploying a layer
 
@@ -124,6 +134,25 @@ Within a layer, leaf apps are ordered by `argocd.argoproj.io/sync-wave`
 | 20    | delivery      | Manual gate                            |
 | 50    | workloads     | Manual gate                            |
 
+### Layer → component mapping
+
+Which components land in which layer (the directory each leaf `Application`
+lives in). Useful when deciding where a new service belongs.
+
+| Layer           | Sync   | Wave | Components                                                                                                                                                                      |
+| --------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `base`          | AUTO   | -100 | gateway-\*, loadbalancer, restart-cilium (networking); cert-manager, cert-manager-issuers, external-secrets, platform-secrets, vault-operator, vault-secrets-webhook (security) |
+| `storage`       | Manual | -50  | cnpg-\*, postgres-cluster, redis (data); linstor-\*, minio, snapshot-\*, velero (storage)                                                                                       |
+| `security`      | Manual | 0    | netpol (networking); trivy-operator (kyverno — later)                                                                                                                           |
+| `observability` | Manual | 10   | metrics-server, alloy, loki, prom-stack, tempo                                                                                                                                  |
+| `delivery`      | Manual | 20   | keda, argo-rollouts-\*                                                                                                                                                          |
+| `workloads`     | Manual | 50   | gitops/workloads (seal, external repo)                                                                                                                                          |
+
+> `metrics-server` lives in `observability` (Manual) by decision (2026-07-09) —
+> it does not come up with `base`. Moving it to `base` was considered and
+> **declined**: it is fine to raise metrics together with the observability
+> layer on a constrained machine.
+
 ### depends-on / ordering
 
 `depends-on` works across Applications in the `root-app` tree (proven: storage
@@ -146,6 +175,22 @@ argocd app sync <layer>      # e.g. storage, observability, security
 
 Leaf apps are automated, so this single command deploys the whole layer.
 Wait for health with `argocd app wait <layer> --health`.
+
+### Raise order on a constrained (weak) machine
+
+Because only `base` is automated, bring layers up incrementally to avoid
+running out of resources. `base` first, then each layer on demand:
+
+```bash
+argocd sync base          # gateway, cert-manager, vault, external-secrets (foundation)
+argocd sync storage       # when DB / object storage is needed
+argocd sync security      # network policies, trivy
+argocd sync observability # metrics / logs / traces
+argocd sync delivery      # keda, argo-rollouts
+```
+
+> `workloads` (seal, external repo) is synced separately via atlasctl / Seal
+> Integration — not part of the platform-layer raise above.
 
 ### Delete a layer
 
@@ -247,6 +292,28 @@ on its next reconcile. The wrapper stays `Manual`/`OutOfSync` and does **not**
 redeploy its children — so the layer does not come back on its own. To truly
 retire a layer, move its wrapper into `gitops/platform/layers/disabled/` (see
 "Disable a layer") instead of leaving it in `layers/`.
+
+## Live status (snapshot: 2026-07-09)
+
+Verified against the running Talos cluster (Argo CD admin context). The
+app-of-apps tree is live and behaving as designed:
+
+| Wrapper         | Project         | State                                                      |
+| --------------- | --------------- | ---------------------------------------------------------- |
+| `root-app`      | `default`       | Synced / Healthy (automated)                               |
+| `base`          | `base`          | **Synced / Healthy** — leaf apps automated, foundation up  |
+| `delivery`      | `delivery`      | Wrapper created, **Manual / OutOfSync** (not deployed yet) |
+| `security`      | `security`      | Wrapper created, **Manual / OutOfSync** (not deployed yet) |
+| `observability` | `observability` | Wrapper created, **Manual / OutOfSync** (not deployed yet) |
+| `storage`       | `storage`       | Wrapper created, **Manual / OutOfSync** (not deployed yet) |
+
+The Manual layers are exactly as designed: `root-app` created the wrapper CRs,
+but they only deploy when an operator runs `argocd app sync <layer>`. `base`
+came up hands-off; the other four are **pending an explicit sync** (incremental
+raise on a constrained machine — see "Raise order on a constrained machine").
+
+> `workloads` (seal, external repo) is excluded from this layer-verification
+> snapshot — it is tracked separately via atlasctl / Seal Integration.
 
 ## Verification
 
