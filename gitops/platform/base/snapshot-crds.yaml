@@ -10,9 +10,9 @@ metadata:
     argocd.argoproj.io/sync-options: PruneLast=true
   labels:
     app.kubernetes.io/component: platform
-    app.kubernetes.io/layer: storage
+    app.kubernetes.io/layer: base
 spec:
-  project: storage
+  project: base
   source:
     repoURL: https://github.com/kubernetes-csi/external-snapshotter.git
     targetRevision: v8.6.0
