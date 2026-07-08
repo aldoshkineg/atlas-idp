@@ -201,23 +201,24 @@
 ## Phase 9 — Platform CLI & Developer Experience
 
 - [x] **atlasctl** — bash-based workload management CLI (`tools/atlasctl/atlasctl.sh`)
+
   - [x] `new` — scaffold workload structure
   - [x] `seed` — provision DB + bucket + write secrets to Vault
   - [x] `enable` / `disable` — manage GitOps + Gateway listeners
   - [x] `status` / `list` — workload status
-- [ ] **atlasctl** (Go CLI) — rewrite as standalone Go binary
+  - [x] **atlasctl** (Go CLI) — rewrite as standalone Go binary
 
   **Testing:** each package has unit tests (table-driven, minimum 70% coverage per package).
   Integration tests with real k8s/vault — optional, in a separate `_test.go` with build tag `//go:build integration`.
   Smoke test at the end of Week 6 covers the full lifecycle of a workload.
 
-  - [ ] **Week 1 — Foundation**
+  - [x] **Week 1 — Foundation**
     - [x] `pkg/config/` — YAML-driven config (template groups, defaults, seed keys, overlay via binary-side atlastctl.yaml)
     - [x] `tools/atlasctl/pkg/config/config.yaml` — default config with 4 template groups (14 files), 4 seed keys, 5 defaults
     - [x] Initialize Go module `tools/atlasctl/go.mod`, pin deps (cobra, gopkg.in/yaml.v3)
-    - [ ] Cobra root command + `--version`, `--help`
-    - [ ] Package structure: `cmd/`, `pkg/template/`, `pkg/seed/`, `pkg/gitops/`, `pkg/k8s/`, `pkg/vault/`, `pkg/gateway/`
-    - [ ] `tools/atlasctl/Taskfile.yml` — targets: `build`, `test`, `test-integration`, `cover`, `vet`, `lint`, `clean`
+    - [x] Cobra root command + `--version`, `--help`
+    - [x] Package structure: `cmd/`, `pkg/template/`, `pkg/seed/`, `pkg/gitops/`, `pkg/k8s/`, `pkg/vault/`, `pkg/gateway/`
+    - [x] `tools/atlasctl/Taskfile.yml` — targets: `build`, `test`, `test-integration`, `cover`, `vet`, `lint`, `clean`
     - [x] Define command scope: port `new`, `seed`, `enable`, `disable`, `delete`, `status`, `list` + add `logs`, `backup` trigger
     - [x] `tools/atlasctl/atlasctl.sh` — rename original, update all references (Makefile, README, TODO.md)
     - [x] `tools/atlasctl/README.md` — translate to English, add Go dev section, add architecture diagram
@@ -230,19 +231,19 @@
     - [x] `tools/atlasctl/Taskfile.yml` — build, test, test-integration, cover, vet, lint, clean, tidy
     - [x] `tools/atlasctl/bin/atlasctl` — builds and runs, `--help` shows all 9 commands
     - [x] `AGENTS.md` — add atlasctl Go build/test instructions
-    - [ ] **Week 1 Tests:** package structure must pass `go vet`, Cobra root skeleton — table-driven test for flag parsing
-  - [ ] **Week 2 — Scaffold + Template Engine**
+    - [x] **Week 1 Tests:** package structure must pass `go vet`, Cobra root skeleton — table-driven test for flag parsing
+  - [x] **Week 2 — Scaffold + Template Engine**
     - [x] `pkg/template/` — render templates/gold/ with `{{VAR}}` via `strings.ReplaceAll`
     - [x] `cmd/new.go` — port `cmd_new`: flags, validation, `.secret-seed` generation with `crypto/rand`
     - [x] `new` renders **all files from `templates/gold/`** recursively via `fs.WalkDir`, strips `.tmpl` suffix, preserves subdirectory structure — zero hardcoded file lists
     - [x] `config.yaml` — cleaned up: no hardcoded template groups, only scaffold directory, defaults, seed keys
-  - [ ] **Week 3 — Seed (Infra Provisioning)**
+  - [x] **Week 3 — Seed (Infra Provisioning)**
     - [x] `pkg/k8s/` — kubectl-based wrapper: PodExec, SecretRead(Decoded), GetPodName, NamespaceExists
     - [x] `pkg/vault/` — Vault client via vault-0 pod exec: KVPut, KVGet (stub), root token read
     - [x] `pkg/seed/` — CNPG DB/user creation (psql exec), MinIO bucket/user (mc exec), Vault write
     - [x] `cmd/seed.go` — port cmd_seed fully: --dry-run, --force, -y, validation, confirm prompt
     - [x] **Week 3 Tests:** `pkg/seed/` — table-driven LoadParams + ValidateParams (with extra secrets); `pkg/k8s/` + `pkg/vault/` — constructor tests + integration build-tag stubs; `cmd/seed.go` — cobra flag tests (no-arg, invalid-format, dry-run)
-  - [ ] **Week 4 — GitOps Management**
+  - [x] **Week 4 — GitOps Management**
     - [x] `pkg/gateway/` — Gateway API listener CRUD (LoadGateway/SaveGateway, AddListener, RemoveListener, HasListener), YAML round-trip via `sigs.k8s.io/yaml`
     - [x] `pkg/gitops/` — file ops: CopyWorkloadManifest, SyncResources (excludes app.yaml, gateway.yaml, .secret-seed, vault, \*.tmpl), RemoveAll, RemoveEmptyDir, ApplyGatewayListener (add/remove)
     - [x] `cmd/enable.go` — port from bash: --dry-run, --sync, --push, --force, -y, copy app.yaml, rsync resources, copy gateway route, add listener, git commit/push
