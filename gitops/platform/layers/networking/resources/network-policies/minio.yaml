@@ -37,3 +37,5 @@ spec:
       toPorts:
         - ports:
             - port: "9000"
+    - fromEntities:
+        - ingress
