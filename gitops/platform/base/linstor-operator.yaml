@@ -9,7 +9,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"
   labels:
     app.kubernetes.io/component: platform
-    app.kubernetes.io/layer: storage
+    app.kubernetes.io/layer: base
 spec:
   project: platform
   sources:
@@ -19,13 +19,13 @@ spec:
       helm:
         releaseName: piraeus-operator
         valueFiles:
-          - $values/gitops/platform/storage/values/operator-values.yaml
+          - $values/gitops/platform/base/values/linstor-operator-values.yaml
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
       ref: values
     - repoURL: https://github.com/aldoshkineg/atlas-idp.git
       targetRevision: main
-      path: gitops/platform/storage/resources/linstor
+      path: gitops/platform/base/resources/linstor
   destination:
     server: https://kubernetes.default.svc
     namespace: piraeus-datastore
