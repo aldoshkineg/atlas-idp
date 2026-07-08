@@ -157,6 +157,25 @@ Cascades to the child Applications and prunes their resources (leaf apps have
 `prune: true` + finalizers). **Namespaces are NOT auto-deleted** by Argo CD —
 clean them up manually if desired (`kubectl delete ns <ns>`).
 
+### Disable a layer (honest off-switch)
+
+A Manual wrapper does **not** keep a layer off: `root-app` (automated) recreates
+the wrapper CR from git on every reconcile, so after `argocd app delete` the
+wrapper comes back (Manual/`OutOfSync`, children not deployed). To truly disable
+a layer, move its **wrapper** into `gitops/platform/layers/disabled/` — `root-app`
+renders that directory non-recursively, so the wrapper is ignored and not
+recreated:
+
+```bash
+git mv gitops/platform/layers/<layer>.yaml gitops/platform/layers/disabled/   # off
+git mv gitops/platform/layers/disabled/<layer>.yaml gitops/platform/layers/    # on
+```
+
+The layer's contents (`gitops/platform/<layer>/`) stay put — only the wrapper
+moves, so re-enabling is trivial. Combine with a one-time
+`argocd app delete <layer> --cascade` to also clear the running layer from the
+cluster.
+
 > `argocd app delete` has `--cascade`; `argocd app sync` does **not** (see
 > below). So deleting a layer is one command, deploying it as a unit relies on
 > leaf apps being automated.
@@ -226,7 +245,8 @@ Deleting a layer (`argocd app delete <layer> --cascade`) removes it from the
 cluster, but `root-app` (automated) will recreate the **wrapper CR** from git
 on its next reconcile. The wrapper stays `Manual`/`OutOfSync` and does **not**
 redeploy its children — so the layer does not come back on its own. To truly
-retire a layer, also remove its wrapper from `gitops/platform/layers/`.
+retire a layer, move its wrapper into `gitops/platform/layers/disabled/` (see
+"Disable a layer") instead of leaving it in `layers/`.
 
 ## Verification
 
