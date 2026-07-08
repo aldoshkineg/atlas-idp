@@ -7,6 +7,8 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
   annotations:
     argocd.argoproj.io/sync-wave: "-50"
+  labels:
+    argocd.argoproj.io/instance: root-app
 spec:
   project: storage
   source:
