@@ -21,23 +21,29 @@ This layer manages cluster networking: ingress gateways, HTTP routing, and netwo
 
 ### Network Policy Definitions (`network-policies/`)
 
-All policies are **CiliumNetworkPolicy** and include `fromEntities: [remote-node, world]` to allow node and external traffic. Port columns show `any` unless restricted.
+All policies are **CiliumNetworkPolicy**. Ingress is default-deny; each policy adds explicit allow rules. Two traffic classes are permitted in addition to pod-to-pod rules:
 
-| File                    | Namespace          | Allows inbound from                                       | Ports      |
-| ----------------------- | ------------------ | --------------------------------------------------------- | ---------- |
-| `argocd.yaml`           | `argocd`           | same-namespace, kube-system, monitoring                   | 80         |
-| `vault.yaml`            | `vault`            | same-namespace, kube-system, external-secrets, monitoring | 8200       |
-| `external-secrets.yaml` | `external-secrets` | same-namespace, monitoring, argocd, kube-system           | any        |
-| `nginx-gateway.yaml`    | `kube-system`      | cilium-agent, remote-node, world                          | any        |
-| `monitoring.yaml`       | `monitoring`       | same-namespace, kube-system                               | 80         |
-| `loki.yaml`             | `loki`             | same-namespace, monitoring                                | 3100       |
-| `minio.yaml`            | `minio`            | same-namespace, kube-system, database, velero, monitoring | 9000, 9001 |
-| `database.yaml`         | `database`         | same-namespace, cnpg-system, monitoring                   | any        |
-| `redis.yaml`            | `redis`            | same-namespace, keda, monitoring                          | 6379       |
-| `cnpg-system.yaml`      | `cnpg-system`      | same-namespace, monitoring                                | any        |
-| `kube-system.yaml`      | `kube-system`      | same-namespace, all-namespaces (DNS), monitoring          | 53/UDP+TCP |
-| `velero.yaml`           | `velero`           | same-namespace, monitoring                                | any        |
-| `keda.yaml`             | `keda`             | same-namespace, monitoring                                | any        |
+- **`fromEntities: [remote-node]`** — node-local traffic: kubelet health probes, kube-apiserver webhooks, cross-node pod traffic.
+- **`fromEntities: [ingress]`** — traffic routed through the **Cilium Gateway API** (envoy upstream to backends). Cilium tags gateway-routed flows with the `reserved:ingress` (8) identity — **not** `world`.
+
+> Note: earlier revisions documented `world` for external ingress. This is incorrect for the Cilium Gateway API — routed ingress traffic carries the `reserved:ingress` identity, so backend policies must allow `ingress`, not `world`.
+
+Port columns show `any` unless restricted. Gateway-reachable backends additionally allow `ingress` (see table below).
+
+| File                    | Namespace          | Allows inbound from                                                              | Ports      |
+| ----------------------- | ------------------ | -------------------------------------------------------------------------------- | ---------- |
+| `argocd.yaml`           | `argocd`           | same-namespace, kube-system, monitoring, **gateway (ingress)**                   | 80         |
+| `vault.yaml`            | `vault`            | same-namespace, kube-system, external-secrets, monitoring, **gateway (ingress)** | 8200       |
+| `external-secrets.yaml` | `external-secrets` | same-namespace, monitoring, argocd, kube-system                                  | any        |
+| `monitoring.yaml`       | `monitoring`       | same-namespace, kube-system, **gateway (ingress)**                               | 80         |
+| `loki.yaml`             | `loki`             | same-namespace, monitoring                                                       | 3100       |
+| `minio.yaml`            | `minio`            | same-namespace, kube-system, database, velero, monitoring, **gateway (ingress)** | 9000, 9001 |
+| `database.yaml`         | `database`         | same-namespace, cnpg-system, monitoring, **gateway (ingress)**                   | any        |
+| `redis.yaml`            | `redis`            | same-namespace, keda, monitoring                                                 | 6379       |
+| `cnpg-system.yaml`      | `cnpg-system`      | same-namespace, monitoring                                                       | any        |
+| `kube-system.yaml`      | `kube-system`      | same-namespace, all-namespaces (DNS), monitoring                                 | 53/UDP+TCP |
+| `velero.yaml`           | `velero`           | same-namespace, monitoring                                                       | any        |
+| `keda.yaml`             | `keda`             | same-namespace, monitoring                                                       | any        |
 
 ## How Network Policies Work
 
@@ -57,28 +63,31 @@ spec:
         - ports:
             - port: "<N>"
               protocol: TCP
-    - fromEntities: # allows node/host traffic (API server webhooks, kubelet probes, NodePort ingress)
+    - fromEntities: # allows node-local traffic (kubelet probes, API server webhooks, cross-node pods)
         - remote-node
-        - world
+    - fromEntities: # allows Cilium Gateway API ingress (envoy upstream to this backend)
+        - ingress
 ```
 
 Key behavior:
 
 - **Implicit deny-all**: `endpointSelector: {}` with explicit ingress `from*` rules drops all inbound traffic that does not match. There is no separate "deny-all" resource.
 - **Same-namespace allow**: every policy includes a `fromEndpoints` rule for its own namespace.
-- **Monitoring allow**: every namespace with scrape targets allows inbound from `monitoring` on any port — Prometheus ServiceMonitors/PodMonitors discover endpoints dynamically.
+- **Monitoring allow (metrics + logs)**: every namespace with scrape targets allows inbound from `monitoring` on any port — Prometheus ServiceMonitors/PodMonitors discover endpoints dynamically, and Grafana reads from Prometheus. Log collection by Alloy is node-local (reads container stdout via the kubelet/CRI socket, not pod network), so it is unaffected by pod-level CNPs; Alloy→Loki push uses the `monitoring` allow rule.
 - **Namespace-explicit allow**: service-to-service dependencies use `fromEndpoints` + `toPorts`.
-- **Host/node traffic**: every policy allows `remote-node` (traffic from other cluster nodes, including kube-apiserver) and `world` (external traffic via NodePort). Without this, kubelet health probes, API server webhooks, and external ingress would be blocked.
+- **Gateway ingress**: backend services exposed through the Cilium Gateway must allow `fromEntities: [ingress]`. Cilium Gateway API assigns the `reserved:ingress` (8) identity to routed traffic — this is distinct from `world` (raw external/NodePort) and from `remote-node`. Without `ingress`, envoy upstream connections to the backend are dropped.
+- **Node-local traffic**: `remote-node` permits kubelet health probes and API server webhooks. Without it, probes/webhooks would be blocked.
 
 ## Traffic Flow Example
 
 ```
-Internet → NodePort (via Cilium eBPF)
-  → Cilium Gateway API (kube-system, cilium-agent)
-    → argocd-server.argocd.svc:80       ← allowed by argocd.yaml
-    → grafana.monitoring.svc:80         ← allowed by monitoring.yaml
-    → vault.vault.svc:8200              ← allowed by vault.yaml
-    → minio.minio.svc:9000              ← allowed by minio.yaml
+Internet → LoadBalancer IP (Cilium LB IPPool) / NodePort
+  → Cilium Gateway API (envoy, external proxy, hostNetwork)
+    → upstream to backend, tagged with reserved:ingress (8) identity
+    → argocd-server.argocd.svc:80       ← allowed by argocd.yaml (ingress)
+    → grafana.monitoring.svc:80         ← allowed by monitoring.yaml (ingress)
+    → vault.vault.svc:8200              ← allowed by vault.yaml (ingress)
+    → minio.minio.svc:9000              ← allowed by minio.yaml (ingress)
 
 Prometheus (monitoring)
   → argocd:8082, vault:8200, minio:9000, ... ← allowed by each NS policy
