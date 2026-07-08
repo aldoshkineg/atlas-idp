@@ -66,6 +66,11 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: privileged
+        pod-security.kubernetes.io/warn: privileged
+        pod-security.kubernetes.io/audit: privileged
     retry:
       limit: 10
       backoff:
