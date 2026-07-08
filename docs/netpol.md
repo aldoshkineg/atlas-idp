@@ -13,7 +13,7 @@ Atlas IDP uses Kubernetes NetworkPolicy to enforce **namespace-level isolation**
 ```
 ┌─────────────────────────────────────────────────────┐
 │                   Platform Layer                     │
-│  gitops/platform/layers/networking/netpol.yaml  │
+│  gitops/platform/security/netpol.yaml  │
 │    └── network-policies/ (13 per-namespace files)    │
 │        argocd, vault, minio, database, redis, ...    │
 │                                                      │
@@ -77,7 +77,7 @@ All policies include a **same-namespace allow** (`podSelector: {}` in `from`) so
 ### Deployed via ArgoCD
 
 ```yaml
-# gitops/platform/layers/networking/netpol.yaml
+# gitops/platform/security/netpol.yaml
 metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "10"

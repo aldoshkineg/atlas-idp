@@ -1,0 +1,137 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: redis
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+    argocd.argoproj.io/depends-on: platform-secrets, linstor-cluster, kube-prometheus-stack
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: storage
+spec:
+  project: platform
+  sources:
+    - repoURL: registry-1.docker.io/bitnamicharts
+      chart: redis
+      targetRevision: 24.0.8
+      helm:
+        releaseName: redis
+        valueFiles:
+          - $values/gitops/platform/storage/values/redis.yaml
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      ref: values
+  ignoreDifferences:
+    # -----------------------------
+    # GLOBAL SAFE IGNORES
+    # -----------------------------
+    - group: "*"
+      kind: "*"
+      jsonPointers:
+        - /status
+        - /metadata/resourceVersion
+        - /metadata/generation
+        - /metadata/managedFields
+
+    # -----------------------------
+    # STATEFULSET (Redis master/replica)
+    # -----------------------------
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        # Bitnami checksum annotations
+        - /spec/template/metadata/annotations/checksum~1config
+        - /spec/template/metadata/annotations/checksum~1scripts
+
+        # Common SSA noise fields
+        - /status
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        # Helm may emit explicit null for empty affinities, K8s strips them
+        - ".spec.template.spec.affinity"
+        # Empty arrays vs absent
+        - ".spec.template.spec.securityContext.supplementalGroups"
+        - ".spec.template.spec.securityContext.sysctls"
+        # Kubernetes defaults on containers
+        - ".spec.template.spec.containers[].ports[].protocol"
+        - ".spec.template.spec.containers[].terminationMessagePath"
+        - ".spec.template.spec.containers[].terminationMessagePolicy"
+        - ".spec.template.spec.containers[].readinessProbe.httpGet.scheme"
+        # Kubernetes defaults on pod spec
+        - ".spec.template.spec.dnsPolicy"
+        - ".spec.template.spec.restartPolicy"
+        - ".spec.template.spec.schedulerName"
+        - ".spec.template.spec.serviceAccount"
+        # Kubernetes defaults on volumes
+        - ".spec.template.spec.volumes[].secret.defaultMode"
+        - ".spec.template.spec.volumes[].configMap.defaultMode"
+        # Kubernetes defaults on StatefulSet spec
+        - ".spec.podManagementPolicy"
+        - ".spec.persistentVolumeClaimRetentionPolicy"
+        - ".spec.volumeClaimTemplates[].spec.volumeMode"
+        # PVC lifecyle status
+        - ".spec.volumeClaimTemplates[].status"
+
+    # -----------------------------
+    # SECRET (Bitnami Redis auth)
+    # -----------------------------
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        # Redis password & replication auth are often generated
+        - /data/redis-password
+        - /data/replication-password
+        - /metadata/annotations
+
+    # -----------------------------
+    # CONFIGMAP (scripts / config templates)
+    # -----------------------------
+    - group: ""
+      kind: ConfigMap
+      jqPathExpressions:
+        # Ignore ordering / checksum-style metadata drift
+        - '.metadata.annotations["checksum/config"]'
+        - '.metadata.annotations["checksum/scripts"]'
+
+    # -----------------------------
+    # HPA (metric ordering problem)
+    # -----------------------------
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jqPathExpressions:
+        - ".spec.metrics"
+
+    # -----------------------------
+    # SERVICE (annotations + LB controller noise)
+    # -----------------------------
+    - group: ""
+      kind: Service
+      jsonPointers:
+        - /metadata/annotations
+        - /status
+
+    # -----------------------------
+    # PDB (minor controller drift)
+    # -----------------------------
+    - group: policy
+      kind: PodDisruptionBudget
+      jsonPointers:
+        - /status
+        - /metadata/annotations
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: redis
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

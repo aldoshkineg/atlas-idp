@@ -689,8 +689,8 @@ cmd_enable() {
   local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
   local GITOPS_DIR="${REPO_ROOT}/gitops/workloads/${GROUP}"
   local GITOPS_FILE="${GITOPS_DIR}/${APP}.yaml"
-  local GW_FILE="${REPO_ROOT}/gitops/platform/layers/networking/values/gateway-resources/gateway.yaml"
-  local GW_ROUTES_DIR="${REPO_ROOT}/gitops/platform/layers/networking/values/gateway-routes"
+  local GW_FILE="${REPO_ROOT}/gitops/platform/base/resources/gateway-resources/gateway.yaml"
+  local GW_ROUTES_DIR="${REPO_ROOT}/gitops/platform/base/resources/gateway-routes"
   local GW_ROUTES_FILE="${GW_ROUTES_DIR}/${APP}.yaml"
 
   if [ "$FORCE" != "true" ]; then
@@ -874,8 +874,8 @@ cmd_disable() {
   local GITOPS_FILE="${GITOPS_DIR}/${APP}.yaml"
   local GITOPS_RESOURCES_DIR="${GITOPS_DIR}/${APP}/resources"
   local GITOPS_WORKLOAD_DIR="${GITOPS_DIR}/${APP}"
-  local GW_FILE="${REPO_ROOT}/gitops/platform/layers/networking/values/gateway-resources/gateway.yaml"
-  local GW_ROUTES_DIR="${REPO_ROOT}/gitops/platform/layers/networking/values/gateway-routes"
+  local GW_FILE="${REPO_ROOT}/gitops/platform/base/resources/gateway-resources/gateway.yaml"
+  local GW_ROUTES_DIR="${REPO_ROOT}/gitops/platform/base/resources/gateway-routes"
   local GW_ROUTES_FILE="${GW_ROUTES_DIR}/${APP}.yaml"
 
   [ ! -f "$GITOPS_FILE" ] && die "Not enabled — ${GITOPS_FILE} does not exist"
@@ -1071,7 +1071,7 @@ cmd_status() {
 
   local WORKLOAD_DIR="${REPO_ROOT}/workloads/${GROUP}/${APP}"
   local GITOPS_FILE="${REPO_ROOT}/gitops/workloads/${GROUP}/${APP}.yaml"
-  local GW_FILE="${REPO_ROOT}/gitops/platform/layers/networking/values/gateway-resources/gateway.yaml"
+  local GW_FILE="${REPO_ROOT}/gitops/platform/base/resources/gateway-resources/gateway.yaml"
 
   [ ! -d "$WORKLOAD_DIR" ] && die "Workload not found: ${WORKLOAD_DIR}"
 
@@ -1159,7 +1159,7 @@ cmd_list() {
     exit 0
   fi
 
-  local GW_FILE="${REPO_ROOT}/gitops/platform/layers/networking/values/gateway-resources/gateway.yaml"
+  local GW_FILE="${REPO_ROOT}/gitops/platform/base/resources/gateway-resources/gateway.yaml"
   local FIRST=true
 
   if [ "$JSON" = "true" ]; then

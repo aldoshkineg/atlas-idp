@@ -6,8 +6,9 @@
 - **Repo:** `https://github.com/aldoshkineg/atlas-idp.git` (main)
 - **Structure:**
   - `gitops/bootstrap/` — Day-0 (root-app, argocd)
-  - `gitops/platform/layers/` — Day-1 Apps (base, networking, security, observability)
-  - `gitops/platform/configs/` — Day-1 Configs (gateway, certs)
+  - `gitops/platform/layers/` — app-of-apps обёртки слоёв (base, storage, security, observability, delivery, workloads)
+  - `gitops/platform/<layer>/` — компоненты слоя (base = gateway, cert-manager, vault, ES; auto-sync)
+  - `gitops/workloads/` — пользовательские приложения (ручной sync)
 
 ## Local Loop (Test WITHOUT Git Push)
 

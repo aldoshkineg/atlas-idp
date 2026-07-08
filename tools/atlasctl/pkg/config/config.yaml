@@ -6,8 +6,8 @@ scaffold:
 
 gitops:
   workloads_dir: gitops/workloads
-  gateway_file: gitops/platform/layers/networking/values/gateway-resources/gateway.yaml
-  gateway_routes_dir: gitops/platform/layers/networking/values/gateway-routes
+  gateway_file: gitops/platform/base/resources/gateway-resources/gateway.yaml
+  gateway_routes_dir: gitops/platform/base/resources/gateway-routes
 
 defaults:
   repo_path: "."

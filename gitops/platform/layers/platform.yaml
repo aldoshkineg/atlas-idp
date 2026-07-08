@@ -1,0 +1,116 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1000"
+spec:
+  description: "Platform services (base, storage, security, observability, delivery, workloads)"
+
+  destinations:
+    - namespace: "*"
+      server: https://kubernetes.default.svc
+    - namespace: database
+      server: https://kubernetes.default.svc
+    - namespace: cert-manager
+      server: https://kubernetes.default.svc
+    - namespace: cnpg-system
+      server: https://kubernetes.default.svc
+    - namespace: default
+      server: https://kubernetes.default.svc
+    - namespace: external-secrets
+      server: https://kubernetes.default.svc
+    - namespace: keda
+      server: https://kubernetes.default.svc
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
+    - namespace: loki
+      server: https://kubernetes.default.svc
+    - namespace: minio
+      server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: observability
+      server: https://kubernetes.default.svc
+    - namespace: piraeus-datastore
+      server: https://kubernetes.default.svc
+    - namespace: redis
+      server: https://kubernetes.default.svc
+    - namespace: vault
+      server: https://kubernetes.default.svc
+    - namespace: velero
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+    - namespace: trivy-system
+      server: https://kubernetes.default.svc
+    - namespace: argo-rollouts
+      server: https://kubernetes.default.svc
+
+  sourceRepos:
+    - https://github.com/aldoshkineg/atlas-idp.git
+    - https://aquasecurity.github.io/helm-charts
+    - https://charts.jetstack.io
+    - https://grafana.github.io/helm-charts
+    - https://prometheus-community.github.io/helm-charts
+    - https://kubernetes-sigs.github.io/metrics-server/
+    - https://charts.min.io/
+    - https://vmware-tanzu.github.io/helm-charts
+    - https://github.com/kubernetes-sigs/gateway-api
+    - https://github.com/kubernetes-csi/external-snapshotter.git
+    - ghcr.io/bank-vaults/helm-charts
+    - ghcr.io/piraeusdatastore/piraeus-operator
+    - https://piraeusdatastore.github.io/helm-charts
+    - https://charts.external-secrets.io
+    - https://kedacore.github.io/charts
+    - registry-1.docker.io/bitnamicharts
+    - https://cloudnative-pg.github.io/charts
+    - https://argoproj.github.io/argo-helm
+    - https://github.com/argoproj/argo-rollouts
+
+  clusterResourceWhitelist:
+    - group: piraeus.io
+      kind: LinstorCluster
+    - group: piraeus.io
+      kind: LinstorSatellite
+    - group: piraeus.io
+      kind: LinstorSatelliteConfiguration
+    - group: piraeus.io
+      kind: LinstorController
+    - group: piraeus.io
+      kind: LinstorNode
+    - group: linstor.csi.linbit.com
+      kind: LinstorVolume
+    - group: linstor.csi.linbit.com
+      kind: "*"
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: aquasecurity.github.io
+      kind: "*"
+    - group: cert-manager.io
+      kind: ClusterIssuer
+    - group: cilium.io
+      kind: "*"
+    - group: gateway.networking.k8s.io
+      kind: GatewayClass
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: snapshot.storage.k8s.io
+      kind: VolumeSnapshotClass
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: apiregistration.k8s.io
+      kind: APIService
+    - group: storage.k8s.io
+      kind: CSIDriver
+    - group: storage.k8s.io
+      kind: StorageClass
+    - group: external-secrets.io
+      kind: ClusterSecretStore
+    - group: ""
+      kind: Namespace

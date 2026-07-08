@@ -93,10 +93,10 @@ func (c *Config) applyDefaults() {
 		c.Gitops.WorkloadsDir = "gitops/workloads"
 	}
 	if c.Gitops.GatewayFile == "" {
-		c.Gitops.GatewayFile = "gitops/platform/layers/networking/values/gateway-resources/gateway.yaml"
+		c.Gitops.GatewayFile = "gitops/platform/base/resources/gateway-resources/gateway.yaml"
 	}
 	if c.Gitops.GatewayRoutesDir == "" {
-		c.Gitops.GatewayRoutesDir = "gitops/platform/layers/networking/values/gateway-routes"
+		c.Gitops.GatewayRoutesDir = "gitops/platform/base/resources/gateway-routes"
 	}
 	if c.Defaults.RepoPath == "" {
 		c.Defaults.RepoPath = "."

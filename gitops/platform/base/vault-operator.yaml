@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault-operator
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/depends-on: linstor-cluster
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: base
+spec:
+  project: platform
+  sources:
+    - repoURL: ghcr.io/bank-vaults/helm-charts
+      chart: vault-operator
+      targetRevision: 1.24.0
+      helm:
+        releaseName: vault-operator
+        valueFiles:
+          - $values/gitops/platform/base/values/vault-operator.yaml
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      path: gitops/platform/base/resources/vault
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 30s

@@ -107,7 +107,7 @@ helm upgrade --install piraeus-operator \
   oci://ghcr.io/piraeusdatastore/piraeus-operator/piraeus \
   --version 2.10.6 \
   --namespace piraeus-datastore \
-  --values gitops/platform/layers/storage/linstor/operator-values.yaml \
+  --values gitops/platform/storage/values/operator-values.yaml \
   --wait
 
 kubectl wait --for=condition=Available deployment/piraeus-operator-controller-manager \
@@ -123,7 +123,7 @@ helm upgrade --install linstor-cluster \
   piraeus-datastore/linstor-cluster \
   --version 1.1.1 \
   --namespace piraeus-datastore \
-  --values gitops/platform/layers/storage/linstor/linstor-cluster-values.yaml \
+  --values gitops/platform/storage/values/linstor-cluster-values.yaml \
   --wait
 ```
 
@@ -140,7 +140,7 @@ Extract and apply the CRD manually:
 ```bash
 helm template piraeus-operator oci://ghcr.io/piraeusdatastore/piraeus-operator/piraeus \
   --version 2.10.6 --namespace piraeus-datastore \
-  --values gitops/platform/layers/storage/linstor/operator-values.yaml > /tmp/piraeus-rendered.yaml
+  --values gitops/platform/storage/values/operator-values.yaml > /tmp/piraeus-rendered.yaml
 
 awk '/^---$/{f=0} /name: linstorsatellites.piraeus.io/{f=1} f' /tmp/piraeus-rendered.yaml \
   > /tmp/linstorsatellites-crd.yaml
@@ -151,10 +151,10 @@ kubectl apply -f /tmp/linstorsatellites-crd.yaml
 
 All configuration:
 
-| File                                                                 | Chart                         |
-| -------------------------------------------------------------------- | ----------------------------- |
-| `gitops/platform/layers/storage/linstor/operator-values.yaml`        | `piraeus-operator` (OCI)      |
-| `gitops/platform/layers/storage/linstor/linstor-cluster-values.yaml` | `linstor-cluster` (Helm repo) |
+| File                                                         | Chart                         |
+| ------------------------------------------------------------ | ----------------------------- |
+| `gitops/platform/storage/values/operator-values.yaml`        | `piraeus-operator` (OCI)      |
+| `gitops/platform/storage/values/linstor-cluster-values.yaml` | `linstor-cluster` (Helm repo) |
 
 ### LinstorCluster
 

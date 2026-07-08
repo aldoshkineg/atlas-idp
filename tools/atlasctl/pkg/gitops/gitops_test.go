@@ -19,8 +19,8 @@ func TestWorkloadRef(t *testing.T) {
 func TestResolvePaths(t *testing.T) {
 	gc := &config.GitopsConfig{
 		WorkloadsDir:     "gitops/workloads",
-		GatewayFile:      "gitops/platform/layers/networking/values/gateway-resources/gateway.yaml",
-		GatewayRoutesDir: "gitops/platform/layers/networking/values/gateway-routes",
+		GatewayFile:      "gitops/platform/base/resources/gateway-resources/gateway.yaml",
+		GatewayRoutesDir: "gitops/platform/base/resources/gateway-routes",
 	}
 	p := ResolvePaths(WorkloadRef{Group: "g", App: "a"}, gc, "workloads")
 	if !strings.HasSuffix(p.WorkloadDir, "workloads/g/a") {

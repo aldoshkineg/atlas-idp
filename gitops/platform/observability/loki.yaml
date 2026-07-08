@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: observability
+spec:
+  project: platform
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      targetRevision: 7.0.0
+      chart: loki
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/gitops/platform/observability/values/loki.yaml
+    - repoURL: https://github.com/aldoshkineg/atlas-idp.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: loki
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /status
+        - /spec/template/spec/securityContext/fsGroupChangePolicy
+      jqPathExpressions:
+        - .spec.template.metadata.annotations."checksum/config"
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /status
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 5m

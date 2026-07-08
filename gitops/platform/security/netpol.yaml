@@ -1,25 +1,26 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root-app
+  name: network-policies
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/depends-on: gateway-resources
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: security
 spec:
-  project: default
+  project: platform
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform/layers
-    directory:
-      recurse: false
+    path: gitops/platform/security/resources/network-policies
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
     retry:

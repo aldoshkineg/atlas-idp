@@ -175,14 +175,14 @@ atlasctl disable aldoshkineg/seal --sync --push
 
     ```bash
     yq -i 'del(.spec.listeners[] | select(.name == "https-'"$APP"'"))' \
-      gitops/platform/layers/networking/values/gateway-resources/gateway.yaml
+      gitops/platform/base/resources/gateway-resources/gateway.yaml
     ```
 
 - [ ] Removes:
   - `gitops/workloads/<group>/<app>.yaml`
   - If `<group>/` directory is empty — removes it too
 - [ ] Flags:
-  - `--sync`: `git add -A gitops/workloads/<group>/` + `git add gitops/platform/layers/networking/values/gateway-resources/gateway.yaml` + `git commit -m "disable(workloads): remove {{GROUP}}/{{APP}}"`
+  - `--sync`: `git add -A gitops/workloads/<group>/` + `git add gitops/platform/base/resources/gateway-resources/gateway.yaml` + `git commit -m "disable(workloads): remove {{GROUP}}/{{APP}}"`
   - `--push`: `git push`
   - `--dry-run`: show which files will be removed
   - `--keep-workload`: don't touch `workloads/<group>/<app>/`

@@ -1,29 +1,30 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: root-app
+  name: postgres-cluster
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "9"
+    argocd.argoproj.io/depends-on: cloudnativepg-operator, cloudnativepg-barman-plugin, minio, platform-secrets
+  labels:
+    app.kubernetes.io/component: platform
+    app.kubernetes.io/layer: storage
 spec:
-  project: default
+  project: platform
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main
-    path: gitops/platform/layers
-    directory:
-      recurse: false
+    path: gitops/platform/storage/resources/postgres-cluster
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: database
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
     retry:
-      limit: 5
+      limit: 10
       backoff:
         duration: 5s
         factor: 2

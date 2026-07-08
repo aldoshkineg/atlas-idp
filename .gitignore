@@ -76,3 +76,6 @@ infra/**/talos/
 
 # Seed ISO staging
 /var/tmp/atlas/incus/seed/
+
+# GitOps rebuild backup (kept until full rollout verified)
+gitops.bak/

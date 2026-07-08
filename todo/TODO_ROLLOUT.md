@@ -6,7 +6,7 @@
 > The canary concept still applies, but every NGINX Gateway Fabric reference below must be
 > revalidated/replaced with the Cilium Gateway + Envoy plugin before use.
 > **Action required:** verify feasibility against the Cilium Gateway API implementation
-> (see `gitops/platform/layers/networking/`) before relying on this document.
+> (see `gitops/platform/base/`) before relying on this document.
 
 ## Technical Specification for Implementing Canary Deployments with Argo Rollouts and NGINX Gateway Fabric
 
