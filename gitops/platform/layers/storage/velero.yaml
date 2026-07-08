@@ -51,7 +51,6 @@ spec:
           useSecret: true
           existingSecret: velero-aws
         deployNodeAgent: true
-        nodeAgent:
         schedules:
           weekly-pvc-backup:
             schedule: "0 2 * * 0"
