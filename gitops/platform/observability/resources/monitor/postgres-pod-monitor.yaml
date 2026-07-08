@@ -2,9 +2,9 @@ apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
   name: production-db
-  namespace: database
+  namespace: monitoring
   labels:
-    app.kubernetes.io/component: database
+    release: kube-prometheus-stack
 spec:
   selector:
     matchLabels:
