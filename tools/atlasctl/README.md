@@ -2,9 +2,7 @@
 
 Manages the full lifecycle of platform workloads in Atlas IDP — from scaffolding to GitOps promotion.
 
-> **Status**: Bash implementation (legacy) in `atlasctl.sh` → migrating to Go binary.
-> The bash version at `tools/atlasctl/atlasctl.sh` remains the active CLI until the Go rewrite is complete.
-> See `TODO.md` Phase 9 for the migration roadmap and current progress.
+> **Status**: Go implementation is the active CLI. Build with `go build` or `go-task -t tools/atlasctl/Taskfile.yml build`.
 
 ## Development (Go Build)
 
@@ -21,22 +19,24 @@ go-task -t tools/atlasctl/Taskfile.yml build
 
 ### Dependencies
 
-- Go 1.23+
+- Go 1.26+
 - Running `atlas-idp` kind cluster (for `seed`, `enable`, `status`)
 - Access to Vault (via k8s or direct API)
 - Access to CNPG database (via k8s pod exec for `seed`)
 
 ## Commands
 
-| Command   | Description                                               |
-| --------- | --------------------------------------------------------- |
-| `new`     | Scaffold workload structure from golden path templates    |
-| `seed`    | Provision DB + S3 bucket + write secrets to Vault         |
-| `enable`  | Promote workload to GitOps (ArgoCD Application + gateway) |
-| `disable` | Remove workload from GitOps                               |
-| `delete`  | Delete workload directory (only if disabled)              |
-| `status`  | Show workload status (features, enabled, ArgoCD sync)     |
-| `list`    | List all registered workloads                             |
+| Command   | Description                                                   |
+| --------- | ------------------------------------------------------------- |
+| `new`     | Scaffold workload structure from golden path templates        |
+| `seed`    | Provision DB + S3 bucket + write secrets to Vault             |
+| `enable`  | Promote workload to GitOps (ArgoCD Application + gateway)     |
+| `disable` | Remove workload from GitOps                                   |
+| `delete`  | Delete workload directory (only if disabled)                  |
+| `status`  | Show workload status (features, enabled, ArgoCD sync)         |
+| `list`    | List all registered workloads                                 |
+| `logs`    | Tail workload logs (`--tail <n>`)                             |
+| `backup`  | Trigger CNPG backup (`--cluster`, `--namespace`, `--dry-run`) |
 
 ---
 
@@ -77,20 +77,23 @@ atlasctl new seal --group aldoshkineg \
 
 ```
 workloads/<group>/<app>/
-├── app.yaml               # ArgoCD Application (external repo + resources/)
-├── .secret-seed            # Generated DB / S3 / Redis passwords
-├── secrets.yaml            # ExternalSecrets: DB + S3 + Redis
-├── vault/                  # Vault policy + k8s auth role + seed config
+├── app.yaml                 # ArgoCD Application (external repo)
+├── .secret-seed             # Generated DB / S3 / Redis passwords (gitignored)
+├── secrets.yaml             # ExternalSecrets: DB + S3 + Redis
+├── vault/                   # Vault policy + k8s auth role + seed config
 │   ├── policy.hcl
 │   ├── k8s-auth-role.yaml
 │   └── seed-mapping.conf
-├── monitoring/             # PodMonitor + PrometheusRule
+├── monitoring/              # PodMonitor + PrometheusRule
 │   ├── pod-monitor.yaml
 │   └── prometheus-rule.yaml
-└── infra/                  # Cluster platform resources
-    ├── gateway.yaml        #   → gateway-routes/ (on enable)
-    ├── network-policy.yaml #   → resources/
-    └── resource-quota.yaml #   → resources/
+└── infra/                   # Platform resources (→ gitops/workloads/<g>/<a>/resources/ on enable)
+    ├── gateway.yaml         #   → gateway-routes/<app>.yaml (on enable)
+    ├── ccnp-ingress.yaml
+    ├── keda-scaledobject.yaml
+    ├── limit-range.yaml
+    ├── network-policy.yaml
+    └── resource-quota.yaml
 ```
 
 ---
