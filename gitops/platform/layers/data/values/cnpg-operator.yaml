@@ -9,7 +9,7 @@ resources:
     cpu: 100m
 
 monitoring:
-  podMonitorEnabled: false
+  podMonitorEnabled: true
 
 config:
   # Disable webhook validation for kind (self-signed certs)
