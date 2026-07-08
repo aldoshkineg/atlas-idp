@@ -1,7 +1,10 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: csi-hostpath-sc
-provisioner: hostpath.csi.k8s.io
+  name: linstor-replicated
+provisioner: linstor.csi.linbit.com
 reclaimPolicy: Delete
 volumeBindingMode: WaitForFirstConsumer
+parameters:
+  autoPlace: "2"
+  storagePool: lvm-pool

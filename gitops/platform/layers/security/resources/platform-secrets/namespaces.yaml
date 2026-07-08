@@ -11,3 +11,12 @@ metadata:
   name: database
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"

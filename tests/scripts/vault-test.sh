@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "==> Ensuring testing namespace exists..."
+kubectl create namespace testing --dry-run=client -o yaml | kubectl apply -f - > /dev/null
+
 echo "==> Waiting for vault-0 to be Ready..."
 kubectl wait --for=condition=Ready pod/vault-0 -n vault --timeout=60s > /dev/null 2>&1 || {
 	echo "ERROR: vault-0 not ready. Run 'make infra-apply' first."
