@@ -1,0 +1,107 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: base
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1000"
+spec:
+  description: "Base layer (foundation: cert-manager, gateway-api, vault, linstor, external-secrets)"
+  destinations:
+    - server: "*"
+      namespace: "*"
+  sourceRepos:
+    - "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: security
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1000"
+spec:
+  description: "Security layer (cert-manager issuers, external-secrets, network policies, trivy)"
+  destinations:
+    - server: "*"
+      namespace: "*"
+  sourceRepos:
+    - "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: observability
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1000"
+spec:
+  description: "Observability layer (prometheus, loki, tempo, alloy, metrics-server)"
+  destinations:
+    - server: "*"
+      namespace: "*"
+  sourceRepos:
+    - "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: storage
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1000"
+spec:
+  description: "Storage layer (linstor, cnpg, postgres, redis, minio, velero, snapshots)"
+  destinations:
+    - server: "*"
+      namespace: "*"
+  sourceRepos:
+    - "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: delivery
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1000"
+spec:
+  description: "Delivery layer (argo-rollouts, keda)"
+  destinations:
+    - server: "*"
+      namespace: "*"
+  sourceRepos:
+    - "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: workloads
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1000"
+spec:
+  description: "Workloads layer (seal and other deployed applications)"
+  destinations:
+    - server: "*"
+      namespace: "*"
+  sourceRepos:
+    - "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"

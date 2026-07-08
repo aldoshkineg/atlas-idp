@@ -12,7 +12,7 @@ metadata:
     app.kubernetes.io/component: platform
     app.kubernetes.io/layer: base
 spec:
-  project: platform
+  project: base
   source:
     repoURL: https://github.com/kubernetes-sigs/gateway-api
     targetRevision: v1.2.1

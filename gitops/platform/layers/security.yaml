@@ -8,7 +8,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: default
+  project: security
   source:
     repoURL: https://github.com/aldoshkineg/atlas-idp.git
     targetRevision: main

@@ -12,7 +12,7 @@ metadata:
     app.kubernetes.io/component: platform
     app.kubernetes.io/layer: base
 spec:
-  project: platform
+  project: base
   sources:
     - repoURL: https://piraeusdatastore.github.io/helm-charts
       chart: linstor-cluster

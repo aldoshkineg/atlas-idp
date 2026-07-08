@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/component: observability
     app.kubernetes.io/layer: observability
 spec:
-  project: platform
+  project: observability
 
   source:
     repoURL: https://grafana.github.io/helm-charts

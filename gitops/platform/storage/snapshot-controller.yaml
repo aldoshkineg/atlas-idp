@@ -12,7 +12,7 @@ metadata:
     app.kubernetes.io/component: platform
     app.kubernetes.io/layer: storage
 spec:
-  project: platform
+  project: storage
   source:
     repoURL: https://github.com/kubernetes-csi/external-snapshotter.git
     targetRevision: v8.6.0
