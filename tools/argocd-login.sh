@@ -21,21 +21,16 @@ if [ -z "$ARGOCD_PASSWORD" ]; then
 fi
 
 echo "==> Logging into ArgoCD CLI..."
-expect -c "
-    set timeout 10
-    spawn $ARGOCD login $ARGOCD_SERVER --username $ARGOCD_USER --password {$ARGOCD_PASSWORD}
-    expect {
-        \"Proceed\" { send \"y\r\"; exp_continue }
-        \"logged in successfully\" { exit 0 }
-        \"FATA\" { exit 1 }
-        timeout { exit 1 }
-        eof { exit 1 }
-    }
-" 2>/dev/null
-if [ $? -eq 0 ]; then
-    echo "✅ Login successful."
-    echo "    Run: $ARGOCD app list"
-else
+# Remove stale config to ensure clean state
+rm -f "$HOME/.config/argocd/config"
+
+echo "y" | $ARGOCD login "$ARGOCD_SERVER" --username "$ARGOCD_USER" --password "$ARGOCD_PASSWORD"
+ARGO_EXIT=$?
+
+if [ $ARGO_EXIT -ne 0 ]; then
     echo "❌ Error: ArgoCD login failed."
     exit 1
 fi
+
+echo "✅ Login successful."
+echo "    Run: $ARGOCD app list"

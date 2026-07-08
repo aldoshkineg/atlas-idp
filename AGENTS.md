@@ -134,8 +134,8 @@ Pre-commit runs on every commit:
 
 - **KUBECONFIG**: `/var/tmp/atlas/talos/kubeconfig`
 - **Talosconfig**: `/var/tmp/atlas/talos/talosconfig`
-- **ArgoCD CLI login**: `bash tools/argocd-login.sh`
-- **Usage**: `argocd app list` (no special flags needed after login)
+- **ArgoCD CLI login**: `bash tools/argocd-login.sh` (auto-fetches password, answers `Proceed?` prompt, no expect needed)
+- **Usage**: run `bash tools/argocd-login.sh` then `argocd app list`
 - **Sync app**: `argocd app sync <app-name>`
 
 ### CNPG / PostgreSQL Cluster State (June 2026)

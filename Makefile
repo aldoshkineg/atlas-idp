@@ -57,7 +57,8 @@ help:
 	@echo "  argocd-login      Login to ArgoCD via CLI"
 	@echo ""
 	@echo "Vault:"
-	@echo "  vault-seed        Seed test secrets into Vault (run after vault is healthy)"
+	@echo "  vault-seed              Seed secrets from file: make vault-seed SEED_FILE=path/to/secrets.txt"
+	@echo "  vault-seed-from-env     Read .env + seed-mapping.conf, seed into Vault via port-forward"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test             Deploy and verify all platform tests"
@@ -141,11 +142,17 @@ argocd-login:
 	./tools/argocd-login.sh
 
 # --- Vault ---
-# Read vault-path / key=value from stdin (or file), seed into Vault, verify
+# Seed secrets from a file directly into Vault (VAULT_ADDR must be set or inferred)
+# Usage: make vault-seed SEED_FILE=path/to/secrets.txt
 vault-seed:
-	./security/vault/seed-platform.sh seed
+	@if [ -z "$(SEED_FILE)" ]; then \
+		echo "Usage: make vault-seed SEED_FILE=path/to/secrets.txt"; \
+		echo "secrets file format: '<vault-path> <key>=<value>'"; \
+		exit 1; \
+	fi
+	./security/vault/seed-platform.sh seed "$(SEED_FILE)"
 
-# Read mapping + .env, resolve env vars, seed into Vault via port-forward
+# Read .env + seed-mapping.conf, resolve env vars, seed into Vault via port-forward
 vault-seed-from-env:
 	@unset VAULT_ADDR; ./security/vault/seed-from-env.sh
 
