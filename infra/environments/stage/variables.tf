@@ -177,7 +177,7 @@ variable "vm_cpu" {
 variable "vm_disk_size" {
   description = "Root disk size for each Talos VM"
   type        = string
-  default     = "10GiB"
+  default     = "25GiB"
 }
 
 variable "worker_extra_disk" {
