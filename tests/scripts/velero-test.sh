@@ -50,7 +50,6 @@ echo "=== Create Velero backup (label: $LABEL) ==="
 velero backup create "$BACKUP_NAME" \
   --include-namespaces "$NS" \
   --selector "$LABEL" \
-  --default-volumes-to-fs-backup \
   --wait > /dev/null 2>&1 || {
   fail "backup creation failed"
   exit 1
@@ -61,6 +60,16 @@ if [[ "$BACKUP_STATUS" == "Completed" ]]; then
   ok "Backup '$BACKUP_NAME' completed (phase: $BACKUP_STATUS)"
 else
   fail "Backup phase is '$BACKUP_STATUS' (expected 'Completed')"
+fi
+
+echo "=== Verify CSI VolumeSnapshot was created ==="
+VSC=$(kubectl get volumesnapshotcontent -o json 2>/dev/null | jq -r '
+  .items[] | select(.spec.volumeSnapshotClassName=="linstor-csi-snapshot") | .metadata.name
+' | tail -1)
+if [[ -n "$VSC" ]]; then
+  ok "VolumeSnapshotContent '$VSC' created (class: linstor-csi-snapshot, driver: linstor.csi.linbit.com)"
+else
+  fail "No VolumeSnapshotContent with class linstor-csi-snapshot found"
 fi
 
 echo "=== Verify backup in MinIO ==="
