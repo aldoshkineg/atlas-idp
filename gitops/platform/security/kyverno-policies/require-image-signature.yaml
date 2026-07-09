@@ -51,3 +51,5 @@ spec:
             -----END PUBLIC KEY-----
           required: true
           mutateDigest: false
+          useCache: true
+          verifyDigest: true
