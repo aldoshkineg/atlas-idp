@@ -66,6 +66,9 @@ tools/ci/act-runner/cache/*
 # Self-signed CA
 security/certs/ca*
 
+# Cosign private key (public key security/cosign/cosign.pub is committed)
+security/cosign/cosign.key
+
 # Dev certs
 .certs/
 
