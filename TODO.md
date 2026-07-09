@@ -2,37 +2,6 @@
 
 ### Phase 10 — Supply Chain Security & Admission Control
 
-- [ ] **Cosign** — container image signing + verification (только наши образы seal-проекта)
-  - [x] **Key generation** — `cosign generate-key-pair --output-key-prefix security/cosign/cosign`
-        (простой key-pair, БЕЗ CA)
-    - [x] Public key committed → `security/cosign/cosign.pub`
-    - [x] Private key (`cosign.key`) → GitHub Secret `COSIGN_PRIVATE_KEY` (raw PEM, never committed)
-    - [x] Use empty passphrase → set `COSIGN_PASSWORD=""` in signing step
-    - [x] `cosign.key` must be gitignored / never staged (`detect-private-key` pre-commit hook)
-    - [ ] Document rotation procedure in `security/cosign/README.md`
-  - [x] **Sign in CI** — `.github/workflows/seal-docker-publish.yml`
-    - [x] Add `sigstore/cosign-installer@v3` step (after login, before/after push)
-    - [x] After `docker/build-push-action`, sign **every** pushed tag (matrix × tags)
-          loop over `steps.meta.outputs.tags` (newline-separated) with
-          `cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$img"`
-    - [x] Sign both `v*` release tags and `workflow_dispatch` dev tags
-  - [x] **Local signing** — extend `apps/seal/Taskfile.yml` `push-images`
-    - [x] Add `sign-images` task (use local `cosign`, read key from env/`$COSIGN_PRIVATE_KEY`)
-    - [x] `push-images` now signs after push; skipped gracefully if key unset
-    - [x] Keep consistent with CI so local pushes are also verifiable
-  - [x] **Verification helper** — `security/cosign/verify.sh`
-    - [x] `cosign verify --key security/cosign/cosign.pub ghcr.io/aldoshkineg/<svc>:<tag>`
-    - [x] `make seal-verify TAG=vX.Y.Z` wrapper
-  - [x] **Enforcement (admission control)** — Kyverno `require-image-signature` активна в **Audit**
-        (Cosign signs; Kyverno верифицирует подпись у `ghcr.io/aldoshkineg/*` на deploy).
-        Блокировка (Enforce) пока НЕ включена — см. ниже.
-  - **Review notes (gaps / risks in original TODO):**
-    - [x] `act-build` / `push-images` push images without signing today → must add local sign path
-          (сделано: `sign-images` + `push-images` подписывает после push).
-    - [ ] Signing must cover all matrix services AND all metadata tags (release + dev) or Kyverno
-          will reject legitimately-pushed-but-unsigned tags.
-    - [x] `COSIGN_PRIVATE_KEY` secret must preserve newlines (store raw PEM, not base64, for `env://`).
-          (подтверждено рабочим: CI подписывает успешно)
 - [x] **Kyverno / Policy Controller** — Admission Control (минимальный набор, Kyverno 1.13.5 / chart 3.3.8)
   - **Версия:** 3.8.1 отброшен — перешёл на CEL-only, **убрал классический `ClusterPolicy` API**.
         Выбран **3.3.8** (Kyverno 1.13.5): классический `ClusterPolicy` ещё есть (legacy, не удалён).

@@ -285,9 +285,13 @@ pre-commit:
 	pre-commit run --all-files
 
 # --- Cosign image signature verification ---
+# Verifies seal-api / seal-worker / seal-ui against security/cosign/cosign.pub.
+# Requires cosign in PATH; override the tag with TAG=vX.Y.Z
 seal-verify:
-	@echo "--> Verifying Seal image signatures (tag from arg TAG, default v0.25.0)..."
-	security/cosign/verify.sh $(or $(TAG),v0.25.0)
+	@echo "--> Verifying Seal image signatures (tag: $(or $(TAG),v0.50.0))"
+	@for svc in seal-api seal-worker seal-ui; do \
+	  cosign verify --key security/cosign/cosign.pub "ghcr.io/aldoshkineg/$${svc}:$(or $(TAG),v0.50.0)" || exit 1; \
+	done
 
 # --- Local CI & Registry Cache Subsystem ---
 # Zot is now managed by Terraform in infra/modules/zot-cache/
