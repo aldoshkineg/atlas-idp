@@ -1,0 +1,51 @@
+apiVersion: kyverno.io/v2beta1
+kind: ClusterPolicy
+metadata:
+  name: require-image-signature
+  annotations:
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: critical
+spec:
+  validationFailureAction: Audit
+  background: true
+  webhookTimeoutSeconds: 30
+  failurePolicy: Ignore
+  rules:
+    - name: verify-seal-images
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - argocd
+                - kyverno
+                - cert-manager
+                - cnpg-system
+                - external-secrets
+                - monitoring
+                - loki
+                - minio
+                - vault
+                - velero
+                - trivy-system
+                - argo-rollouts
+                - piraeus-datastore
+                - database
+                - redis
+                - default
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/aldoshkineg/*"
+          key: |-
+            -----BEGIN PUBLIC KEY-----
+            MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJS9p1RWNGbs8Wxx9jmEKHdTVpdOl
+            qrTaWduNvjDUbHB4Fp4unZXyV2dgMLCvoFoeoZZmMuy47LbaKe8wv7nFKQ==
+            -----END PUBLIC KEY-----
+          required: true
