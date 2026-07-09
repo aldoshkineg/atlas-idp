@@ -25,6 +25,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+    ignoreDifferences:
+      - group: kyverno.io
+        kind: ClusterPolicy
+        jsonPointers:
+          - /spec
     retry:
       limit: 5
       backoff:
