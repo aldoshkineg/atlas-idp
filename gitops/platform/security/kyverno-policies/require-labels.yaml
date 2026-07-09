@@ -1,0 +1,45 @@
+apiVersion: kyverno.io/v2beta1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+  annotations:
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: low
+spec:
+  validationFailureAction: Audit
+  rules:
+    - name: validate-labels
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - argocd
+                - kyverno
+                - cert-manager
+                - cnpg-system
+                - external-secrets
+                - monitoring
+                - loki
+                - minio
+                - vault
+                - velero
+                - trivy-system
+                - argo-rollouts
+                - piraeus-datastore
+                - database
+                - redis
+      validate:
+        message: "Pods must have app.kubernetes.io/name and app.kubernetes.io/instance labels."
+        pattern:
+          metadata:
+            labels:
+              app.kubernetes.io/name: "?*"
+              app.kubernetes.io/instance: "?*"

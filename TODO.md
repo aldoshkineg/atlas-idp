@@ -31,15 +31,17 @@
     - [ ] Signing must cover all matrix services AND all metadata tags (release + dev) or Kyverno
           will reject legitimately-pushed-but-unsigned tags.
     - [ ] `COSIGN_PRIVATE_KEY` secret must preserve newlines (store raw PEM, not base64, for `env://`).
-- [ ] **Kyverno / Policy Controller** — Admission Control
-  - [ ] Deploy Kyverno via Argo CD (sync-wave 1)
-  - [ ] **Validate: `disallow latest tag`** — block `:latest` image deployments
-  - [ ] **Validate: `require-run-as-non-root`** — all pods must set `runAsNonRoot: true`
-  - [ ] **Mutate: auto-add security context** — inject `readOnlyRootFilesystem`, `drop: ALL`, `seccomp: RuntimeDefault`
-  - [ ] **Validate: `require-labels`** — enforce `app.kubernetes.io/name`, `app.kubernetes.io/instance`
-  - [ ] **Validate: `disallow-privileged`** — block `privileged: true` and `hostPath` in workload namespaces
-  - [ ] **Validate: `require-image-signature`** — block unsigned images for `ghcr.io/aldoshkineg/*`
-  - [ ] **Mutate: auto-add Alloy sidecar** — optionally inject log collector into all pods in `atlasteam-seal`
+- [x] **Kyverno / Policy Controller** — Admission Control (минимальный набор, chart 3.8.1)
+  - [x] Deploy Kyverno via Argo CD — `gitops/platform/security/kyverno.yaml` (Helm, ns `kyverno`, sync-wave 5)
+  - [x] **Validate: `require-image-signature`** — block unsigned `ghcr.io/aldoshkineg/*` (verifyImages, Audit→Enforce)
+  - [x] **Validate: `disallow latest tag`** — block `:latest` image deployments
+  - [x] **Validate: `require-run-as-non-root`** — all pods must set `runAsNonRoot: true`
+  - [x] **Validate: `disallow-privileged`** — block `privileged: true` and `hostPath` in workload namespaces
+  - [x] **Validate: `require-labels`** — enforce `app.kubernetes.io/name`, `app.kubernetes.io/instance`
+  - [x] Put policies in `gitops/platform/security/kyverno-policies/` (separate Argo App, sync-wave 6)
+  - [x] Exclude system namespaces (kyverno, argocd, kube-system, monitoring, loki, vault, …) from all policies
+  - [ ] Flip `validationFailureAction` Audit→Enforce after observing (начинаем в Audit)
+  - _Вне минимума (опц.):_ Mutate auto-add security context; Mutate auto-add Alloy sidecar (atlasteam-seal)
 
 ### Phase 11 — Documentation & ADRs
 

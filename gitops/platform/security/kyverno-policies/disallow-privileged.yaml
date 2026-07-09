@@ -1,0 +1,84 @@
+apiVersion: kyverno.io/v2beta1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged
+  annotations:
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Audit
+  rules:
+    - name: validate-privileged
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - argocd
+                - kyverno
+                - cert-manager
+                - cnpg-system
+                - external-secrets
+                - monitoring
+                - loki
+                - minio
+                - vault
+                - velero
+                - trivy-system
+                - argo-rollouts
+                - piraeus-datastore
+                - database
+                - redis
+      validate:
+        message: "Privileged containers are not allowed."
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  privileged: false
+            initContainers:
+              - securityContext:
+                  privileged: false
+    - name: validate-hostpath
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-public
+                - kube-node-lease
+                - argocd
+                - kyverno
+                - cert-manager
+                - cnpg-system
+                - external-secrets
+                - monitoring
+                - loki
+                - minio
+                - vault
+                - velero
+                - trivy-system
+                - argo-rollouts
+                - piraeus-datastore
+                - database
+                - redis
+      validate:
+        message: "hostPath volumes are not allowed."
+        deny:
+          conditions:
+            all:
+              - key: "{{ request.object.spec.volumes[].hostPath | length(@) }}"
+                operator: GreaterThanOrEquals
+                value: 1
