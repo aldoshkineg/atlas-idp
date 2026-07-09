@@ -49,3 +49,4 @@ spec:
             qrTaWduNvjDUbHB4Fp4unZXyV2dgMLCvoFoeoZZmMuy47LbaKe8wv7nFKQ==
             -----END PUBLIC KEY-----
           required: true
+          mutateDigest: false
