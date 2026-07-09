@@ -3,25 +3,26 @@
 ### Phase 10 — Supply Chain Security & Admission Control
 
 - [ ] **Cosign** — container image signing + verification (только наши образы seal-проекта)
-  - [ ] **Key generation** — `cosign generate-key-pair --output-key-prefix security/cosign/cosign`
+  - [x] **Key generation** — `cosign generate-key-pair --output-key-prefix security/cosign/cosign`
         (простой key-pair, БЕЗ CA)
-    - [ ] Public key committed → `security/cosign/cosign.pub`
-    - [ ] Private key (`cosign.key`) → GitHub Secret `COSIGN_PRIVATE_KEY` (raw PEM, never committed)
-    - [ ] Use empty passphrase → set `COSIGN_PASSWORD=""` in signing step
-    - [ ] `cosign.key` must be gitignored / never staged (`detect-private-key` pre-commit hook)
+    - [x] Public key committed → `security/cosign/cosign.pub`
+    - [x] Private key (`cosign.key`) → GitHub Secret `COSIGN_PRIVATE_KEY` (raw PEM, never committed)
+    - [x] Use empty passphrase → set `COSIGN_PASSWORD=""` in signing step
+    - [x] `cosign.key` must be gitignored / never staged (`detect-private-key` pre-commit hook)
     - [ ] Document rotation procedure in `security/cosign/README.md`
-  - [ ] **Sign in CI** — `.github/workflows/seal-docker-publish.yml`
-    - [ ] Add `sigstore/cosign-installer@v3` step (after login, before/after push)
-    - [ ] After `docker/build-push-action`, sign **every** pushed tag (matrix × tags)
+  - [x] **Sign in CI** — `.github/workflows/seal-docker-publish.yml`
+    - [x] Add `sigstore/cosign-installer@v3` step (after login, before/after push)
+    - [x] After `docker/build-push-action`, sign **every** pushed tag (matrix × tags)
           loop over `steps.meta.outputs.tags` (newline-separated) with
           `cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$img"`
-    - [ ] Sign both `v*` release tags and `workflow_dispatch` dev tags
-  - [ ] **Local signing** — extend `apps/seal/Taskfile.yml` `push-images`
-    - [ ] Add `sign-images` task (use local `cosign`, read key from env/`$COSIGN_PRIVATE_KEY`)
-    - [ ] Keep consistent with CI so local pushes are also verifiable
-  - [ ] **Verification helper** — `security/cosign/verify.sh`
-    - [ ] `cosign verify --key security/cosign/cosign.pub ghcr.io/aldoshkineg/<svc>:<tag>`
-    - [ ] Wire into `make verify` / CI `ci.yaml` as a check (optional)
+    - [x] Sign both `v*` release tags and `workflow_dispatch` dev tags
+  - [x] **Local signing** — extend `apps/seal/Taskfile.yml` `push-images`
+    - [x] Add `sign-images` task (use local `cosign`, read key from env/`$COSIGN_PRIVATE_KEY`)
+    - [x] `push-images` now signs after push; skipped gracefully if key unset
+    - [x] Keep consistent with CI so local pushes are also verifiable
+  - [x] **Verification helper** — `security/cosign/verify.sh`
+    - [x] `cosign verify --key security/cosign/cosign.pub ghcr.io/aldoshkineg/<svc>:<tag>`
+    - [x] `make seal-verify TAG=vX.Y.Z` wrapper
   - [ ] **Enforcement (admission control)** — see Kyverno `require-image-signature` task below
         (Cosign signs; Kyverno _blocks_ unsigned `ghcr.io/aldoshkineg/*` at deploy time)
   - **Review notes (gaps / risks in original TODO):**
