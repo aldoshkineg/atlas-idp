@@ -23,25 +23,45 @@
   - [x] **Verification helper** — `security/cosign/verify.sh`
     - [x] `cosign verify --key security/cosign/cosign.pub ghcr.io/aldoshkineg/<svc>:<tag>`
     - [x] `make seal-verify TAG=vX.Y.Z` wrapper
-  - [ ] **Enforcement (admission control)** — see Kyverno `require-image-signature` task below
-        (Cosign signs; Kyverno _blocks_ unsigned `ghcr.io/aldoshkineg/*` at deploy time)
+  - [x] **Enforcement (admission control)** — Kyverno `require-image-signature` активна в **Audit**
+        (Cosign signs; Kyverno верифицирует подпись у `ghcr.io/aldoshkineg/*` на deploy).
+        Блокировка (Enforce) пока НЕ включена — см. ниже.
   - **Review notes (gaps / risks in original TODO):**
-    - [ ] `act-build` / `push-images` push images without signing today → must add local sign path
-          or document that only CI pushes are trusted.
+    - [x] `act-build` / `push-images` push images without signing today → must add local sign path
+          (сделано: `sign-images` + `push-images` подписывает после push).
     - [ ] Signing must cover all matrix services AND all metadata tags (release + dev) or Kyverno
           will reject legitimately-pushed-but-unsigned tags.
-    - [ ] `COSIGN_PRIVATE_KEY` secret must preserve newlines (store raw PEM, not base64, for `env://`).
-- [x] **Kyverno / Policy Controller** — Admission Control (минимальный набор, Kyverno 1.13.5 / chart 3.3.8; `crds.install: true`. 3.8.1 отброшен — убрали классический ClusterPolicy API)
-  - [x] Deploy Kyverno via Argo CD — `gitops/platform/security/kyverno.yaml` (Helm, ns `kyverno`, sync-wave 5)
-  - [x] **Validate: `require-image-signature`** — block unsigned `ghcr.io/aldoshkineg/*` (verifyImages, Audit→Enforce)
-  - [x] **Validate: `disallow latest tag`** — block `:latest` image deployments
-  - [x] **Validate: `require-run-as-non-root`** — all pods must set `runAsNonRoot: true`
-  - [x] **Validate: `disallow-privileged`** — block `privileged: true` and `hostPath` in workload namespaces
-  - [x] **Validate: `require-labels`** — enforce `app.kubernetes.io/name`, `app.kubernetes.io/instance`
-  - [x] Put policies in `gitops/platform/security/kyverno-policies/` (separate Argo App, sync-wave 6)
-  - [x] Exclude system namespaces (kyverno, argocd, kube-system, monitoring, loki, vault, …) from all policies
-  - [ ] Flip `validationFailureAction` Audit→Enforce after observing (начинаем в Audit)
-  - _Вне минимума (опц.):_ Mutate auto-add security context; Mutate auto-add Alloy sidecar (atlasteam-seal)
+    - [x] `COSIGN_PRIVATE_KEY` secret must preserve newlines (store raw PEM, not base64, for `env://`).
+          (подтверждено рабочим: CI подписывает успешно)
+- [x] **Kyverno / Policy Controller** — Admission Control (минимальный набор, Kyverno 1.13.5 / chart 3.3.8)
+  - **Версия:** 3.8.1 отброшен — перешёл на CEL-only, **убрал классический `ClusterPolicy` API**.
+        Выбран **3.3.8** (Kyverno 1.13.5): классический `ClusterPolicy` ещё есть (legacy, не удалён).
+  - **CRD-проблема (решено):** Argo CD / `helm template` **не рендерит subchart-CRD** (`charts/crds`),
+        поэтому admission-controller падал (нет `clusterpolicies.kyverno.io`).
+        Решение — отдельное приложение `kyverno-crds` (суб-чарт `crds` целиком, standalone с
+        завендоренными parent-helper-ами), sync-wave **4**; у чарта `crds.install: false`.
+  - [x] Deploy Kyvernо via Argo CD — `gitops/platform/security/kyverno.yaml` (Helm, ns `kyverno`, sync-wave 5)
+  - [x] **`require-image-signature`** — verifyImages на `ghcr.io/aldoshkineg/*`, **Audit** (Enforce пока нет).
+        В spec дописаны `mutateDigest: false` (в Audit обязательно), `skipBackgroundRequests: true`,
+        `useCache: true`, `verifyDigest: true` — иначе Kyverno дописывает их сам → Argo OutOfSync.
+  - [x] **`disallow-latest-tag`** — block `:latest`
+  - [x] **`require-run-as-non-root`** — `runAsNonRoot: true`
+  - [x] **`disallow-privileged`** — block `privileged: true` / `hostPath`
+  - [x] **`require-labels`** — `app.kubernetes.io/name`, `app.kubernetes.io/instance`
+  - [x] Policies в `gitops/platform/security/kyverno-policies/` (отдельный Argo App, sync-wave 6)
+  - [x] Exclude system namespaces (kyverno, argocd, kube-system, monitoring, loki, vault, …) из всех политик
+  - [x] **Argo drift fix:** `ignoreDifferences: /spec` на `ClusterPolicy` в `kyverno-policies.yaml`
+        (Kyverno мутирует spec политик → без ignoreDifferences вечный OutOfSync).
+        `ignoreDifferences` — **top-level `spec.ignoreDifferences`**, НЕ под `syncPolicy`.
+  - [x] **clean-reports hook fix:** `policyReportsCleanup.image` → `bitnamilegacy/kubectl:1.33.4`
+        (дефолтный `bitnami/kubectl` недоступен офлайн → hook Job в ImagePullBackOff и зависание операции).
+  - [ ] Flip `validationFailureAction` Audit→Enforce после наблюдения (стартуем в Audit)
+  - **Operational notes (важно):**
+    - Родитель `security` стоит на **Manual** — правки манифестов дочерних приложений (напр. `ignoreDifferences`)
+          пропагируются только после `argocd app sync security`.
+    - При удалении приложений Kyverno: сначала `patch` убрать finalizer
+          `resources-finalizer.argocd.argocd.io`, иначе зависание на post-delete hook (тянет `bitnami/kubectl`).
+    - _Вне минимума (опц.):_ Mutate auto-add security context; Mutate auto-add Alloy sidecar (atlasteam-seal)
 
 ### Phase 11 — Documentation & ADRs
 
