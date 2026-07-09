@@ -31,7 +31,7 @@
     - [ ] Signing must cover all matrix services AND all metadata tags (release + dev) or Kyverno
           will reject legitimately-pushed-but-unsigned tags.
     - [ ] `COSIGN_PRIVATE_KEY` secret must preserve newlines (store raw PEM, not base64, for `env://`).
-- [x] **Kyverno / Policy Controller** — Admission Control (минимальный набор, Kyverno 1.10.4 / chart 3.0.6; CRD top-level в чарте → Argo ставит автоматически. 3.8.1/3.3.8 отброшены — убрали классический ClusterPolicy API либо CRD в subchart)
+- [x] **Kyverno / Policy Controller** — Admission Control (минимальный набор, Kyverno 1.13.5 / chart 3.3.8; `crds.install: true`. 3.8.1 отброшен — убрали классический ClusterPolicy API)
   - [x] Deploy Kyverno via Argo CD — `gitops/platform/security/kyverno.yaml` (Helm, ns `kyverno`, sync-wave 5)
   - [x] **Validate: `require-image-signature`** — block unsigned `ghcr.io/aldoshkineg/*` (verifyImages, Audit→Enforce)
   - [x] **Validate: `disallow latest tag`** — block `:latest` image deployments
