@@ -1,4 +1,4 @@
-apiVersion: kyverno.io/v2beta1
+apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
   name: require-image-signature
@@ -6,11 +6,14 @@ metadata:
     policies.kyverno.io/category: Supply Chain Security
     policies.kyverno.io/severity: critical
 spec:
-  validationFailureAction: Audit
+  # Enforce (not Audit): tag-based image verification requires mutateDigest=true,
+  # which Kyverno only permits in Enforce mode. In Audit mode mutateDigest is
+  # forced false, the digest cannot be resolved, and signature verification
+  # cannot run ("missing digest"/"unverified" for every tag).
+  validationFailureAction: Enforce
   background: true
-  skipBackgroundRequests: true
   webhookTimeoutSeconds: 30
-  failurePolicy: Ignore
+  failurePolicy: Fail
   rules:
     - name: verify-seal-images
       match:
@@ -50,6 +53,6 @@ spec:
             aG1mTKGJbs1QmB0ckMqHTfFChg/jxXNlvdXNW+jm196yYVh5jS6iTSmszQ==
             -----END PUBLIC KEY-----
           required: true
-          mutateDigest: false
-          useCache: true
+          mutateDigest: true
+          useCache: false
           verifyDigest: true
