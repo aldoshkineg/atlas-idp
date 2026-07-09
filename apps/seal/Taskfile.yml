@@ -220,7 +220,7 @@ tasks:
       - kind load docker-image ghcr.io/atlas-idp/seal-ui:dev
 
   push-images:
-    desc: Tag dev images and push to GHCR (tag from current git commit)
+    desc: Tag dev images, push to GHCR, and sign with cosign (tag from current git commit)
     vars:
       TAG:
         sh: git describe --tags --abbrev=0 2>/dev/null || echo "dev"
@@ -235,6 +235,34 @@ tasks:
         vars: { SERVICE: seal-worker, TAG: "{{.TAG}}" }
       - task: push-image
         vars: { SERVICE: seal-ui, TAG: "{{.TAG}}" }
+      - task: sign-images
+        vars: { TAG: "{{.TAG}}" }
+
+  sign-images:
+    desc: Sign pushed seal images with cosign (requires COSIGN_PRIVATE_KEY in env)
+    vars:
+      TAG:
+        sh: git describe --tags --abbrev=0 2>/dev/null || echo "dev"
+    cmds:
+      - task: sign-image
+        vars: { SERVICE: seal-api, TAG: "{{.TAG}}" }
+      - task: sign-image
+        vars: { SERVICE: seal-worker, TAG: "{{.TAG}}" }
+      - task: sign-image
+        vars: { SERVICE: seal-ui, TAG: "{{.TAG}}" }
+
+  sign-image:
+    internal: true
+    silent: true
+    vars:
+      TAG: '{{.TAG | default "dev"}}'
+    cmds:
+      - |
+        if [ -z "${COSIGN_PRIVATE_KEY:-}" ]; then
+          echo "COSIGN_PRIVATE_KEY not set; skipping signing of ghcr.io/aldoshkineg/{{.SERVICE}}:{{.TAG}}"
+          exit 0
+        fi
+        cosign sign --yes --key env://COSIGN_PRIVATE_KEY "ghcr.io/aldoshkineg/{{.SERVICE}}:{{.TAG}}"
 
   push-image:
     internal: true

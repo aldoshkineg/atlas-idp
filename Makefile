@@ -284,6 +284,11 @@ validate-security:
 pre-commit:
 	pre-commit run --all-files
 
+# --- Cosign image signature verification ---
+seal-verify:
+	@echo "--> Verifying Seal image signatures (tag from arg TAG, default v0.25.0)..."
+	security/cosign/verify.sh $(or $(TAG),v0.25.0)
+
 # --- Local CI & Registry Cache Subsystem ---
 # Zot is now managed by Terraform in infra/modules/zot-cache/
 ci-cache-up: infra-apply
