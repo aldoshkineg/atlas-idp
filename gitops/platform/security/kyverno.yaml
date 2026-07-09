@@ -21,6 +21,10 @@ spec:
         revisionHistoryLimit: 2
         crds:
           install: false
+        policyReportsCleanup:
+          image:
+            repository: bitnamilegacy/kubectl
+            tag: "1.33.4"
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
