@@ -8,6 +8,7 @@ metadata:
 spec:
   validationFailureAction: Audit
   background: true
+  skipBackgroundRequests: true
   webhookTimeoutSeconds: 30
   failurePolicy: Ignore
   rules:
