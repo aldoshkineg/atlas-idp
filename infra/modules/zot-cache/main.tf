@@ -1,35 +1,22 @@
-# Incus: pull the Zot image from a remote, idempotently.
+# Incus: pull the Zot image from the ghcr-oci OCI remote via the incus provider.
 #
-# The Zot image is treated as a cache that survives `stage-destroy` (the destroy
-# script preserves the alias). A plain `incus_image` resource errors with
-# "Image alias already exists" on a re-apply after destroy, so we copy it via the
-# incus CLI only when the alias is missing. The incus provider does not expose its
-# remote config to the CLI, so the remote is registered here when absent.
-resource "null_resource" "zot_image" {
+# The image is a cache that survives `stage-destroy`: the destroy script preserves
+# the alias in Incus and wipes Terraform state, but never deletes the image. To
+# avoid re-downloading on every destroy/apply cycle, the apply pipeline imports the
+# already-present image into state when its alias exists locally (see
+# .github/actions/terraform-incus). If the image is absent, the provider downloads
+# it once. No shell script manages the image itself.
+resource "incus_image" "zot" {
   count = var.enable ? 1 : 0
 
-  triggers = {
-    alias  = var.image_alias
+  source_image = {
     remote = var.image_remote
-    url    = var.image_remote_url
     name   = var.image_name
     type   = var.image_type
   }
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      set -eu
-      if ! incus remote show "${var.image_remote}" >/dev/null 2>&1; then
-        incus remote add "${var.image_remote}" "${var.image_remote_url}" \
-          --protocol "${var.image_remote_protocol}" --public
-      fi
-      if incus image show "${var.image_alias}" >/dev/null 2>&1; then
-        echo "Zot image alias '${var.image_alias}' already present, skipping copy"
-      else
-        echo "Copying Zot image from ${var.image_remote}:${var.image_name} ..."
-        incus image copy "${var.image_remote}:${var.image_name}" --alias "${var.image_alias}"
-      fi
-    EOT
+  alias {
+    name = var.image_alias
   }
 }
 
@@ -55,10 +42,10 @@ resource "null_resource" "cleanup_sync" {
 resource "incus_instance" "zot" {
   count = var.enable ? 1 : 0
 
-  depends_on = [null_resource.zot_image, null_resource.cleanup_sync]
+  depends_on = [incus_image.zot, null_resource.cleanup_sync]
 
   name    = var.image_alias
-  image   = var.image_alias
+  image   = incus_image.zot[0].fingerprint
   type    = "container"
   running = true
 

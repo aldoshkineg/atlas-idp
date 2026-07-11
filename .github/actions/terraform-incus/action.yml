@@ -26,6 +26,21 @@ runs:
         done
         [ "$n" -lt 3 ] || exit 1
 
+    - name: Reuse preserved Zot image (import into state if present)
+      shell: bash
+      working-directory: ./infra/environments/stage
+      env:
+        TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+      run: |
+        set -eu
+        if incus image list "zot-cache" >/dev/null 2>&1; then
+          fp=$(incus image list "zot-cache" -f csv -c f 2>/dev/null | tail -n1)
+          echo "Zot image present locally (${fp}); importing into Terraform state to reuse it"
+          terraform import 'module.zot_cache.incus_image.zot[0]' "$fp" || echo "import skipped; Terraform will attempt to create it"
+        else
+          echo "Zot image not present locally; Terraform will download it once"
+        fi
+
     - name: Terraform Plan
       shell: bash
       working-directory: ./infra/environments/stage
