@@ -131,10 +131,16 @@ variable "zot_cache_dir" {
   default     = "/var/tmp/atlas/zot_cache/zot-cache-data"
 }
 
-variable "zot_image_ref" {
-  description = "Zot OCI image reference for Incus image copy"
+variable "zot_image_remote" {
+  description = "Incus OCI remote name to pull the Zot image from (defined in the incus provider)"
   type        = string
-  default     = "ghcr-oci:project-zot/zot:v2.1.16"
+  default     = "ghcr-oci"
+}
+
+variable "zot_image_name" {
+  description = "Zot image reference on the remote"
+  type        = string
+  default     = "project-zot/zot:v2.1.16"
 }
 
 variable "zot_port" {

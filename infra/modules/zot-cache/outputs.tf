@@ -1,3 +1,13 @@
+output "image_fingerprint" {
+  description = "Fingerprint of the pulled Zot image"
+  value       = var.enable ? incus_image.zot[0].fingerprint : null
+}
+
+output "image_alias" {
+  description = "Alias assigned to the Zot image"
+  value       = var.enable ? var.image_alias : null
+}
+
 output "container_name" {
   value = var.enable ? incus_instance.zot[0].name : null
 }

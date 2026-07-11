@@ -1,26 +1,17 @@
-# Incus: copy image from OCI registry (skipped if already present)
-resource "null_resource" "zot_image" {
+# Incus: pull the Zot image from a remote (natively; idempotent via TF state).
+# For an OCI remote (e.g. ghcr-oci -> https://ghcr.io) Incus uses skopeo under
+# the hood. The remote must be declared in the incus provider configuration.
+resource "incus_image" "zot" {
   count = var.enable ? 1 : 0
 
-  triggers = {
-    image_ref = var.image_ref
-    alias     = var.image_alias
+  source_image = {
+    remote = var.image_remote
+    name   = var.image_name
+    type   = var.image_type
   }
 
-  provisioner "local-exec" {
-    command = <<-CMD
-      if incus image info "${self.triggers["alias"]}" >/dev/null 2>&1; then
-        echo "Image ${self.triggers["alias"]} already present, skipping copy"
-      else
-        incus image copy "${self.triggers["image_ref"]}" local: --alias "${self.triggers["alias"]}"
-      fi
-    CMD
-  }
-
-  provisioner "local-exec" {
-    when       = destroy
-    on_failure = continue
-    command    = "echo 'Preserving Incus image ${self.triggers["alias"]} for next use'"
+  alias {
+    name = var.image_alias
   }
 }
 
@@ -46,10 +37,10 @@ resource "null_resource" "cleanup_sync" {
 resource "incus_instance" "zot" {
   count = var.enable ? 1 : 0
 
-  depends_on = [null_resource.zot_image, null_resource.cleanup_sync]
+  depends_on = [incus_image.zot, null_resource.cleanup_sync]
 
   name    = var.image_alias
-  image   = var.image_alias
+  image   = incus_image.zot[0].fingerprint
   type    = "container"
   running = true
 

@@ -40,18 +40,36 @@ module "talos_config" {
   skip_fallback      = var.skip_fallback
 }
 
+# === Incus provider (local socket + OCI remote for native image pulls) ===
+provider "incus" {
+  default_remote = "local"
+
+  remote {
+    name    = "local"
+    address = "unix://"
+  }
+
+  remote {
+    name     = "ghcr-oci"
+    address  = "https://ghcr.io"
+    protocol = "oci"
+    public   = true
+  }
+}
+
 # === Zot registry cache ===
 module "zot_cache" {
   source = "../../modules/zot-cache"
 
-  enable      = var.zot_enable
-  port        = var.zot_port
-  cache_dir   = var.zot_cache_dir
-  network     = module.incus.bridge_name
-  gateway     = var.gateway
-  image_alias = "zot-cache"
-  image_ref   = var.zot_image_ref
-  static_ip   = var.zot_address
+  enable       = var.zot_enable
+  port         = var.zot_port
+  cache_dir    = var.zot_cache_dir
+  network      = module.incus.bridge_name
+  gateway      = var.gateway
+  image_alias  = "zot-cache"
+  image_remote = var.zot_image_remote
+  image_name   = var.zot_image_name
+  static_ip    = var.zot_address
 }
 
 # === Incus VMs ===
