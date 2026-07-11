@@ -3,3 +3,11 @@ installCRDs: true
 # Metrics proxy disabled in dev — enable in production for auth on :8443
 kubeRbacProxy:
   enabled: false
+
+# Issue the webhook serving cert via cert-manager (atlas-ca-issuer) so the
+# ValidatingWebhookConfiguration gets a CA-injected caBundle (chart adds the
+# inject-ca-from annotation and drops the self-signed caBundle automatically).
+tls:
+  certManagerIssuerRef:
+    name: atlas-ca-issuer
+    kind: ClusterIssuer
