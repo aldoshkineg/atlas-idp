@@ -61,15 +61,17 @@ provider "incus" {
 module "zot_cache" {
   source = "../../modules/zot-cache"
 
-  enable       = var.zot_enable
-  port         = var.zot_port
-  cache_dir    = var.zot_cache_dir
-  network      = module.incus.bridge_name
-  gateway      = var.gateway
-  image_alias  = "zot-cache"
-  image_remote = var.zot_image_remote
-  image_name   = var.zot_image_name
-  static_ip    = var.zot_address
+  enable                = var.zot_enable
+  port                  = var.zot_port
+  cache_dir             = var.zot_cache_dir
+  network               = module.incus.bridge_name
+  gateway               = var.gateway
+  image_alias           = "zot-cache"
+  image_remote          = var.zot_image_remote
+  image_remote_url      = var.zot_image_remote_url
+  image_remote_protocol = var.zot_image_remote_protocol
+  image_name            = var.zot_image_name
+  static_ip             = var.zot_address
 }
 
 # === Incus VMs ===

@@ -38,6 +38,18 @@ variable "image_remote" {
   default     = "ghcr-oci"
 }
 
+variable "image_remote_url" {
+  description = "URL of the Incus OCI remote (used by the incus CLI, which does not share the provider's remote config)"
+  type        = string
+  default     = "https://ghcr.io"
+}
+
+variable "image_remote_protocol" {
+  description = "Protocol of the Incus OCI remote (e.g. oci)"
+  type        = string
+  default     = "oci"
+}
+
 variable "image_name" {
   description = "Image name/reference on the remote (e.g. project-zot/zot:v2.1.16)"
   type        = string
