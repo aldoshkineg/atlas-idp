@@ -26,6 +26,12 @@ runs:
         done
         [ "$n" -lt 3 ] || exit 1
 
+    - name: Clear stale Zot image alias (preserve image for reuse)
+      shell: bash
+      run: |
+        incus image alias delete "zot-cache" 2>/dev/null || true
+        echo "Cleared stale zot-cache alias if present; image itself is preserved for reuse"
+
     - name: Terraform Plan
       shell: bash
       working-directory: ./infra/environments/stage
