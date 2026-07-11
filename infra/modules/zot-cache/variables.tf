@@ -32,10 +32,22 @@ variable "image_alias" {
   default     = "zot-cache"
 }
 
-variable "image_ref" {
-  description = "Remote image reference for incus image copy (e.g. ghcr-oci:project-zot/zot:v2.1.16)"
+variable "image_remote" {
+  description = "Incus remote to pull the Zot image from (must be defined in the incus provider; e.g. an OCI remote named ghcr-oci)"
   type        = string
-  default     = "ghcr-oci:project-zot/zot:v2.1.16"
+  default     = "ghcr-oci"
+}
+
+variable "image_name" {
+  description = "Image name/reference on the remote (e.g. project-zot/zot:v2.1.16)"
+  type        = string
+  default     = "project-zot/zot:v2.1.16"
+}
+
+variable "image_type" {
+  description = "Image type to cache (container or virtual-machine)"
+  type        = string
+  default     = "container"
 }
 
 variable "static_ip" {
