@@ -39,6 +39,11 @@ spec:
         - /webhooks/2/clientConfig/caBundle
         - /webhooks/3/clientConfig/caBundle
         - /webhooks/4/clientConfig/caBundle
+        - /metadata/annotations/cert-manager.io~1inject-ca-from
+    - group: ""
+      kind: Secret
+      name: piraeus-operator-tls
+      namespace: piraeus-datastore
   syncPolicy:
     automated:
       prune: true
