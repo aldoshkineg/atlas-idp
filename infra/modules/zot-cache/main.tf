@@ -1,13 +1,14 @@
 # Incus: pull the Zot image from the ghcr-oci OCI remote via the incus provider.
 #
 # The image is a cache that survives `stage-destroy`: the destroy script preserves
-# the image in Incus and wipes Terraform state, but never deletes the image. The
-# provider's image copy is idempotent by fingerprint — if the image already exists
-# locally Incus reuses it instead of re-downloading — so a re-apply after destroy
-# simply adopts the existing image. No alias is declared on the resource: declaring
-# one would make Create fail with "alias already exists" on a re-apply (the
-# incus_image resource has no import support), and the instance references the
-# image by fingerprint instead.
+# the image in Incus and wipes Terraform state, but never deletes the image. When
+# Incus copies the published OCI image it force-sets the source alias "zot-cache"
+# locally, which collides with the preserved image on a re-apply (the incus_image
+# resource has no import support, so it cannot adopt the existing image). The apply
+# pipeline therefore clears the stale "zot-cache" alias (keeping the image itself)
+# before `terraform apply`; Incus then reuses the existing image by fingerprint
+# instead of re-downloading, and re-applies the alias. The instance references the
+# image by fingerprint.
 resource "incus_image" "zot" {
   count = var.enable ? 1 : 0
 
@@ -15,6 +16,10 @@ resource "incus_image" "zot" {
     remote = var.image_remote
     name   = var.image_name
     type   = var.image_type
+  }
+
+  alias {
+    name = var.image_alias
   }
 }
 
