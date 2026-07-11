@@ -33,21 +33,9 @@ variable "image_alias" {
 }
 
 variable "image_remote" {
-  description = "Incus remote to pull the Zot image from (must be defined in the incus provider; e.g. an OCI remote named ghcr-oci)"
+  description = "Incus remote to pull the Zot image from (defined in the incus provider; e.g. an OCI remote named ghcr-oci)"
   type        = string
   default     = "ghcr-oci"
-}
-
-variable "image_remote_url" {
-  description = "URL of the Incus OCI remote (used by the incus CLI, which does not share the provider's remote config)"
-  type        = string
-  default     = "https://ghcr.io"
-}
-
-variable "image_remote_protocol" {
-  description = "Protocol of the Incus OCI remote (e.g. oci)"
-  type        = string
-  default     = "oci"
 }
 
 variable "image_name" {
