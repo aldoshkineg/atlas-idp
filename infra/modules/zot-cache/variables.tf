@@ -27,27 +27,9 @@ variable "gateway" {
 }
 
 variable "image_alias" {
-  description = "Alias for the Zot image in Incus"
+  description = "Alias of the already-present Zot image in Incus (provisioned externally via 'make zot-image')"
   type        = string
   default     = "zot-cache"
-}
-
-variable "image_remote" {
-  description = "Incus remote to pull the Zot image from (defined in the incus provider; e.g. an OCI remote named ghcr-oci)"
-  type        = string
-  default     = "ghcr-oci"
-}
-
-variable "image_name" {
-  description = "Image name/reference on the remote (e.g. project-zot/zot:v2.1.16)"
-  type        = string
-  default     = "project-zot/zot:v2.1.16"
-}
-
-variable "image_type" {
-  description = "Image type to cache (container or virtual-machine)"
-  type        = string
-  default     = "container"
 }
 
 variable "static_ip" {

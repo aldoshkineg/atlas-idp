@@ -7,7 +7,7 @@
 #   - Talos control-plane and worker VMs
 #   - Storage volumes, storage pool, profile
 #   - incusbr0 network bridge
-#   - Incus images (Talos, Zot)
+#   - Incus images (Talos; the Zot image is managed externally via `make zot-image` and is preserved)
 #   - Terraform state file
 set -euo pipefail
 
@@ -63,7 +63,7 @@ else
   echo "    skip (not found): talos-vm"
 fi
 
-# 6. Delete Talos image (Zot image preserved — null_resource skips copy if present)
+# 6. Delete Talos image (the Zot image is managed externally via `make zot-image` and is preserved)
 echo "--> Deleting images..."
 if incus image show "$IMAGE_ALIAS" &>/dev/null 2>&1; then
   incus image delete "$IMAGE_ALIAS"

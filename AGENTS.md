@@ -167,18 +167,20 @@ Pre-commit runs on every commit:
 
 **Refactored into 6 modules (Feb 2026):**
 
-| Module          | Path                           | Purpose                                               |
-| --------------- | ------------------------------ | ----------------------------------------------------- |
-| `zot-cache`     | `infra/modules/zot-cache/`     | OCI registry pull-through proxy (Docker + Incus)      |
-| `incus`         | `infra/modules/incus/`         | Incus bridge + VM provisioning + seed ISOs            |
-| `talos-config`  | `infra/modules/talos-config/`  | Secrets, patches, machine config generation (NEW)     |
-| `talos-cluster` | `infra/modules/talos-cluster/` | Config apply, bootstrap, kubeconfig retrieval         |
-| `cilium`        | `infra/modules/cilium/`        | Cilium CNI via Helm (Talos + Kind)                    |
-| (root)          | `infra/environments/stage/`    | Orchestration: backend, provider config, coordination |
+| Module          | Path                           | Purpose                                                                              |
+| --------------- | ------------------------------ | ------------------------------------------------------------------------------------ |
+| `zot-cache`     | `infra/modules/zot-cache/`     | OCI registry pull-through proxy (Incus container); image is NOT managed by Terraform |
+| `incus`         | `infra/modules/incus/`         | Incus bridge + VM provisioning + seed ISOs                                           |
+| `talos-config`  | `infra/modules/talos-config/`  | Secrets, patches, machine config generation (NEW)                                    |
+| `talos-cluster` | `infra/modules/talos-cluster/` | Config apply, bootstrap, kubeconfig retrieval                                        |
+| `cilium`        | `infra/modules/cilium/`        | Cilium CNI via Helm (Talos + Kind)                                                   |
+| (root)          | `infra/environments/stage/`    | Orchestration: backend, provider config, coordination                                |
 
 **`stage/main.tf` reduced from 311→170 lines** — all Talos config generation (secrets, patches, data sources, debug files) extracted into `infra/modules/talos-config/`. Circular dependency broken: `talos-config` outputs config YAMLs consumed by both `incus` (seed ISOs) and `talos-cluster` (apply).
 
 **Generated files moved to `/var/tmp/atlas/talos/`** — kubeconfig, talosconfig, debug YAMLs.
+
+**Zot image is external to Terraform (design A):** Terraform only launches the container by the already-present `zot-cache` alias (set up by `make zot-image`); it never manages the image. The image is provisioned once, outside Terraform, by `make zot-image` (copies `ghcr.io/project-zot/zot:v2.1.16` into Incus under alias `zot-cache`, skipping if the alias exists). Run `make zot-image` BEFORE `make act-stage-apply` on a fresh host. `terraform destroy` then removes only the container and never touches the image, so the cache survives destroy/apply cycles. No `incus_image` resource, no `null_resource`, no alias-delete step in the pipeline.
 
 **Cluster running (all green):**
 
