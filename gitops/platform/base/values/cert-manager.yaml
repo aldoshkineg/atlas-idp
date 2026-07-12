@@ -2,6 +2,8 @@
 crds:
   enabled: true
 
+clusterResourceNamespace: cert-manager
+
 # Resource limits for kind
 resources:
   limits:

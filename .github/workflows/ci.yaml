@@ -27,12 +27,9 @@ jobs:
           atlas_ca_crt: ${{ secrets.ATLAS_CA_CRT }}
           atlas_ca_key: ${{ secrets.ATLAS_CA_KEY }}
 
-      # - uses: ./.github/actions/vault-seeds
-      #   with:
-      #     vl_minio_root_user: ${{ secrets.VL_MINIO_ROOT_USER }}
-      #     vl_minio_root_password: ${{ secrets.VL_MINIO_ROOT_PASSWORD }}
-      #     vl_redis_password: ${{ secrets.VL_REDIS_PASSWORD }}
-      #     vl_grafana_password: ${{ secrets.VL_GRAFANA_PASSWORD }}
-
-      # - uses: ./.github/actions/terraform-eks
-      #   if: false
+      - uses: ./.github/actions/vault-seeds
+        with:
+          vl_minio_root_user: ${{ secrets.VL_MINIO_ROOT_USER }}
+          vl_minio_root_password: ${{ secrets.VL_MINIO_ROOT_PASSWORD }}
+          vl_redis_password: ${{ secrets.VL_REDIS_PASSWORD }}
+          vl_grafana_password: ${{ secrets.VL_GRAFANA_PASSWORD }}
