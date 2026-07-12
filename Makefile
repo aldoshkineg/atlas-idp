@@ -294,7 +294,25 @@ seal-verify:
 	done
 
 # --- Local CI & Registry Cache Subsystem ---
-# Zot is now managed by Terraform in infra/modules/zot-cache/
+# The Zot image is NOT managed by Terraform. It is pulled once, outside
+# Terraform, via `make zot-image` (which copies ghcr.io/project-zot/zot into
+# Incus under the alias "zot-cache" only when that alias is missing). Run
+# `make zot-image` before `make act-stage-apply` on a fresh host.
+ZOT_REMOTE      ?= ghcr-oci
+ZOT_IMAGE_REF   ?= ghcr.io/project-zot/zot:v2.1.16
+ZOT_IMAGE_ALIAS ?= zot-cache
+
+zot-image:
+	@echo "--> Ensuring Zot image '$(ZOT_IMAGE_ALIAS)' is present in Incus..."
+	@incus remote list 2>/dev/null | grep -qw "$(ZOT_REMOTE)" || \
+		incus remote add "$(ZOT_REMOTE)" https://ghcr.io --protocol oci --public
+	@if incus image list 2>/dev/null | grep -qw "$(ZOT_IMAGE_ALIAS)"; then \
+		echo "    '$(ZOT_IMAGE_ALIAS)' already present, skipping copy"; \
+	else \
+		echo "    copying $(ZOT_IMAGE_REF) ..."; \
+		incus image copy "$(ZOT_REMOTE):project-zot/zot:v2.1.16" --alias "$(ZOT_IMAGE_ALIAS)"; \
+	fi
+
 ci-cache-up: infra-apply
 
 ci-cache-purge:

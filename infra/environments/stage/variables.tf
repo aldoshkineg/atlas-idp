@@ -118,6 +118,8 @@ variable "seed_iso_dir" {
 }
 
 # === Zot Registry Cache ===
+# The Zot image is provisioned outside Terraform via `make zot-image`; the
+# source reference for that hook lives in the Makefile (ZOT_IMAGE_REF).
 
 variable "zot_enable" {
   description = "Enable Zot registry cache container"
@@ -129,18 +131,6 @@ variable "zot_cache_dir" {
   description = "Zot registry cache directory on the host"
   type        = string
   default     = "/var/tmp/atlas/zot_cache/zot-cache-data"
-}
-
-variable "zot_image_remote" {
-  description = "Incus OCI remote name to pull the Zot image from (defined in the incus provider)"
-  type        = string
-  default     = "ghcr-oci"
-}
-
-variable "zot_image_name" {
-  description = "Zot image reference on the remote"
-  type        = string
-  default     = "project-zot/zot:v2.1.16"
 }
 
 variable "zot_port" {

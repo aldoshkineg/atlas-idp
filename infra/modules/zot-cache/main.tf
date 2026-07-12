@@ -1,54 +1,18 @@
-# Incus: pull the Zot image from the ghcr-oci OCI remote via the incus provider.
+# Incus: the Zot image is NOT managed by Terraform.
 #
-# The image is a cache that survives `stage-destroy`: the destroy script preserves
-# the image in Incus and wipes Terraform state, but never deletes the image. When
-# Incus copies the published OCI image it force-sets the source alias "zot-cache"
-# locally, which collides with the preserved image on a re-apply (the incus_image
-# resource has no import support, so it cannot adopt the existing image). The apply
-# pipeline therefore clears the stale "zot-cache" alias (keeping the image itself)
-# before `terraform apply`; Incus then reuses the existing image by fingerprint
-# instead of re-downloading, and re-applies the alias. The instance references the
-# image by fingerprint.
-resource "incus_image" "zot" {
-  count = var.enable ? 1 : 0
-
-  source_image = {
-    remote = var.image_remote
-    name   = var.image_name
-    type   = var.image_type
-  }
-
-  alias {
-    name = var.image_alias
-  }
-}
-
-# Clean stale .sync directories from previous container runs
-resource "null_resource" "cleanup_sync" {
-  count = var.enable ? 1 : 0
-
-  triggers = {
-    cache_dir = var.cache_dir
-  }
-
-  provisioner "local-exec" {
-    command = "rm -rf \"${var.cache_dir}\"/*/.sync \"${var.cache_dir}\"/*/*/.sync \"${var.cache_dir}\"/*/*/*/.sync 2>/dev/null; true"
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = "echo 'Preserving cache for next use'"
-  }
-}
-
+# The image is provisioned once, outside Terraform, via the `make zot-image`
+# hook (it copies ghcr.io/project-zot/zot into Incus under the alias
+# "zot-cache" only when that alias is missing). Terraform then launches the
+# container by that alias and manages only the instance. This keeps
+# `terraform destroy` clean: it removes the instance but never touches the
+# image, so the cache survives across destroy/apply cycles.
+#
 # Incus: Zot container instance
 resource "incus_instance" "zot" {
   count = var.enable ? 1 : 0
 
-  depends_on = [incus_image.zot, null_resource.cleanup_sync]
-
   name    = var.image_alias
-  image   = incus_image.zot[0].fingerprint
+  image   = var.image_alias
   type    = "container"
   running = true
 
