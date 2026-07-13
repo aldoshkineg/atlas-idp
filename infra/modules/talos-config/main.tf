@@ -74,7 +74,7 @@ locals {
     for i, ip in local.cp_ips : <<-EOT
       machine:
         install:
-          disk: /dev/sda
+          disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_incus_root
         network:
           interfaces:
             - deviceSelector:
@@ -100,7 +100,7 @@ locals {
     for ip in var.worker_ips : <<-EOT
       machine:
         install:
-          disk: /dev/sda
+          disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_incus_root
         kernel:
           modules:
             - name: drbd
