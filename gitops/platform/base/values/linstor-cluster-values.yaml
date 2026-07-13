@@ -27,7 +27,7 @@ linstorSatelliteConfigurations:
           thinPool: linstor-thin
         source:
           hostDevices:
-            - /dev/sdb
+            - /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_incus_linstor
     patches:
       - target:
           kind: DaemonSet

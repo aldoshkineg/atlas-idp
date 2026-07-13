@@ -231,7 +231,7 @@ resource "incus_instance" "worker" {
   dynamic "device" {
     for_each = var.extra_disk_size != "" ? ["data"] : []
     content {
-      name = "sdb"
+      name = "linstor"
       type = "disk"
       properties = {
         pool   = incus_storage_pool.extra[0].name
