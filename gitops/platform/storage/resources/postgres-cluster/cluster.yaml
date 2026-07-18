@@ -10,7 +10,7 @@ spec:
   imageName: ghcr.io/cloudnative-pg/postgresql:17.6
   primaryUpdateStrategy: unsupervised
   storage:
-    size: 256Mi
+    size: 5Gi
     storageClass: linstor-replicated
   resources:
     requests:
