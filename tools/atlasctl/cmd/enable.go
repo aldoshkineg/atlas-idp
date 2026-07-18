@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"github.com/aldoshkineg/atlas-idp/tools/atlasctl/pkg/gitops"
+	"github.com/aldoshkineg/atlas-idp/tools/atlasctl/pkg/k8s"
+	"github.com/aldoshkineg/atlas-idp/tools/atlasctl/pkg/seed"
+	"github.com/aldoshkineg/atlas-idp/tools/atlasctl/pkg/vault"
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +20,7 @@ type enableFlags struct {
 	push        bool
 	force       bool
 	skipConfirm bool
+	seed        bool
 }
 
 var enableCmdFlags enableFlags
@@ -123,6 +127,12 @@ to the shared gateway.`,
 			fmt.Println(msg)
 		}
 
+		if enableCmdFlags.seed {
+			if err := runSeed(group, app, p.WorkloadDir, enableCmdFlags.dryRun, enableCmdFlags.force, enableCmdFlags.skipConfirm); err != nil {
+				return fmt.Errorf("seed: %w", err)
+			}
+		}
+
 		if enableCmdFlags.sync {
 			if err := gitCommitAndMaybePush(app, group, p, enableCmdFlags.push); err != nil {
 				return err
@@ -130,7 +140,11 @@ to the shared gateway.`,
 		}
 
 		fmt.Println("\n=== Enable complete for", group+"/"+app, "===")
-		fmt.Println("\nNext step: atlasctl status", group+"/"+app)
+		if enableCmdFlags.seed {
+			fmt.Println("Secrets provisioned (DB/S3/Vault). Next: argocd app sync workloads")
+		} else {
+			fmt.Println("\nNext step: atlasctl status", group+"/"+app)
+		}
 		return nil
 	},
 }
@@ -142,6 +156,57 @@ func init() {
 	enableCmd.Flags().BoolVar(&enableCmdFlags.push, "push", false, "Push commits to remote (implies --sync)")
 	enableCmd.Flags().BoolVar(&enableCmdFlags.force, "force", false, "Overwrite existing GitOps Application")
 	enableCmd.Flags().BoolVarP(&enableCmdFlags.skipConfirm, "yes", "y", false, "Skip confirmation prompt")
+	enableCmd.Flags().BoolVar(&enableCmdFlags.seed, "seed", false, "Also provision secrets (DB/S3/Vault) after enabling")
+}
+
+func runSeed(group, app, dir string, dryRun, force, skipConfirm bool) error {
+	wl := seed.Workload{Group: group, App: app, Dir: dir}
+	svc := seed.New(k8s.New(), vault.New(), Cfg)
+
+	params, err := svc.LoadParams(wl)
+	if err != nil {
+		return err
+	}
+	if !force {
+		if err := svc.ValidateParams(params); err != nil {
+			return err
+		}
+	}
+
+	fmt.Println("---")
+	fmt.Printf("Seeding workload: %s/%s\n", group, app)
+	fmt.Printf("  DB:             production-db-rw.database.svc.cluster.local/%s (user: %s)\n", app, app)
+	fmt.Printf("  S3:             http://minio.minio.svc.cluster.local:9000/workloads/%s/%s\n", group, app)
+	fmt.Printf("  Redis:          redis-master.redis.svc.cluster.local:6379\n")
+	fmt.Printf("  Vault:          secret/workloads/%s/%s\n", group, app)
+	fmt.Println("---")
+
+	if dryRun {
+		fmt.Println("\nDRY RUN — no changes made")
+		return nil
+	}
+
+	if !skipConfirm {
+		fmt.Print("Seed this workload? [y/N]: ")
+		var resp string
+		fmt.Scanln(&resp)
+		resp = strings.TrimSpace(strings.ToLower(resp))
+		if resp != "y" && resp != "yes" {
+			return fmt.Errorf("aborted")
+		}
+	}
+
+	if err := svc.ProvisionDB(params); err != nil {
+		return err
+	}
+	if err := svc.ProvisionS3(params); err != nil {
+		return err
+	}
+	if err := svc.WriteVault(params); err != nil {
+		return err
+	}
+	fmt.Println("\n=== Seed complete for", group+"/"+app, "===")
+	return nil
 }
 
 func gitCommitAndMaybePush(app, group string, p gitops.Paths, push bool) error {
