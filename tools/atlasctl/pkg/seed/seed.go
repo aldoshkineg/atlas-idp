@@ -3,6 +3,7 @@ package seed
 
 import (
 	"bufio"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,6 +27,65 @@ type Params struct {
 	S3SecretKey  string
 	RedisPass    string
 	ExtraSecrets map[string]string
+	RawEnv       map[string]string
+}
+
+// MappingEntry describes a single vault write from seed-mapping.conf:
+// which ENV var (from .secret-seed) to write to which vault path/key.
+type MappingEntry struct {
+	VaultPath string
+	Key       string
+	EnvVar    string
+	DecodeB64 bool
+}
+
+// ParseMapping reads vault/seed-mapping.conf (optional). Each non-comment line
+// has the form: <vault-path> <key>=<ENV_VAR_NAME>
+// An ENV_VAR_NAME ending in _B64 means base64-decode the value before writing.
+func ParseMapping(dir string) ([]MappingEntry, error) {
+	file := filepath.Join(dir, "vault", "seed-mapping.conf")
+	f, err := os.Open(file)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("open seed-mapping.conf: %w", err)
+	}
+	defer f.Close()
+
+	var entries []MappingEntry
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		vaultPath := fields[0]
+		kv := strings.SplitN(fields[1], "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		key := kv[0]
+		envVar := kv[1]
+		decode := false
+		if strings.HasSuffix(envVar, "_B64") {
+			decode = true
+		}
+		entries = append(entries, MappingEntry{
+			VaultPath: vaultPath,
+			Key:       key,
+			EnvVar:    envVar,
+			DecodeB64: decode,
+		})
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("read seed-mapping.conf: %w", err)
+	}
+	return entries, nil
 }
 
 type Service struct {
@@ -57,6 +117,7 @@ func (s *Service) LoadParams(wl Workload) (*Params, error) {
 	params := &Params{
 		Workload:     wl,
 		ExtraSecrets: make(map[string]string),
+		RawEnv:       make(map[string]string),
 	}
 
 	scanner := bufio.NewScanner(f)
@@ -70,6 +131,7 @@ func (s *Service) LoadParams(wl Workload) (*Params, error) {
 			continue
 		}
 		name, value := parts[0], parts[1]
+		params.RawEnv[name] = value
 		if !strings.HasPrefix(name, prefix) {
 			continue
 		}
@@ -224,22 +286,56 @@ func (s *Service) WriteVault(p *Params) error {
 	}
 
 	data := map[string]string{
-		"db_username":   p.App,
-		"db_password":   p.DBPassword,
-		"db_host":       "production-db-rw.database.svc.cluster.local",
-		"db_port":       "5432",
-		"db_name":       p.App,
-		"s3_access_key": p.S3AccessKey,
-		"s3_secret_key": p.S3SecretKey,
-		"s3_endpoint":   "http://minio.minio.svc.cluster.local:9000",
-		"s3_bucket":     fmt.Sprintf("workloads/%s/%s", p.Group, p.App),
+		"db_username":    p.App,
+		"db_password":    p.DBPassword,
+		"db_host":        "production-db-rw.database.svc.cluster.local",
+		"db_port":        "5432",
+		"db_name":        p.App,
+		"s3_access_key":  p.S3AccessKey,
+		"s3_secret_key":  p.S3SecretKey,
+		"s3_endpoint":    "http://minio.minio.svc.cluster.local:9000",
+		"s3_bucket":      fmt.Sprintf("workloads/%s/%s", p.Group, p.App),
 		"redis_password": redisPass,
-		"redis_host":    "redis-master.redis.svc.cluster.local",
-		"redis_port":    "6379",
+		"redis_host":     "redis-master.redis.svc.cluster.local",
+		"redis_port":     "6379",
 	}
 
 	for k, v := range p.ExtraSecrets {
 		data[strings.ToLower(k)] = v
+	}
+
+	// Use seed-mapping.conf if present: it drives which vault paths/keys to write,
+	// including multi-path entries (e.g. a separate cert path) and _B64 decoding.
+	entries, err := ParseMapping(p.Dir)
+	if err != nil {
+		return err
+	}
+	if len(entries) > 0 {
+		byPath := make(map[string]map[string]string)
+		for _, e := range entries {
+			value, ok := p.RawEnv[e.EnvVar]
+			if !ok {
+				return fmt.Errorf("mapping references undefined env var: %s", e.EnvVar)
+			}
+			if e.DecodeB64 {
+				decoded, derr := base64.StdEncoding.DecodeString(value)
+				if derr != nil {
+					return fmt.Errorf("base64 decode %s: %w", e.EnvVar, derr)
+				}
+				value = string(decoded)
+			}
+			if byPath[e.VaultPath] == nil {
+				byPath[e.VaultPath] = make(map[string]string)
+			}
+			byPath[e.VaultPath][e.Key] = value
+		}
+		for path, kv := range byPath {
+			if err := s.vault.KVPut(path, kv); err != nil {
+				return fmt.Errorf("write vault secrets to %s: %w", path, err)
+			}
+			fmt.Printf("   Secrets written to %s\n", path)
+		}
+		return nil
 	}
 
 	if err := s.vault.KVPut(vaultPath, data); err != nil {

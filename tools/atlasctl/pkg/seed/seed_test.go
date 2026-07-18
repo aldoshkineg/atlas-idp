@@ -203,3 +203,89 @@ func loadTestConfig(t *testing.T) *config.Config {
 		},
 	}
 }
+
+func writeMappingFile(t *testing.T, dir, content string) {
+	t.Helper()
+	vaultDir := filepath.Join(dir, "vault")
+	if err := os.MkdirAll(vaultDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(vaultDir, "seed-mapping.conf"), []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestParseMapping(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		want     []MappingEntry
+		wantNil  bool
+	}{
+		{
+			name:    "no mapping file",
+			content: "",
+			wantNil: true,
+		},
+		{
+			name: "comments and blank lines ignored",
+			content: `# comment line
+# another
+
+secret/workloads/g/a db_password=VL_G_A_DB_PASSWORD`,
+			want: []MappingEntry{
+				{VaultPath: "secret/workloads/g/a", Key: "db_password", EnvVar: "VL_G_A_DB_PASSWORD", DecodeB64: false},
+			},
+		},
+		{
+			name: "b64 suffix flag",
+			content: `secret/workloads/g/a-cert tls.crt=VL_G_A_PDF_CERT_B64
+secret/workloads/g/a-cert tls.key=VL_G_A_PDF_KEY_B64`,
+			want: []MappingEntry{
+				{VaultPath: "secret/workloads/g/a-cert", Key: "tls.crt", EnvVar: "VL_G_A_PDF_CERT_B64", DecodeB64: true},
+				{VaultPath: "secret/workloads/g/a-cert", Key: "tls.key", EnvVar: "VL_G_A_PDF_KEY_B64", DecodeB64: true},
+			},
+		},
+		{
+			name: "multiple paths",
+			content: `secret/workloads/g/a db_password=VL_G_A_DB_PASSWORD
+secret/workloads/g/a s3_access_key=VL_G_A_S3_ACCESS_KEY
+secret/workloads/g/a-cert tls.crt=VL_G_A_PDF_CERT_B64`,
+			want: []MappingEntry{
+				{VaultPath: "secret/workloads/g/a", Key: "db_password", EnvVar: "VL_G_A_DB_PASSWORD", DecodeB64: false},
+				{VaultPath: "secret/workloads/g/a", Key: "s3_access_key", EnvVar: "VL_G_A_S3_ACCESS_KEY", DecodeB64: false},
+				{VaultPath: "secret/workloads/g/a-cert", Key: "tls.crt", EnvVar: "VL_G_A_PDF_CERT_B64", DecodeB64: true},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if tt.wantNil {
+				writeSeedFile(t, dir, "", "")
+			} else {
+				writeMappingFile(t, dir, tt.content)
+			}
+
+			got, err := ParseMapping(dir)
+			if err != nil {
+				t.Fatalf("ParseMapping() error = %v", err)
+			}
+			if tt.wantNil {
+				if got != nil {
+					t.Fatalf("ParseMapping() = %v, want nil", got)
+				}
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("ParseMapping() len = %d, want %d (%+v)", len(got), len(tt.want), got)
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Errorf("entry %d = %+v, want %+v", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
