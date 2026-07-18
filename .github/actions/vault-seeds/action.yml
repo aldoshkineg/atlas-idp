@@ -28,10 +28,29 @@ runs:
         VL_GRAFANA_PASSWORD: ${{ inputs.vl_grafana_password }}
       run: |
         unset VAULT_ADDR
-        export KUBECONFIG="${KUBECONFIG:-/var/tmp/atlas/talos/kubeconfig}"
+        PF_PID=""
+
+        cleanup() {
+          [ -n "$PF_PID" ] && kill "$PF_PID" >/dev/null 2>&1 || true
+        }
+        trap cleanup EXIT
 
         echo "===> Waiting for Vault availability..."
         ./security/vault/wait-vault.sh
+
+        export VAULT_ADDR="http://127.0.0.1:8200"
         export VAULT_TOKEN="$(kubectl -n vault get secret vault-unseal-keys -o jsonpath='{.data.vault-root}' | base64 -d)"
+
+        echo "===> Port-forwarding Vault ($VAULT_ADDR)..."
+        kubectl -n vault port-forward svc/vault 8200:8200 >/tmp/atlas-idp-vault-port-forward.log 2>&1 &
+        PF_PID="$!"
+
+        for _ in $(seq 1 10); do
+          if vault status >/dev/null 2>&1; then
+            break
+          fi
+          sleep 1
+        done
+
         echo "===> Seeding platform secrets..."
         ./security/vault/seed-from-env.sh

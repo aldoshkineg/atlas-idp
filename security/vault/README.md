@@ -26,7 +26,7 @@ seed-mapping.conf ──► seed-from-env.sh ──► seed-platform.sh ──�
 
 | Script                   | Purpose                                                                                        | Used by                               |
 | ------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `seed-platform.sh`       | Core: read secrets file, write/patch/verify entries in Vault KV                                | CI (`vault-seeds`), `make vault-seed` |
+| `seed-platform.sh`       | Core: read secrets file, write/patch/verify entries in Vault KV                                | CI (`vault-seeds`), direct invocation |
 | `seed-from-env.sh`       | Resolve env vars (from `.env` or already set) via `seed-mapping.conf`, call `seed-platform.sh` | `make vault-seed-from-env`, CI        |
 | `seed-mapping.conf`      | Mapping: `vault-path key=ENV_VAR_NAME`                                                         | `seed-from-env.sh`                    |
 | `wait-vault.sh`          | Wait for Vault namespace, pod readiness, KV engine availability                                | CI (`vault-seeds`)                    |
