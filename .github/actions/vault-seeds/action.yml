@@ -21,7 +21,7 @@ runs:
     - name: Seed platform secrets to Vault
       shell: bash
       env:
-        VAULT_WAIT_TOTAL_TIMEOUT: 600
+        VAULT_WAIT_TOTAL_TIMEOUT: 1200
         VL_MINIO_ROOT_USER: ${{ inputs.vl_minio_root_user }}
         VL_MINIO_ROOT_PASSWORD: ${{ inputs.vl_minio_root_password }}
         VL_REDIS_PASSWORD: ${{ inputs.vl_redis_password }}

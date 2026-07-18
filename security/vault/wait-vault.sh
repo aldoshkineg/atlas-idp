@@ -8,25 +8,27 @@ set -euo pipefail
 # (provided by the act-runner port-forward). Falls back to kubectl exec only
 # when VAULT_ADDR is not reachable.
 
-VAULT_WAIT_TOTAL_TIMEOUT="${VAULT_WAIT_TOTAL_TIMEOUT:-600}"
-VAULT_WAIT_POD_READY_TIMEOUT="${VAULT_WAIT_POD_READY_TIMEOUT:-420}"
-VAULT_WAIT_KV_TIMEOUT="${VAULT_WAIT_KV_TIMEOUT:-120}"
-deadline=$((SECONDS + VAULT_WAIT_TOTAL_TIMEOUT))
+VAULT_WAIT_TOTAL_TIMEOUT="${VAULT_WAIT_TOTAL_TIMEOUT:-1200}"
+VAULT_WAIT_POD_APPEAR_TIMEOUT="${VAULT_WAIT_POD_APPEAR_TIMEOUT:-900}"
+VAULT_WAIT_POD_READY_TIMEOUT="${VAULT_WAIT_POD_READY_TIMEOUT:-900}"
+VAULT_WAIT_KV_TIMEOUT="${VAULT_WAIT_KV_TIMEOUT:-180}"
+appear_deadline=$((SECONDS + VAULT_WAIT_POD_APPEAR_TIMEOUT))
 
-remaining() { echo $((deadline - SECONDS)); }
+remaining_appear() { echo $((appear_deadline - SECONDS)); }
 
-echo "Waiting for Vault namespace (budget ${VAULT_WAIT_TOTAL_TIMEOUT}s)..."
+echo "Waiting for Vault namespace (budget ${VAULT_WAIT_TOTAL_TIMEOUT}s total)..."
 until kubectl get namespace vault &>/dev/null; do
-  [ "$(remaining)" -le 0 ] && echo "Timed out waiting for Vault namespace" >&2 && exit 1
+  [ "$(remaining_appear)" -le 0 ] && echo "Timed out waiting for Vault namespace" >&2 && exit 1
   sleep 2
 done
 
 echo "Waiting for pod vault-0 in namespace vault..."
 until kubectl -n vault get pod vault-0 &>/dev/null; do
-  [ "$(remaining)" -le 0 ] && echo "Timed out waiting for vault-0 pod" >&2 && exit 1
+  [ "$(remaining_appear)" -le 0 ] && echo "Timed out waiting for vault-0 pod" >&2 && exit 1
   sleep 2
 done
 
+echo "Waiting for vault-0 to become Ready (budget ${VAULT_WAIT_POD_READY_TIMEOUT}s)..."
 kubectl -n vault wait pod/vault-0 --for=condition=Ready --timeout="${VAULT_WAIT_POD_READY_TIMEOUT}s"
 
 # Prefer the already-established port-forward (VAULT_ADDR); fall back to exec.
