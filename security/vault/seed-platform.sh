@@ -74,40 +74,68 @@ if [ -z "${VAULT_ADDR:-}" ]; then
     fi
     sleep 1
   done
+else
+  echo "Reusing existing VAULT_ADDR=$VAULT_ADDR"
 fi
 
 put_secret() {
   local path="$1"
-  local key="$2"
-  local value="$3"
+  shift
+  local pairs=("$@")
 
   if vault kv get "$path" >/dev/null 2>&1; then
-    vault kv patch "$path" "$key=$value" >/dev/null
+    vault kv patch "$path" "${pairs[@]}" >/dev/null
   else
-    vault kv put "$path" "$key=$value" >/dev/null
+    vault kv put "$path" "${pairs[@]}" >/dev/null
   fi
 }
 
-verify_secret() {
+get_field() {
   local path="$1"
   local key="$2"
-  local expected="$3"
-  local actual
+  vault kv get -field="$key" "$path" 2>/dev/null
+}
 
-  actual="$(vault kv get -field="$key" "$path" 2>/dev/null)" || {
-    echo "Vault key '$path' is missing '$key'" >&2
-    return 1
-  }
+# Compare desired pairs against Vault; returns 0 if all match, 1 otherwise.
+path_matches() {
+  local path="$1"
+  shift
+  local pairs=("$@")
+  local pair key value actual
 
-  if [ "$actual" != "$expected" ]; then
-    echo "Vault key '$path' field '$key' does not match expected value" >&2
-    return 1
-  fi
+  for pair in "${pairs[@]}"; do
+    key="${pair%%=*}"
+    value="${pair#*=}"
+    actual="$(get_field "$path" "$key")"
+    [ "$actual" = "$value" ] || return 1
+  done
+  return 0
+}
 
-  echo "Vault key '$path' field '$key' matches"
+verify_path() {
+  local path="$1"
+  shift
+  local pairs=("$@")
+  local pair key value actual
+
+  for pair in "${pairs[@]}"; do
+    key="${pair%%=*}"
+    value="${pair#*=}"
+    actual="$(get_field "$path" "$key")" || {
+      echo "Vault key '$path' is missing '$key'" >&2
+      return 1
+    }
+    if [ "$actual" != "$value" ]; then
+      echo "Vault key '$path' field '$key' does not match expected value" >&2
+      return 1
+    fi
+    echo "Vault key '$path' field '$key' matches"
+  done
 }
 
 entries=0
+declare -A path_pairs=()
+declare -a path_order=()
 
 while IFS= read -r line || [ -n "$line" ]; do
   line="${line#"${line%%[![:space:]]*}"}"
@@ -132,18 +160,34 @@ while IFS= read -r line || [ -n "$line" ]; do
 
   entries=$((entries + 1))
 
-  if [ "$MODE" = "verify" ]; then
-    verify_secret "$secret_path" "$key" "$value"
-    continue
+  if [ -z "${path_pairs[$secret_path]:-}" ]; then
+    path_order+=("$secret_path")
   fi
-
-  put_secret "$secret_path" "$key" "$value"
-  verify_secret "$secret_path" "$key" "$value"
+  path_pairs[$secret_path]+=" $key=$value"
 done < "$SEED_FILE"
 
 if [ "$entries" -eq 0 ]; then
   echo "secrets-file is empty: $SEED_FILE" >&2
   exit 1
 fi
+
+for secret_path in "${path_order[@]}"; do
+  # Values are simple key=value pairs without spaces; word-splitting is safe here.
+  # shellcheck disable=SC2206
+  pairs=(${path_pairs[$secret_path]})
+
+  if [ "$MODE" = "verify" ]; then
+    verify_path "$secret_path" "${pairs[@]}"
+    continue
+  fi
+
+  if path_matches "$secret_path" "${pairs[@]}"; then
+    echo "Vault path '$secret_path' already up to date, skipping"
+    continue
+  fi
+
+  put_secret "$secret_path" "${pairs[@]}"
+  verify_path "$secret_path" "${pairs[@]}"
+done
 
 echo "Vault platform secrets are ready"

@@ -12,9 +12,21 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: cilium-operator-restart
+      securityContext:
+        runAsNonRoot: false
+        supplementalGroups:
+          - 65532
       containers:
         - name: kubectl
           image: bitnamilegacy/kubectl:1.33.4
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: false
+            capabilities:
+              drop:
+                - ALL
           command:
             - /bin/sh
             - -c

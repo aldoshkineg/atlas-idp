@@ -37,29 +37,22 @@ runs:
       shell: bash
       working-directory: ./infra/environments/stage
       env:
-        KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
         TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
       run: terraform apply -auto-approve tfplan
 
     - name: Check cluster
       shell: bash
-      env:
-        KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
       run: |
         kubectl cluster-info
         kubectl get nodes
 
     - name: Wait nodes
       shell: bash
-      env:
-        KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
       run: |
         kubectl wait --for=condition=Ready node --all --timeout=300s
 
     - name: Create CA Secret for cert-manager
       shell: bash
-      env:
-        KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
       run: |
         kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
         kubectl create secret tls atlas-ca-secret \
