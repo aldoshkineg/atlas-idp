@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: atlasteam-seal
   namespace: argocd
+  labels:
+    argocd.argoproj.io/instance: workloads
   annotations:
     argocd.argoproj.io/sync-wave: "90"
     argocd.argoproj.io/depends-on: postgres-cluster,redis,minio,cert-manager
