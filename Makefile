@@ -337,6 +337,9 @@ act-stage-destroy:
 stage-destroy:
 	./tools/ci/stage-terrafrom-destroy.sh
 
+stage-sync:
+	./tools/ci/sync-layers.sh
+
 # --- Incus Snapshots ---
 INCUS_SNAP_SCRIPT ?= tools/incus/incus-control.sh
 

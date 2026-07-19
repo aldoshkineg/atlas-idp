@@ -1,0 +1,28 @@
+name: Sync Stage Layers
+
+on:
+  workflow_dispatch:
+  # Optional: run automatically after stage apply
+  # workflow_run:
+  #   workflows: ["Deploy Stage"]   # name of your act-stage-apply workflow
+  #   types: [completed]
+
+jobs:
+  sync:
+    runs-on: [self-hosted]
+
+    env:
+      KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: ./.github/actions/tools
+
+      - name: Sync ArgoCD layers sequentially
+        shell: bash
+        run: |
+          chmod +x ./tools/ci/sync-layers.sh
+          ./tools/ci/sync-layers.sh
