@@ -18,11 +18,11 @@ spec:
             imageRegistry: ghcr.io/aldoshkineg
           images:
             api:
-              tag: v0.52.0@sha256:99ec467f33c620b0f1df5888c12102377ebcfe93fdba0b9c1510f2d827296358
+              tag: v0.52.0
             worker:
-              tag: v0.52.0@sha256:6c4eb85d2bcc549ce41467eb65758d8503de6cc7e7c5a442833af24f18a3b758
+              tag: v0.52.0
             ui:
-              tag: v0.52.0@sha256:eb0f50c741fe1b17bc3d6bd30afa1354fb72cfdd294e5f4ab57c3f15bff2484d
+              tag: v0.52.0
           vault:
             enabled: false
           gateway:
@@ -65,6 +65,15 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+    ignoreDifferences:
+      - group: apps
+        kind: Deployment
+        jqPathExpressions:
+          - 'if contains("@sha256:") then sub("@sha256:[^\"]*";"") else . end'
+      - group: argoproj.io
+        kind: Rollout
+        jqPathExpressions:
+          - 'if contains("@sha256:") then sub("@sha256:[^\"]*";"") else . end'
     retry:
       limit: 10
       backoff:
