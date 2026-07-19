@@ -87,21 +87,3 @@ spec:
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"
----
-apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: workloads
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-1000"
-spec:
-  description: "Workloads layer (seal and other deployed applications)"
-  destinations:
-    - server: "*"
-      namespace: "*"
-  sourceRepos:
-    - "*"
-  clusterResourceWhitelist:
-    - group: "*"
-      kind: "*"
