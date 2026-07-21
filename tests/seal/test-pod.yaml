@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: seal-test
-  namespace: seal
+  namespace: atlasteam-seal
   labels:
     app.kubernetes.io/component: test
     app.kubernetes.io/part-of: seal
