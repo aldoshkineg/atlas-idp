@@ -11,8 +11,13 @@ NAMESPACE="argocd"
 
 echo "==> Fetching admin password..."
 if ! ARGOCD_PASSWORD=$(kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" -o jsonpath="{.data.password}" 2>/dev/null | base64 --decode); then
-    echo "⚠️  Failed to fetch password. Enter manually:"
-    read -rs ARGOCD_PASSWORD
+    if [ -t 0 ]; then
+        echo "⚠️  Failed to fetch password. Enter manually:"
+        read -rs ARGOCD_PASSWORD
+    else
+        echo "❌ Error: Could not fetch ArgoCD password from Kubernetes and no TTY for manual input."
+        exit 1
+    fi
 fi
 
 if [ -z "$ARGOCD_PASSWORD" ]; then
@@ -24,7 +29,7 @@ echo "==> Logging into ArgoCD CLI..."
 # Remove stale config to ensure clean state
 rm -f "$HOME/.config/argocd/config"
 
-echo "y" | $ARGOCD login "$ARGOCD_SERVER" --username "$ARGOCD_USER" --password "$ARGOCD_PASSWORD"
+echo "y" | $ARGOCD login "$ARGOCD_SERVER" --username "$ARGOCD_USER" --password "$ARGOCD_PASSWORD" --insecure
 ARGO_EXIT=$?
 
 if [ $ARGO_EXIT -ne 0 ]; then

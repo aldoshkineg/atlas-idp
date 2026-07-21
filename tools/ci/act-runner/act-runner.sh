@@ -42,6 +42,7 @@ build() {
     [trivy]=TRIVY_VERSION
     [yamllint]=YAMLLINT_VERSION
     [incus]=INCUS_VERSION
+    [argocd]=ARGOCD_VERSION
   )
 
   for tool in "${!TOOL_VARS[@]}"; do
