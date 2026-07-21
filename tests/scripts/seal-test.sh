@@ -2,16 +2,18 @@
 set -euo pipefail
 
 # --- Configuration ---
-NS="seal"
+NS="atlasteam-seal"
 DEBUG_POD="seal-test"
 DEBUG_POD_MANIFEST="tests/seal/test-pod.yaml"
 
-API_SVC="seal-api.seal.svc.cluster.local:8080"
-WORKER_SVC="seal-worker.seal.svc.cluster.local:9090"
+API_SVC="seal-api-stable.atlasteam-seal.svc.cluster.local:8080"
+WORKER_SVC="seal-worker.atlasteam-seal.svc.cluster.local:9090"
 
 MINIO_HOST="minio.minio.svc.cluster.local:9000"
-MINIO_USER="minioadmin"
-MINIO_PASSWORD="minioadminpassword"
+# MinIO root credentials are read from the in-cluster 'minio-auth' secret
+# (avoid hardcoding secrets in the repo)
+MINIO_USER=$(kubectl get secret minio-auth -n minio -o jsonpath='{.data.rootUser}' | base64 -d)
+MINIO_PASSWORD=$(kubectl get secret minio-auth -n minio -o jsonpath='{.data.rootPassword}' | base64 -d)
 MINIO_BUCKET="seal-outputs"
 S3_SIGV4="aws:amz:us-east-1:s3"
 
@@ -62,6 +64,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# --- Pre-flight: target namespace must exist ---
+if ! kubectl get namespace "$NS" >/dev/null 2>&1; then
+  echo "ERROR: namespace '$NS' not found — is the seal workload enabled (atlasctl enable atlasteam/seal)?"
+  exit 1
+fi
+
 echo "=== Seal Integration Test ==="
 echo ""
 
@@ -76,7 +84,7 @@ for label in seal-api seal-worker seal-ui; do
   fi
 done
 
-for svc in seal-api seal-worker seal-ui; do
+for svc in seal-api-stable seal-api-canary seal-ui seal-worker; do
   if kubectl get svc "$svc" -n "$NS" > /dev/null 2>&1; then
     ok "Service $svc exists"
   else
