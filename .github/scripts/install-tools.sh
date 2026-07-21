@@ -88,6 +88,21 @@ incus)
     sudo mv argocd /usr/local/bin/
     ;;
 
+  atlasctl)
+
+    case "$(uname -m)" in
+      x86_64)  GOARCH=amd64 ;;
+      aarch64) GOARCH=arm64 ;;
+      *)       echo "Unsupported arch for atlasctl: $(uname -m)"; exit 1 ;;
+    esac
+
+    curl -fsSL -o atlasctl \
+      "https://github.com/aldoshkineg/atlas-idp/releases/download/v${VERSION}/atlasctl-linux-${GOARCH}"
+
+    chmod +x atlasctl
+    sudo mv atlasctl /usr/local/bin/
+    ;;
+
 *)
 
   echo "Unknown tool"
