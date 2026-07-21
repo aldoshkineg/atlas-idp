@@ -17,7 +17,7 @@ spec:
     path: gitops/workloads
     directory:
       recurse: true
-      exclude: "{README.md,**/resources/**}"
+      exclude: "{README.md,**/resources/**,project.yaml}"
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
