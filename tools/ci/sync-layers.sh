@@ -50,8 +50,12 @@ sync_layer() {
 }
 
 # Return "<sync> <health>" for a layer app, or empty if not found.
+# `argocd app list` prints the name as NAMESPACE/NAME (e.g. argocd/storage)
+# and columns: $1=NAME $2=CLUSTER $3=NAMESPACE $4=PROJECT $5=STATUS $6=HEALTH.
 layer_state() {
-  argocd app list 2>/dev/null | awk -v app="$1" '$1 == app {print $4, $5; exit}'
+  argocd app list 2>/dev/null | awk -v app="$1" '
+    $1 == ("argocd/" app) || $1 == app { print $5, $6; exit }
+  '
 }
 
 for layer in "${LAYERS[@]}"; do
