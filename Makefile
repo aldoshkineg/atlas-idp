@@ -51,7 +51,8 @@ help:
 	@echo "  act-build         Build custom act runner image (parses action.yml for tool versions)"
 	@echo "  act-ci            Run full CI workflow via act (tools + checks + terraform apply)"
 	@echo "  act-stage-base    Deploy stage base (infra + base package) via act"
-	@echo "  act-stage-workload Sync stage workloads via act (ArgoCD layers)"
+	@echo "  act-stage-middleware  Sync platform layers (DB/MinIO/Vault/monitoring) via act"
+	@echo "  act-stage-workload    Seed + sync workloads layer (seal) via act"
 	@echo "  act-stage-destroy Destroy stage infrastructure via act"
 	@echo ""
 	@echo "ArgoCD:"
@@ -332,12 +333,24 @@ act-ci:
 
 act-stage-base: act-ci
 
-# Sync stage workloads (ArgoCD layers) via act. Requires a running base
-# cluster (make act-stage-base) and a built runner image (make act-build).
+# Sync platform middleware (ArgoCD layers: storage/security/delivery/observability)
+# via act. Brings up PostgreSQL / MinIO / Vault / monitoring and lets them
+# stabilize. Requires a running base cluster (make act-stage-base) and a built
+# runner image (make act-build).
+act-stage-middleware:
+	act -W .github/workflows/sync-stage.yaml \
+	  --input phase=middleware \
+	  --container-options "--network host -v /var/tmp/atlas:/var/tmp/atlas"
+
+# Sync stage workloads (seed + ArgoCD workloads layer) via act. Requires the
+# middleware phase (make act-stage-middleware) to be up first so the seeded
+# ExternalSecrets find their Vault secrets already provisioned. Needs a built
+# runner image (make act-build) that includes atlasctl.
 # Host network + /var/tmp/atlas mount let the container reach argocd-cli.atlas
 # and read the talos kubeconfig.
 act-stage-workload:
 	act -W .github/workflows/sync-stage.yaml \
+	  --input phase=workloads \
 	  --container-options "--network host -v /var/tmp/atlas:/var/tmp/atlas"
 
 act-stage-destroy:
