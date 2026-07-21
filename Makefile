@@ -191,7 +191,7 @@ test-ca-gateway:
 test-vault:
 	./tests/scripts/vault-test.sh
 
-test: test-ca-gateway test-vault test-network-policy test-velero test-keda test-redis test-db-backup test-argocd-rollout
+test: test-ca-gateway test-vault test-network-policy test-velero test-keda test-redis test-db-backup test-argocd-rollout test-seal
 
 test-velero:
 	./tests/scripts/velero-test.sh
