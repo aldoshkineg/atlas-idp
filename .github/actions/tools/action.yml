@@ -14,6 +14,7 @@ runs:
         TRIVY_VERSION: "0.70.0"
         YAMLLINT_VERSION: "1.35.1"
         INCUS_VERSION: "7.2.0"
+        ARGOCD_VERSION: "3.4.2"
       run: |
         chmod +x .github/scripts/install-tools.sh
         .github/scripts/install-tools.sh vault $VAULT_VERSION

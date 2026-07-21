@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   # Optional: run automatically after stage apply
   # workflow_run:
-  #   workflows: ["Deploy Stage"]   # name of your act-stage-apply workflow
+  #   workflows: ["Deploy Stage"]   # name of your act-stage-base workflow
   #   types: [completed]
 
 jobs:

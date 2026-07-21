@@ -180,7 +180,7 @@ Pre-commit runs on every commit:
 
 **Generated files moved to `/var/tmp/atlas/talos/`** — kubeconfig, talosconfig, debug YAMLs.
 
-**Zot image is external to Terraform (design A):** Terraform only launches the container by the already-present `zot-cache` alias (set up by `make zot-image`); it never manages the image. The image is provisioned once, outside Terraform, by `make zot-image` (copies `ghcr.io/project-zot/zot:v2.1.16` into Incus under alias `zot-cache`, skipping if the alias exists). Run `make zot-image` BEFORE `make act-stage-apply` on a fresh host. `terraform destroy` then removes only the container and never touches the image, so the cache survives destroy/apply cycles. No `incus_image` resource, no `null_resource`, no alias-delete step in the pipeline.
+**Zot image is external to Terraform (design A):** Terraform only launches the container by the already-present `zot-cache` alias (set up by `make zot-image`); it never manages the image. The image is provisioned once, outside Terraform, by `make zot-image` (copies `ghcr.io/project-zot/zot:v2.1.16` into Incus under alias `zot-cache`, skipping if the alias exists). Run `make zot-image` BEFORE `make act-stage-base` on a fresh host. `terraform destroy` then removes only the container and never touches the image, so the cache survives destroy/apply cycles. No `incus_image` resource, no `null_resource`, no alias-delete step in the pipeline.
 
 **Cluster running (all green):**
 

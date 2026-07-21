@@ -79,6 +79,15 @@ incus)
   sudo mv incus /usr/local/bin/
   ;;
 
+  argocd)
+
+    curl -fsSL -o argocd \
+      "https://github.com/argoproj/argo-cd/releases/download/v${VERSION}/argocd-linux-amd64"
+
+    chmod +x argocd
+    sudo mv argocd /usr/local/bin/
+    ;;
+
 *)
 
   echo "Unknown tool"

@@ -4,7 +4,7 @@
 	argocd-login vault-seed-from-env github-secrets-ca seed-ca \
 	atlasctl atlasctl-seed atlasctl-list \
 	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-argocd-rollout test-undeploy \
-	act-build act-ci act-stage-apply act-stage-destroy \
+	act-build act-ci act-stage-base act-stage-workload act-stage-destroy \
 	incus-snap-create incus-snap-restore incus-snap-list incus-snap-delete \
 	incus-vm-stop incus-vm-start
 
@@ -50,7 +50,8 @@ help:
 	@echo "Act (Local CI Runner):"
 	@echo "  act-build         Build custom act runner image (parses action.yml for tool versions)"
 	@echo "  act-ci            Run full CI workflow via act (tools + checks + terraform apply)"
-	@echo "  act-stage-apply   Deploy stage infrastructure via act (alias for act-ci)"
+	@echo "  act-stage-base    Deploy stage base (infra + base package) via act"
+	@echo "  act-stage-workload Sync stage workloads via act (ArgoCD layers)"
 	@echo "  act-stage-destroy Destroy stage infrastructure via act"
 	@echo ""
 	@echo "ArgoCD:"
@@ -286,7 +287,7 @@ seal-verify:
 # The Zot image is NOT managed by Terraform. It is pulled once, outside
 # Terraform, via `make zot-image` (which copies ghcr.io/project-zot/zot into
 # Incus under the alias "zot-cache" only when that alias is missing). Run
-# `make zot-image` before `make act-stage-apply` on a fresh host.
+# `make zot-image` before `make act-stage-base` on a fresh host.
 ZOT_REMOTE      ?= ghcr-oci
 ZOT_IMAGE_REF   ?= ghcr.io/project-zot/zot:v2.1.16
 ZOT_IMAGE_ALIAS ?= zot-cache
@@ -329,7 +330,15 @@ act-build:
 act-ci:
 	tools/ci/act-runner/act-runner.sh ci
 
-act-stage-apply: act-ci
+act-stage-base: act-ci
+
+# Sync stage workloads (ArgoCD layers) via act. Requires a running base
+# cluster (make act-stage-base) and a built runner image (make act-build).
+# Host network + /var/tmp/atlas mount let the container reach argocd-cli.atlas
+# and read the talos kubeconfig.
+act-stage-workload:
+	act -W .github/workflows/sync-stage.yaml \
+	  --container-options "--network host -v /var/tmp/atlas:/var/tmp/atlas"
 
 act-stage-destroy:
 	tools/ci/act-runner/act-runner.sh destroy

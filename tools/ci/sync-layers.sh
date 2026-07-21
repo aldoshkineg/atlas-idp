@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # sync-layers.sh — sequentially sync all ArgoCD platform layers after a
-# fresh `make act-stage-apply`. root-app is Automated, but child layers
+# fresh `make act-stage-base`. root-app is Automated, but child layers
 # (storage/security/delivery/observability/workloads) are Manual, so they
 # need an explicit sync. Each layer is synced with a 60s settle delay so
 # that dependencies (e.g. postgres/minio/vault for workloads) come up first.
