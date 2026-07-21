@@ -22,15 +22,21 @@ spec:
           ignoreUnfixed: true
           severity: HIGH,CRITICAL
         operator:
-          vulnerabilityScannerEnabled: false  # only for test — no trivy DB download
-          exposedSecretScannerEnabled: false   # only for test — no trivy DB download
+          vulnerabilityScannerEnabled: false
+          exposedSecretScannerEnabled: false
         trivyOperator:
           scanJobsConcurrentLimit: 2
           scanJobTolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
               effect: NoSchedule
+        # Talos has no /etc/systemd, /lib/systemd, /var/lib/etcd, … on every
+        # node, so the node-collector hostPath mounts can never be created and
+        # its pods fail with CreateContainerError. Trivy is test-only here, so
+        # exclude all nodes from node collection (equivalent to
+        # nodeCollector.enabled=false in newer charts).
         nodeCollector:
+          excludeNodes: kubernetes.io/os=linux
           tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
