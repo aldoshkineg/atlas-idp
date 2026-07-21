@@ -2,6 +2,16 @@ name: Sync Stage Layers
 
 on:
   workflow_dispatch:
+    inputs:
+      phase:
+        description: "Stage phase to sync (all | middleware | workloads)"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - middleware
+          - workloads
   # Optional: run automatically after stage apply
   # workflow_run:
   #   workflows: ["Deploy Stage"]   # name of your act-stage-base workflow
@@ -25,4 +35,4 @@ jobs:
         shell: bash
         run: |
           chmod +x ./tools/ci/sync-layers.sh
-          ./tools/ci/sync-layers.sh
+          ./tools/ci/sync-layers.sh "${PHASE:-${{ github.event.inputs.phase || 'all' }}}"

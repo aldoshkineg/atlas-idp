@@ -43,6 +43,7 @@ build() {
     [yamllint]=YAMLLINT_VERSION
     [incus]=INCUS_VERSION
     [argocd]=ARGOCD_VERSION
+    [atlasctl]=ATLASCTL_VERSION
   )
 
   for tool in "${!TOOL_VARS[@]}"; do
