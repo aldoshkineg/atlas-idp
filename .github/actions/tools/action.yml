@@ -15,6 +15,7 @@ runs:
         YAMLLINT_VERSION: "1.35.1"
         INCUS_VERSION: "7.2.0"
         ARGOCD_VERSION: "3.4.2"
+        ATLASCTL_VERSION: "0.60.0"
       run: |
         chmod +x .github/scripts/install-tools.sh
         .github/scripts/install-tools.sh vault $VAULT_VERSION
@@ -24,6 +25,7 @@ runs:
         .github/scripts/install-tools.sh trivy $TRIVY_VERSION
         .github/scripts/install-tools.sh yamllint $YAMLLINT_VERSION
         .github/scripts/install-tools.sh incus $INCUS_VERSION
+        .github/scripts/install-tools.sh atlasctl $ATLASCTL_VERSION
 
     - name: Verify tools
       shell: bash
@@ -35,3 +37,4 @@ runs:
         trivy version
         yamllint --version
         incus version
+        atlasctl --version
