@@ -1,7 +1,7 @@
 # Act Runner — Custom Docker Image for Local CI
 
 Custom act runner image with preinstalled platform tools and persistent cache
-mounts. Runs the same CI workflow (`.github/workflows/ci.yaml`) locally via
+mounts. Runs the same CI workflows locally (`.github/workflows/ci-*.yaml`) via
 [nektos/act](https://github.com/nektos/act).
 
 ## Quick Start

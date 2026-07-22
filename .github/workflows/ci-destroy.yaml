@@ -1,4 +1,4 @@
-name: Destroy Stage
+name: CI Destroy
 
 on:
   workflow_dispatch:
@@ -6,10 +6,15 @@ on:
       confirm:
         description: 'Type "destroy" to confirm'
         required: true
+  workflow_call:
+    inputs:
+      confirm:
+        type: string
+        required: true
 
 jobs:
   destroy:
-    if: ${{ github.event.inputs.confirm == 'destroy' }}
+    if: ${{ inputs.confirm == 'destroy' }}
     runs-on: [self-hosted]
 
     steps:

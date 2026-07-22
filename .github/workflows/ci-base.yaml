@@ -1,16 +1,30 @@
-name: Platform CI
+name: CI Base
 
 on:
-  push:
-    branches: [main]
-
-  pull_request:
-    branches: [main]
-
   workflow_dispatch:
+  workflow_call:
+    secrets:
+      ATLAS_CA_CRT:
+        required: true
+      ATLAS_CA_KEY:
+        required: true
+      VL_MINIO_ROOT_USER:
+        required: true
+      VL_MINIO_ROOT_PASSWORD:
+        required: true
+      VL_REDIS_PASSWORD:
+        required: true
+      VL_GRAFANA_PASSWORD:
+        required: true
+
+# Canonical "base" stage: tools + checks + terraform (incus) apply + vault seeds.
+# Reused by ci-all.yaml via `uses:`. To promote it to the primary push/PR
+# trigger instead of the orchestrator, add:
+#   push: { branches: [main] }
+#   pull_request: { branches: [main] }
 
 jobs:
-  ci:
+  base:
     runs-on: [self-hosted]
 
     env:
