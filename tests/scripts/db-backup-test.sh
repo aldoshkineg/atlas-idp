@@ -12,7 +12,11 @@ FAIL=0
 ok()   { PASS=$((PASS+1)); echo "  PASS: $1"; }
 fail() { FAIL=$((FAIL+1)); echo "  FAIL: $1"; }
 
-cleanup() { :; }
+cleanup() {
+  # Remove the temporary MinIO ingress allow for this test's namespace so the
+  # production platform-ingress policy is never widened permanently.
+  kubectl delete -f tests/db-backup/minio-access.yaml --ignore-not-found 2>/dev/null || true
+}
 trap cleanup EXIT
 
 echo "=== Read MinIO credentials from cluster ==="
@@ -35,6 +39,9 @@ fi
 
 echo "=== Deploy test resources ==="
 kubectl apply -f tests/db-backup/namespace.yaml
+# Allow this test's namespace to reach MinIO :9000. Cilium unions this with the
+# existing minio/platform-ingress policy; it is removed again in cleanup().
+kubectl apply -f tests/db-backup/minio-access.yaml
 kubectl create secret generic backup-creds -n "$NS" \
   --from-literal=ACCESS_KEY_ID="$MINIO_ROOT_USER" \
   --from-literal=ACCESS_SECRET_KEY="$MINIO_ROOT_PASSWORD" \
