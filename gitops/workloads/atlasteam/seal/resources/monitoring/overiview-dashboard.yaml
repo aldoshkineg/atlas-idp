@@ -1,0 +1,334 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: seal-overview
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  seal-overview.json: |
+    {
+      "title": "Seal — Application Overview",
+      "uid": "seal-overview",
+      "tags": ["seal", "prometheus", "application"],
+      "schemaVersion": 39,
+      "version": 1,
+      "timezone": "browser",
+      "time": { "from": "now-30m", "to": "now" },
+      "refresh": "15s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "API — Request Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{namespace=\"atlasteam-seal\"}[5m]))",
+              "legendFormat": "RPS",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cps",
+              "custom": { "showPoints": "never" },
+              "color": { "mode": "palette-classic" }
+            }
+          },
+          "options": { "legend": { "showLegend": true, "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+        },
+        {
+          "id": 2,
+          "title": "API — Latency (p50 / p95 / p99)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{namespace=\"atlasteam-seal\"}[5m])) by (le))",
+              "legendFormat": "p50",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"atlasteam-seal\"}[5m])) by (le))",
+              "legendFormat": "p95",
+              "refId": "B"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"atlasteam-seal\"}[5m])) by (le))",
+              "legendFormat": "p99",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "showPoints": "never" },
+              "color": { "mode": "palette-classic" }
+            }
+          },
+          "options": { "legend": { "showLegend": true, "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+        },
+        {
+          "id": 3,
+          "title": "API — Error Rate (5xx / total)",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "(sum(rate(http_requests_total{namespace=\"atlasteam-seal\",status=~\"5..\"}[5m])) or vector(0)) / sum(rate(http_requests_total{namespace=\"atlasteam-seal\"}[5m])) * 100",
+              "legendFormat": "Error %",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 4,
+          "title": "Queue Depth (Redis)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "redis_queue_length{queue=\"seal:jobs\"}",
+              "legendFormat": "seal:jobs",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "min": 0,
+              "custom": { "showPoints": "never", "stacking": { "mode": "none" } },
+              "color": { "mode": "palette-classic" }
+            }
+          },
+          "options": { "legend": { "showLegend": true, "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+        },
+        {
+          "id": 5,
+          "title": "Worker — Jobs / Second",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(jobs_processed_total{namespace=\"atlasteam-seal\"}[5m]))",
+              "legendFormat": "jobs/s",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cps",
+              "custom": { "showPoints": "never" },
+              "color": { "mode": "palette-classic" }
+            }
+          },
+          "options": { "legend": { "showLegend": false }, "tooltip": { "mode": "single" } }
+        },
+        {
+          "id": 6,
+          "title": "Worker — Success Rate",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "((sum(rate(jobs_processed_total{namespace=\"atlasteam-seal\",status=\"ok\"}[5m])) / sum(rate(jobs_processed_total{namespace=\"atlasteam-seal\"}[5m]))) or vector(1)) * 100",
+              "legendFormat": "Success %",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 99 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 7,
+          "title": "Worker — Active Pods (KEDA)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "kube_deployment_spec_replicas{deployment=\"seal-worker\",namespace=\"atlasteam-seal\"} or count(kube_pod_status_phase{namespace=\"atlasteam-seal\",pod=~\"seal-worker-.*\",phase=\"Running\"})",
+              "legendFormat": "Active Pods",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "min": 0,
+              "custom": { "showPoints": "never" },
+              "color": { "mode": "palette-classic" }
+            }
+          },
+          "options": { "legend": { "showLegend": false }, "tooltip": { "mode": "single" } }
+        },
+        {
+          "id": 8,
+          "title": "Worker — DLQ Length",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "max by (queue) (redis_queue_length{queue=\"seal:dlq\"}) or vector(0)",
+              "legendFormat": "DLQ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "min": 0,
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 5 },
+                  { "color": "red", "value": 20 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+            "textMode": "auto"
+          }
+        },
+        {
+          "id": 9,
+          "title": "Business — Documents Created",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "sum(rate(documents_created_total{namespace=\"atlasteam-seal\"}[5m]))",
+              "legendFormat": "docs/s",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cps",
+              "custom": { "showPoints": "never" },
+              "color": { "mode": "palette-classic" }
+            }
+          },
+          "options": { "legend": { "showLegend": false }, "tooltip": { "mode": "single" } }
+        },
+        {
+          "id": 10,
+          "title": "Business — Avg Job Duration",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "rate(job_duration_seconds_sum{namespace=\"atlasteam-seal\"}[5m]) / rate(job_duration_seconds_count{namespace=\"atlasteam-seal\"}[5m])",
+              "legendFormat": "avg",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": { "showPoints": "never" },
+              "color": { "mode": "palette-classic" },
+              "min": 0
+            }
+          },
+          "options": { "legend": { "showLegend": false }, "tooltip": { "mode": "single" } }
+        },
+        {
+          "id": 11,
+          "title": "Logs — Errors & Warnings",
+          "type": "logs",
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 24 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "{namespace=\"atlasteam-seal\"} |~ \"(?i)(error|warn)\" | json",
+              "refId": "A"
+            }
+          ],
+          "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "prettifyLogs": true }
+        },
+        {
+          "id": 12,
+          "title": "Logs — Recent Info",
+          "type": "logs",
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 24 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "expr": "{namespace=\"atlasteam-seal\"} |= \"INFO\" | json",
+              "refId": "A"
+            }
+          ],
+          "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "prettifyLogs": true }
+        }
+      ],
+      "rows": [
+        { "title": "Application (API)", "collapse": false, "panels": [1, 2, 3], "repeat": null },
+        { "title": "Worker + Queue", "collapse": false, "panels": [4, 5, 6, 7, 8], "repeat": null },
+        { "title": "Business Metrics", "collapse": false, "panels": [9, 10], "repeat": null },
+        { "title": "Logs", "collapse": true, "panels": [11, 12], "repeat": null }
+      ]
+    }
