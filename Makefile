@@ -42,7 +42,7 @@ help:
 	@echo "Local CI & Registry Cache Subsystem:"
 	@echo "  ci-cache-up       Deploy Zot cache (via Terraform; delegates to infra-apply)"
 	@echo "  ci-cache-purge    Stop and remove Zot container (cache data preserved)"
-	@echo "  ci-runner-up      Fetch fresh token via 'gh' and start local GitHub runner"
+	@echo "  ci-runner-up      Fetch fresh token via 'gh', start self-hosted runner (runs real ci-* workflows; needs Docker+Incus on host)"
 	@echo "  ci-runner-down    Stop and remove local GitHub runner container"
 	@echo "  ci-runner-status  Check status of local GitHub runner container"
 	@echo "  ci-runner-logs    Follow logs from the local GitHub runner container"

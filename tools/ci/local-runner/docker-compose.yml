@@ -1,21 +1,40 @@
 services:
   github-runner:
-    image: myoung34/github-runner:latest
+    # ubuntu-noble (24.04, glibc 2.39) — matches the act-runner base
+    # (catthehacker/ubuntu:act-latest). The default `latest` tag is Ubuntu 20.04
+    # (glibc 2.31), which is too old for atlasctl (needs glibc >= 2.34).
+    image: myoung34/github-runner:ubuntu-noble
     container_name: github-runner-atlas-idp
     restart: always
+    # Host network so the runner reaches localhost incus/talos/registry endpoints
+    # the same way the act-based runner does.
     network_mode: host
     environment:
       - REPO_URL=https://github.com/aldoshkineg/atlas-idp
       - RUNNER_NAME=atlas-idp-docker-runner
       - LABELS=self-hosted
       - RUNNER_TOKEN=${RUNNER_TOKEN}
+      # noble is PEP 668 (externally-managed), so pip needs this for the
+      # yamllint install inside install-tools.sh.
+      - PIP_BREAK_SYSTEM_PACKAGES=1
+      # The runner workdir MUST live under the host-visible /var/tmp/atlas bind
+      # mount. Terraform's incus disk devices use absolute source paths (e.g.
+      # abspath(path.module)/zot-config.json); incus runs on the HOST, so those
+      # paths must resolve on the host filesystem — which they do only when the
+      # checkout lives under /var/tmp/atlas. (act works for the same reason: its
+      # job workspace is a host path bind-mounted at the same absolute path.)
+      - RUNNER_WORKDIR=/var/tmp/atlas/gh-work
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - github-runner-work:/_work
-      - github-runner-terraform-cache:/opt/terraform/plugin-cache
-
-volumes:
-  github-runner-work:
-    name: github-runner-work
-  github-runner-terraform-cache:
-    name: github-runner-terraform-cache
+      # Incus socket required by the terraform-incus action (Talos cluster).
+      - /var/lib/incus/unix.socket:/var/lib/incus/unix.socket
+      # Mounted read-write at the same host path as the act-based runner so
+      # generated cluster artifacts (talos kubeconfig/talosconfig) line up, AND
+      # so the runner workdir (RUNNER_WORKDIR=/var/tmp/atlas/gh-work) is visible
+      # to the host's incus daemon.
+      - /var/tmp/atlas:/var/tmp/atlas
+      # Cache layout mirrors act-runner.sh: terraform plugin cache and the
+      # runner's $HOME live under /var/tmp/atlas/act_cache so tool downloads
+      # and provider plugins persist across runs and are shared with `act`.
+      - /var/tmp/atlas/act_cache/tf:/opt/terraform/plugin-cache
+      - /var/tmp/atlas/act_cache/home:/root
