@@ -19,6 +19,31 @@ if ! gh auth status >/dev/null 2>&1; then
     exit 1
 fi
 
+# Preflight: the runner executes the repo's real CI workflows directly on the
+# host container, which need Docker, the Incus socket and /var/tmp/atlas.
+preflight_failed=0
+
+if ! docker info >/dev/null 2>&1; then
+    echo "Error: Docker daemon is not reachable (/var/run/docker.sock)."
+    preflight_failed=1
+fi
+
+if [ ! -S /var/lib/incus/unix.socket ]; then
+    echo "Error: Incus socket /var/lib/incus/unix.socket not found."
+    echo "       Start Incus on the host (required by the terraform-incus action)."
+    preflight_failed=1
+fi
+
+if [ ! -d /var/tmp/atlas ]; then
+    echo "Error: /var/tmp/atlas is missing on the host."
+    echo "       Create it (mkdir -p /var/tmp/atlas) — it holds Talos kubeconfig and caches."
+    preflight_failed=1
+fi
+
+if [ "$preflight_failed" -ne 0 ]; then
+    exit 1
+fi
+
 echo "Fetching runner registration token for $REPO via GitHub CLI..."
 
 # Safely fetch the token using gh api and built-in jq expression
