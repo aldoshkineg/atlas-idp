@@ -80,7 +80,7 @@ Uploads `VL_MINIO_ROOT_USER`, `VL_MINIO_ROOT_PASSWORD`,
 
 ## CI pipeline flow
 
-In `.github/workflows/ci.yaml`, the `vault-seeds` step:
+In `.github/workflows/ci-base.yaml`, the `vault-seeds` step:
 
 1. Sets `VL_*` env vars from GitHub Secrets (`inputs`)
 2. Resolves `VAULT_TOKEN` from in-cluster `vault-unseal-keys`

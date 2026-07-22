@@ -1,0 +1,75 @@
+name: CI All
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_base:
+        description: "Provision base (infra + vault seeds)"
+        type: boolean
+        default: true
+      run_middleware:
+        description: "Sync platform layers (DB/MinIO/Vault/monitoring)"
+        type: boolean
+        default: true
+      run_workloads:
+        description: "Seed + sync workloads (seal)"
+        type: boolean
+        default: true
+
+# Default orchestrator: on push/PR runs all three phases in order
+# (base -> middleware -> workloads). Fail-fast via `needs:` — a failing
+# phase stops the chain.
+#
+# Disable entirely: include `[skip-ci]` in the commit message / PR title.
+# Run only the base phase: include `[base-only]`.
+# Manual runs (workflow_dispatch) honour the toggles above instead of markers.
+
+jobs:
+  gate:
+    runs-on: [self-hosted]
+    outputs:
+      skip: ${{ steps.eval.outputs.skip }}
+      base_only: ${{ steps.eval.outputs.base_only }}
+    steps:
+      - id: eval
+        shell: bash
+        env:
+          MSG: "${{ github.event.head_commit.message }}"
+          PRTITLE: "${{ github.event.pull_request.title }}"
+        run: |
+          text="${MSG:-$PRTITLE}"
+          skip="false"; base_only="false"
+          if echo "$text" | grep -qiE '\[skip[-_ ]?ci\]'; then skip="true"; fi
+          if echo "$text" | grep -qiE '\[base[-_ ]?only\]'; then base_only="true"; fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+          echo "base_only=$base_only" >> "$GITHUB_OUTPUT"
+
+  base:
+    needs: [gate]
+    if: >-
+      needs.gate.outputs.skip != 'true' &&
+      (github.event_name != 'workflow_dispatch' || inputs.run_base)
+    uses: ./.github/workflows/ci-base.yaml
+    secrets: inherit
+
+  middleware:
+    needs: [gate, base]
+    if: >-
+      needs.gate.outputs.skip != 'true' &&
+      needs.gate.outputs.base_only != 'true' &&
+      (github.event_name != 'workflow_dispatch' || inputs.run_middleware) &&
+      (needs.base.result == 'success' || needs.base.result == 'skipped')
+    uses: ./.github/workflows/ci-middleware.yaml
+
+  workloads:
+    needs: [gate, middleware]
+    if: >-
+      needs.gate.outputs.skip != 'true' &&
+      needs.gate.outputs.base_only != 'true' &&
+      (github.event_name != 'workflow_dispatch' || inputs.run_workloads) &&
+      (needs.middleware.result == 'success' || needs.middleware.result == 'skipped')
+    uses: ./.github/workflows/ci-workload.yaml

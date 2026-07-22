@@ -71,7 +71,11 @@ Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP) 
 atlas-idp/
 ├── .github/
 │   ├── workflows/
-│   │   ├── ci.yaml             # Platform CI: checks + terraform-kind deploy
+│   │   ├── ci-all.yaml         # Orchestrator: base -> middleware -> workloads
+│   │   ├── ci-base.yaml        # Base stage: tools + checks + terraform + vault seeds
+│   │   ├── ci-middleware.yaml  # Sync platform layers (storage/security/delivery/observability)
+│   │   ├── ci-workload.yaml    # Seed + sync workloads (seal)
+│   │   ├── ci-destroy.yaml     # Destroy stage infrastructure
 │   │   └── cleanup-local.yaml  # Manual KinD cluster cleanup
 │   ├── actions/
 │   │   ├── tools/              #   Install CLI tools (terraform, kubectl, kind, trivy)
@@ -233,31 +237,35 @@ GitHub Actions workflows (`.github/workflows/`):
 
 | Workflow             | Trigger          | Purpose                                                  |
 | -------------------- | ---------------- | -------------------------------------------------------- |
-| `ci.yaml`            | push, PR, manual | Unified CI: tools → checks → terraform-kind deploy       |
+| `ci-all.yaml`        | push, PR, manual | Orchestrator: base → middleware → workloads (fail-fast)  |
+| `ci-base.yaml`       | call, manual     | Base stage: tools → checks → terraform → vault seeds     |
+| `ci-middleware.yaml` | call, manual     | Sync platform layers (DB/MinIO/Vault/monitoring)         |
+| `ci-workload.yaml`   | call, manual     | Seed + sync workloads (seal)                             |
+| `ci-destroy.yaml`    | manual           | Destroy stage infrastructure (confirm=destroy)           |
 | `cleanup-local.yaml` | manual           | Aggressive cleanup: delete KinD cluster, remove TF state |
 
 ### Composite Actions Architecture
 
 The CI uses **composite actions** for reusability:
 
-| Action                    | Purpose                                                       |
-| ------------------------- | ------------------------------------------------------------- |
-| `actions/tools/`          | Install CLI tools (terraform, kubectl, kind, trivy, yamllint) |
-| `actions/checks/`         | Terraform fmt/validate, yamllint, Trivy IaC scan              |
-| `actions/terraform-kind/` | kind cluster + Argo CD bootstrap (init, plan, apply, verify)  |
-| `actions/terraform-eks/`  | EKS stub (not implemented yet)                                |
+| Action                     | Purpose                                                             |
+| -------------------------- | ------------------------------------------------------------------- |
+| `actions/tools/`           | Install CLI tools (terraform, kubectl, kind, trivy, yamllint)       |
+| `actions/checks/`          | Terraform fmt/validate, yamllint, Trivy IaC scan                    |
+| `actions/terraform-incus/` | Incus/Talos cluster + Argo CD bootstrap (init, plan, apply, verify) |
+| `actions/terraform-eks/`   | EKS stub (not implemented yet)                                      |
 
-### CI Pipeline Flow (`ci.yaml`)
+### CI Pipeline Flow (`ci-all.yaml` / `ci-base.yaml`)
 
 Runs on **self-hosted runner** (Docker on local machine):
 
 1. **Checkout** — Fetch repository code
 2. **Tools** — Install/verify required CLI tools
 3. **Checks** — Terraform fmt/validate, yamllint, Trivy config scan
-4. **Terraform Kind** — Deploy infrastructure:
+4. **Terraform Incus** — Deploy infrastructure:
    - Terraform init (with retry logic)
    - Terraform plan
-   - Terraform apply (create kind cluster + Argo CD)
+   - Terraform apply (create Incus/Talos cluster + Argo CD)
    - Verify cluster nodes ready
    - Verify Argo CD deployment and Applications
 

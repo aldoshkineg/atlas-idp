@@ -4,7 +4,7 @@
 	argocd-login vault-seed-from-env github-secrets-ca seed-ca \
 	atlasctl atlasctl-seed atlasctl-list \
 	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-argocd-rollout test-undeploy \
-	act-build act-ci act-stage-base act-stage-workload act-stage-destroy \
+	act-build act-ci act-stage-base act-stage-middleware act-stage-workload act-destroy \
 	incus-snap-create incus-snap-restore incus-snap-list incus-snap-delete \
 	incus-vm-stop incus-vm-start
 
@@ -48,12 +48,12 @@ help:
 	@echo "  ci-runner-logs    Follow logs from the local GitHub runner container"
 	@echo ""
 	@echo "Act (Local CI Runner):"
-	@echo "  act-build         Build custom act runner image (parses action.yml for tool versions)"
-	@echo "  act-ci            Run full CI workflow via act (tools + checks + terraform apply)"
-	@echo "  act-stage-base    Deploy stage base (infra + base package) via act"
-	@echo "  act-stage-middleware  Sync platform layers (DB/MinIO/Vault/monitoring) via act"
-	@echo "  act-stage-workload    Seed + sync workloads layer (seal) via act"
-	@echo "  act-stage-destroy Destroy stage infrastructure via act"
+	@echo "  act-build           Build custom act runner image (parses action.yml for tool versions)"
+	@echo "  act-ci              Run full CI pipeline (ci-all: base+middleware+workloads) via act"
+	@echo "  act-stage-base      Run base stage (ci-base: infra + vault seeds) via act"
+	@echo "  act-stage-middleware  Sync platform layers (ci-middleware: DB/MinIO/Vault/monitoring) via act"
+	@echo "  act-stage-workload    Seed + sync workloads (ci-workload: seal) via act"
+	@echo "  act-destroy         Destroy stage infrastructure (ci-destroy) via act"
 	@echo ""
 	@echo "ArgoCD:"
 	@echo "  argocd-login      Login to ArgoCD via CLI"
@@ -325,35 +325,29 @@ ci-runner-logs:
 	docker compose -f $(LOCAL_RUNNER_DIR)/docker-compose.yml logs -f
 
 # --- Act (Local CI Runner) ---
+# Each target drives a single GitHub workflow via act (tools/ci/act-runner).
+# Build the runner image once with `make act-build` (or pass STAGE_BUILD).
 act-build:
 	tools/ci/act-runner/act-runner.sh build
 
+# Full CI pipeline (ci-all.yaml: base -> middleware -> workloads) via act.
 act-ci:
 	tools/ci/act-runner/act-runner.sh ci
 
-act-stage-base: act-ci
+# Base stage only (ci-base.yaml: tools + checks + terraform apply + vault seeds).
+act-stage-base:
+	tools/ci/act-runner/act-runner.sh base
 
-# Sync platform middleware (ArgoCD layers: storage/security/delivery/observability)
-# via act. Brings up PostgreSQL / MinIO / Vault / monitoring and lets them
-# stabilize. Requires a running base cluster (make act-stage-base) and a built
-# runner image (make act-build).
+# Platform middleware (ci-middleware.yaml: storage/security/delivery/observability).
+# Requires a running base stage (make act-stage-base).
 act-stage-middleware:
-	act -W .github/workflows/sync-stage.yaml \
-	  --input phase=middleware \
-	  --container-options "--network host -v /var/tmp/atlas:/var/tmp/atlas"
+	tools/ci/act-runner/act-runner.sh middleware
 
-# Sync stage workloads (seed + ArgoCD workloads layer) via act. Requires the
-# middleware phase (make act-stage-middleware) to be up first so the seeded
-# ExternalSecrets find their Vault secrets already provisioned. Needs a built
-# runner image (make act-build) that includes atlasctl.
-# Host network + /var/tmp/atlas mount let the container reach argocd-cli.atlas
-# and read the talos kubeconfig.
+# Workloads (ci-workload.yaml: seed + sync seal). Requires the middleware stage up.
 act-stage-workload:
-	act -W .github/workflows/sync-stage.yaml \
-	  --input phase=workloads \
-	  --container-options "--network host -v /var/tmp/atlas:/var/tmp/atlas"
+	tools/ci/act-runner/act-runner.sh workload
 
-act-stage-destroy:
+act-destroy:
 	tools/ci/act-runner/act-runner.sh destroy
 
 stage-destroy:

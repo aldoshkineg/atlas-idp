@@ -1,0 +1,30 @@
+name: CI Middleware
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+# Syncs the platform (middleware) layers: storage/security/delivery/observability
+# — brings up PostgreSQL / MinIO / Vault / monitoring and lets them stabilize.
+# Requires the base stage (CI Base) to be up first so the seeded ExternalSecrets
+# find their Vault secrets already provisioned.
+
+jobs:
+  middleware:
+    runs-on: [self-hosted]
+
+    env:
+      KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: ./.github/actions/tools
+
+      - name: Sync platform layers (middleware)
+        shell: bash
+        run: |
+          chmod +x ./tools/ci/sync-layers.sh
+          ./tools/ci/sync-layers.sh middleware

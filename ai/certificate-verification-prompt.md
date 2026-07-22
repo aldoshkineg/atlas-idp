@@ -22,8 +22,8 @@ The CA certificate and key are stored as GitHub repository secrets for use in CI
 
 **How they are consumed in CI/CD:**
 
-1. `.github/workflows/ci.yaml` passes both secrets to the `terraform-kind` composite action
-2. `.github/actions/terraform-kind/action.yml` uses them to create a Kubernetes TLS secret in the cluster:
+1. `.github/workflows/ci-base.yaml` passes both secrets to the `terraform-incus` composite action
+2. `.github/actions/terraform-incus/action.yml` uses them to create a Kubernetes TLS secret in the cluster:
    ```yaml
    kubectl create secret tls atlas-ca-secret \
    --cert=<(echo "${{ inputs.atlas_ca_crt }}") \

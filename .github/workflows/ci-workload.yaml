@@ -1,0 +1,29 @@
+name: CI Workload
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+# Seeds enabled workloads (atlasctl) then syncs the workloads ArgoCD layer.
+# Requires the middleware phase (CI Middleware) to be up first so the seeded
+# ExternalSecrets find their Vault secrets already provisioned.
+
+jobs:
+  workload:
+    runs-on: [self-hosted]
+
+    env:
+      KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: ./.github/actions/tools
+
+      - name: Seed + sync workloads
+        shell: bash
+        run: |
+          chmod +x ./tools/ci/sync-layers.sh
+          ./tools/ci/sync-layers.sh workloads
