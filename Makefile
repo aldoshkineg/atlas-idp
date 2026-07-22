@@ -215,17 +215,7 @@ test-argocd-rollout:
 	./tests/scripts/argocd-rollout-test.sh
 
 test-undeploy:
-	kubectl delete -f tests/keda --ignore-not-found
-	kubectl delete -f tests/vault --ignore-not-found
-	kubectl delete -f tests/gateway --ignore-not-found
-	kubectl delete -f tests/network-policy --ignore-not-found
-	kubectl delete -f tests/db-backup --ignore-not-found
-	kubectl delete pod -n seal seal-test --ignore-not-found 2>/dev/null || true
-	kubectl delete ns db-backup-test --ignore-not-found
-	kubectl delete ns argocd-rollout-test --ignore-not-found
-	kubectl delete pod -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
-	kubectl delete pvc -n testing -l app=backup-test --ignore-not-found 2>/dev/null || true
-	kubectl delete sc csi-hostpath-sc --ignore-not-found 2>/dev/null || true
+	./tests/scripts/test-undeploy.sh
 
 # --- RBAC ---
 rbac-apply:
