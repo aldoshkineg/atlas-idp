@@ -24,6 +24,7 @@ runs:
         .github/scripts/install-tools.sh yamllint $YAMLLINT_VERSION
         .github/scripts/install-tools.sh incus $INCUS_VERSION
         .github/scripts/install-tools.sh xorriso
+        .github/scripts/install-tools.sh argocd $ARGOCD_VERSION
         .github/scripts/install-tools.sh atlasctl $ATLASCTL_VERSION
 
     - name: Verify tools
@@ -36,4 +37,5 @@ runs:
         yamllint --version
         incus version
         xorriso -version
+        argocd version --client
         atlasctl --version
