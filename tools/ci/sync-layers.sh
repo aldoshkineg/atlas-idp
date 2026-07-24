@@ -47,6 +47,16 @@ log() { echo "==> $*"; }
 
 log "Phase: ${PHASE}"
 
+# Preflight: the CLIs below are required. Without them every `argocd app sync`
+# silently fails (command not found) while the loop swallows the error, so the
+# job would report success on an empty cluster. Fail fast instead.
+for bin in argocd kubectl; do
+  if ! command -v "${bin}" >/dev/null 2>&1; then
+    echo "ERROR: required tool '${bin}' not found in PATH — install it (see .github/actions/tools) before running." >&2
+    exit 1
+  fi
+done
+
 # Login to ArgoCD (installs/configures context via tools/argocd-login.sh)
 log "Logging into ArgoCD..."
 "${REPO_ROOT}/tools/argocd-login.sh" >/dev/null
