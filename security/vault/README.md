@@ -19,7 +19,9 @@ seed-mapping.conf ──► seed-from-env.sh ──► seed-platform.sh ──�
 ```
 
 - **Local dev**: `make vault-seed-from-env` reads `.env` + `seed-mapping.conf`, seeds Vault
-- **CI**: GitHub Actions passes secrets as env vars via `inputs`, action calls `seed-from-env.sh` (no `.env`)
+- **CI**: the `ci-base` workflow replays a single `ENV_FILE` secret (the repo `.env`) via the
+  "Load ENV_FILE" step, which exports the vars and materialises the CA; `vault-seeds` then calls
+  `seed-from-env.sh` (with `.env` present on disk)
 - **ESO** auto-syncs Vault changes to Kubernetes Secrets — no manual restarts needed
 
 ## Scripts
@@ -31,7 +33,7 @@ seed-mapping.conf ──► seed-from-env.sh ──► seed-platform.sh ──�
 | `seed-mapping.conf`      | Mapping: `vault-path key=ENV_VAR_NAME`                                                         | `seed-from-env.sh`                    |
 | `wait-vault.sh`          | Wait for Vault namespace, pod readiness, KV engine availability                                | CI (`vault-seeds`)                    |
 | `bootstrap-eso-token.sh` | Create `external-secrets/vault-token` Secret from `vault-unseal-keys`                          | CI (`vault-seeds`)                    |
-| `gh-seeds.sh`            | Upload `.env` vars to GitHub Secrets via `gh` CLI                                              | Manual CI bootstrap                   |
+| `gh-seeds.sh`            | Upload the entire `.env` as one GitHub Secret (`ENV_FILE`) via `gh` CLI                        | `make gh-seed`                        |
 
 ## Usage
 
@@ -69,20 +71,29 @@ EOF
 VAULT_ADDR=https://vault.example.com VAULT_TOKEN=s.tok ./security/vault/seed-platform.sh seed /tmp/secrets.txt
 ```
 
-### Upload local env vars to GitHub Secrets
+### Upload local env to a single GitHub Secret (ENV_FILE)
+
+```bash
+make gh-seed                # gh secret set ENV_FILE < .env
+```
+
+Keep `.env` current first: base64-embed the CA cert/key and cosign key manually
+(see `.env.example` for the convert commands). This uploads the whole `.env`
+(Vault seeds + CA + cosign) as one secret. CI replays it via the `ci-base`
+"Load ENV_FILE" step, so there is no per-secret wiring.
+
+To upload to a different repo without `make`:
 
 ```bash
 ENV_FILE=.env GH_REPO=owner/repo ./security/vault/gh-seeds.sh
 ```
 
-Uploads `VL_MINIO_ROOT_USER`, `VL_MINIO_ROOT_PASSWORD`,
-`VL_REDIS_PASSWORD`, `VL_GRAFANA_PASSWORD` to the specified repo.
-
 ## CI pipeline flow
 
 In `.github/workflows/ci-base.yaml`, the `vault-seeds` step:
 
-1. Sets `VL_*` env vars from GitHub Secrets (`inputs`)
+1. The "Load ENV*FILE" step writes `.env`, exports every var to `$GITHUB_ENV`
+   (incl. `VL*\*`), and materialises `security/certs/ca.{crt,key}` from base64
 2. Resolves `VAULT_TOKEN` from in-cluster `vault-unseal-keys`
 3. Calls `wait-vault.sh` — waits up to 600s for Vault readiness
 4. Calls `bootstrap-eso-token.sh` — creates ESO token Secret
@@ -110,8 +121,9 @@ No hardcoded paths or inline secrets — all mapping is in `seed-mapping.conf`.
    make vault-seed-from-env
    ```
 
-4. Add `ExternalSecret` manifest in `gitops/platform-kind/layers/security/resources/platform-secrets/`
+4. Add `ExternalSecret` manifest in `gitops/platform/layers/security/resources/platform-secrets/`
 
-5. Add the new secret to GitHub repo Secrets with the same name (`VL_MYAPP_KEY`)
+5. Add the new variable to `.env` (and re-run `make gh-seed` to refresh
+   the `ENV_FILE` secret)
 
 6. Commit and push — CI will seed + ArgoCD + ESO will sync automatically

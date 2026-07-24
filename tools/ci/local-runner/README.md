@@ -16,11 +16,11 @@ CI workflows (`ci-base`, `ci-middleware`, `ci-workload`, `ci-all`) on `push`/
   cluster through `/var/lib/incus/unix.socket`.
 - **`/var/tmp/atlas`** present on the host (holds the generated Talos
   kubeconfig / talosconfig and caches consumed by the jobs).
-- **Repository secrets** configured in GitHub
-  (`Settings → Secrets → Actions`): `ATLAS_CA_CRT`, `ATLAS_CA_KEY`,
-  `VL_MINIO_ROOT_USER`, `VL_MINIO_ROOT_PASSWORD`, `VL_REDIS_PASSWORD`,
-  `VL_GRAFANA_PASSWORD`. These are passed to `ci-base` and consumed by the
-  vault-seeds step.
+- **Repository secret** configured in GitHub
+  (`Settings → Secrets → Actions`): `ENV_FILE` — the entire local `.env`
+  (Vault seeds + root CA cert/key + cosign key, all base64-embedded). Uploaded
+  via `make gh-seed`. `ci-base` replays it into the job environment and the
+  `vault-seeds` step consumes it.
 
 The runner job itself has no `container:`, so it executes directly inside the
 runner container. The `Install Tools` action downloads the required CLIs

@@ -4,6 +4,12 @@ Self-signed `ca.crt` / `ca.key` live here. The same root is loaded into the
 `cert-manager` ClusterIssuer `atlas-ca-issuer` (secret `cert-manager/atlas-ca-secret`)
 and used to issue in-cluster TLS certificates (gateway routes, webhooks, etc.).
 
+> **CI note:** these files are no longer uploaded to GitHub as separate secrets.
+> `make gh-seed` embeds them as base64 (`ATLAS_CA_CRT_B64` / `ATLAS_CA_KEY_B64`)
+> into `.env`, which is shipped to CI as the single `ENV_FILE` secret. The `ci-base`
+> "Load ENV_FILE" step re-materialises `security/certs/ca.{crt,key}` before Terraform
+> runs, so the on-disk files are optional for CI/act once `.env` carries the base64.
+
 > Note: this CA is **not** trusted by the system by default. Clients (browser,
 > `curl`, `kubectl`, other pods) will reject the issued certificates until the
 > root is added to their trust store. The steps below trust it on the **local host only**.

@@ -1,12 +1,7 @@
 name: Terraform Kind
 description: "Deploy KinD cluster via Terraform"
-inputs:
-  atlas_ca_crt:
-    description: "CA certificate for dev cluster"
-    required: false
-  atlas_ca_key:
-    description: "CA key for dev cluster"
-    required: false
+# The root CA cert/key are materialised from ENV_FILE (base64) into
+# security/certs/ by the ci-base "Load ENV_FILE" step before this runs.
 runs:
   using: composite
   steps:
@@ -76,8 +71,8 @@ runs:
       run: |
         kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
         kubectl create secret tls atlas-ca-secret \
-        --cert=<(echo "${{ inputs.atlas_ca_crt }}") \
-        --key=<(echo "${{ inputs.atlas_ca_key }}") \
+        --cert=security/certs/ca.crt \
+        --key=security/certs/ca.key \
         -n cert-manager \
         --dry-run=client -o yaml | kubectl apply -f -
 

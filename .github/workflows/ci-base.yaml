@@ -4,24 +4,20 @@ on:
   workflow_dispatch:
   workflow_call:
     secrets:
-      ATLAS_CA_CRT:
+      ENV_FILE:
         required: true
-      ATLAS_CA_KEY:
-        required: true
-      VL_MINIO_ROOT_USER:
-        required: true
-      VL_MINIO_ROOT_PASSWORD:
-        required: true
-      VL_REDIS_PASSWORD:
-        required: true
-      VL_GRAFANA_PASSWORD:
-        required: true
+      GITHUB_TOKEN:
+        required: false
 
 # Canonical "base" stage: tools + checks + terraform (incus) apply + vault seeds.
 # Reused by ci-all.yaml via `uses:`. To promote it to the primary push/PR
 # trigger instead of the orchestrator, add:
 #   push: { branches: [main] }
 #   pull_request: { branches: [main] }
+#
+# All secrets arrive as a single ENV_FILE (the repo's .env). The first step
+# replays it: writes .env, exports every var to $GITHUB_ENV, and materialises
+# the root CA cert/key (base64 in .env) into security/certs/ for the steps below.
 
 jobs:
   base:
@@ -35,18 +31,44 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Load ENV_FILE secret
+        shell: bash
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          set -euo pipefail
+          # Persist the whole .env into the repo so local scripts
+          # (seed-from-env.sh) and composite actions behave like a dev machine.
+          printf '%s\n' "$ENV_FILE" > .env
+
+          # Export every var to $GITHUB_ENV so later steps see them as env vars.
+          # Skip GITHUB_TOKEN (provided automatically by Actions; avoid shadowing
+          # it) and ENV_FILE itself (multiline; not needed as a plain env var).
+          # `::add-mask::` registers each value for log redaction (GitHub and act
+          # do not auto-mask vars written to $GITHUB_ENV by hand).
+          while IFS= read -r line; do
+            line="${line#"${line%%[![:space:]]*}"}"
+            line="${line%"${line##*[![:space:]]}"}"
+            [ -z "$line" ] && continue
+            [[ "$line" == \#* ]] && continue
+            key="${line%%=*}"
+            value="${line#*=}"
+            case "$key" in
+              GITHUB_TOKEN|ENV_FILE|VAULT_TOKEN) continue ;;
+            esac
+            echo "::add-mask::$value"
+            printf '%s\n' "$line" >> "$GITHUB_ENV"
+          done < .env
+
+          # Materialise the CA cert + key (base64 in .env) into the expected files.
+          mkdir -p security/certs
+          echo "$ATLAS_CA_CRT_B64" | base64 -d > security/certs/ca.crt
+          echo "$ATLAS_CA_KEY_B64" | base64 -d > security/certs/ca.key
+
       - uses: ./.github/actions/tools
 
       - uses: ./.github/actions/checks
 
       - uses: ./.github/actions/terraform-incus
-        with:
-          atlas_ca_crt: ${{ secrets.ATLAS_CA_CRT }}
-          atlas_ca_key: ${{ secrets.ATLAS_CA_KEY }}
 
       - uses: ./.github/actions/vault-seeds
-        with:
-          vl_minio_root_user: ${{ secrets.VL_MINIO_ROOT_USER }}
-          vl_minio_root_password: ${{ secrets.VL_MINIO_ROOT_PASSWORD }}
-          vl_redis_password: ${{ secrets.VL_REDIS_PASSWORD }}
-          vl_grafana_password: ${{ secrets.VL_GRAFANA_PASSWORD }}

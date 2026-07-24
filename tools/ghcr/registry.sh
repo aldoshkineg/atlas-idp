@@ -4,8 +4,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ENV_FILE="$PROJECT_DIR/.env"
+SECRETS_FILE="$PROJECT_DIR/.secrets"
 
-if [ -f "$ENV_FILE" ]; then
+# GITHUB_TOKEN for act / ghcr lives in .secrets (falling back to .env or the
+# ambient environment for backwards compatibility).
+if [ -f "$SECRETS_FILE" ]; then
+  export "$(grep GITHUB_TOKEN "$SECRETS_FILE" | head -1)"
+fi
+if [ -z "${GITHUB_TOKEN:-}" ] && [ -f "$ENV_FILE" ]; then
   export "$(grep GITHUB_TOKEN "$ENV_FILE" | head -1)"
 fi
 

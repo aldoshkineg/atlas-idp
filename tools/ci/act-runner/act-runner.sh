@@ -59,8 +59,6 @@ build() {
 
 run_workflow() {
   local wf="$1"; shift
-  require_file "$REPO_ROOT/security/certs/ca.crt"
-  require_file "$REPO_ROOT/security/certs/ca.key"
 
   if ! docker image inspect act-runner:latest &>/dev/null; then
     echo "act-runner:latest not found. Run 'make act-build' or 'act-runner.sh build' first." >&2
@@ -69,17 +67,18 @@ run_workflow() {
 
   mkdir -p "$CACHE_DIR/tf" "$CACHE_DIR/home" /var/tmp/atlas
 
+  # Collect secrets: .env (Vault seeds + CA/cosign base64) plus .secrets
+  # (GITHUB_TOKEN for act rate-limit / gh CLI).
   source "$REPO_ROOT/.env" 2>/dev/null || true
+  source "$REPO_ROOT/.secrets" 2>/dev/null || true
 
+  # Single ENV_FILE secret replayed by the ci-base "Load ENV_FILE" step, which
+  # exports every var and materialises the CA cert/key. GITHUB_TOKEN is passed
+  # separately (it is intentionally excluded from ENV_FILE / $GITHUB_ENV).
   act -W "$wf" \
     --container-options "-v $CACHE_DIR/tf:/opt/terraform/plugin-cache -v $CACHE_DIR/home:/root -v /var/tmp/atlas:/var/tmp/atlas -v /var/lib/incus/unix.socket:/var/lib/incus/unix.socket" \
-    -s ATLAS_CA_CRT="$(cat "$REPO_ROOT/security/certs/ca.crt")" \
-    -s ATLAS_CA_KEY="$(cat "$REPO_ROOT/security/certs/ca.key")" \
-    -s VAULT_TOKEN="${VAULT_TOKEN:-}" \
-    -s VL_MINIO_ROOT_USER="${VL_MINIO_ROOT_USER:-}" \
-    -s VL_MINIO_ROOT_PASSWORD="${VL_MINIO_ROOT_PASSWORD:-}" \
-    -s VL_REDIS_PASSWORD="${VL_REDIS_PASSWORD:-}" \
-    -s VL_GRAFANA_PASSWORD="${VL_GRAFANA_PASSWORD:-}" \
+    -s ENV_FILE="$(cat "$REPO_ROOT/.env")" \
+    -s GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
     "$@"
 }
 

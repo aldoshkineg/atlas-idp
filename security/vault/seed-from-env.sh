@@ -14,11 +14,20 @@ ENV_FILE="$ROOT_DIR/.env"
 PLATFORM_MAPPING="$SCRIPT_DIR/seed-mapping.conf"
 
 # Source .env if available (local dev). In CI env vars are already set.
+# Preserve an externally-provided VAULT_TOKEN: the CI vault-seeds step sets the
+# in-cluster root token via kubectl, while .env may carry a different local token
+# that must not clobber it.
 if [ -f "$ENV_FILE" ]; then
+  _vault_token_existing="${VAULT_TOKEN:-}"
   set -a
   # shellcheck disable=SC1090
   . "$ENV_FILE"
   set +a
+  if [ -n "$_vault_token_existing" ]; then
+    VAULT_TOKEN="$_vault_token_existing"
+    export VAULT_TOKEN
+  fi
+  unset _vault_token_existing
 fi
 
 seed_file="$(mktemp)"
