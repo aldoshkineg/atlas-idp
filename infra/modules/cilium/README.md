@@ -20,7 +20,7 @@ module "cilium" {
 | Name                 | Description                                              | Type   | Default  | Required |
 | -------------------- | -------------------------------------------------------- | ------ | -------- | -------- |
 | cilium_chart_version | Cilium Helm chart version                                | string | "1.19.4" | no       |
-| cluster_name         | Kind cluster name (for control-plane container hostname) | string | —        | yes      |
+| cluster_name         | Cluster name (control-plane container hostname fallback) | string | —        | yes      |
 
 ## Outputs
 
