@@ -121,7 +121,7 @@ make cluster-nuke  # Force delete cluster and wipe tfstate
 ### Commit Messages
 
 - Use Conventional Commits with a scope in parentheses: `feat(scope):`, `fix(scope):`, `refactor(scope):`, `chore(scope):`, etc.
-- **Do NOT add `Co-Authored-By`, `Generated-with`, or any similar AI/tool trailer lines unless the user explicitly asks for them.** Keep commit messages clean and authored by the user.
+- **Do NOT add `Co-Authored-By`, `Generated-with`, or any similar AI/tool trailer lines unless the user explicitly asks for them.** Keep commit messages clean and authored by the user. The AI assistant (`opencode`) must never append such trailers.
 - **NEVER run `git commit` (or `git add` + `git commit`) without the user's explicit approval for that specific change — including fix commits made while troubleshooting.** Editing files is allowed; committing is not. When in doubt, ask first.
 - Never amend, rebase, or force-push without explicit request.
 
