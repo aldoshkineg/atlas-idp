@@ -11,11 +11,11 @@ spec:
     spec:
       ttlSecondsAfterFinished: {{ .Values.cronjob.ttlSecondsAfterFinished }}
       template:
+        metadata:
+          labels: {{- include "seal.labels" (dict "name" "seal-cronjob") | nindent 12 }}
         spec:
           restartPolicy: Never
-          securityContext:
-            seccompProfile:
-              type: RuntimeDefault
+          securityContext: {{- include "seal.podSecurityContext" . | nindent 12 }}
           containers:
             - name: reprocess
               image: redis:7-alpine
