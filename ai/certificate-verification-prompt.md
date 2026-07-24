@@ -15,11 +15,11 @@ Verify that CA certificates used in this project are properly trusted by the sys
 
 The root CA cert + key are **not** stored as separate GitHub secrets. They live in
 `.env` as base64 (`ATLAS_CA_CRT_B64` / `ATLAS_CA_KEY_B64`, embedded by
-`make gh-seed`) and are shipped to CI inside the single `ENV_FILE` secret:
+`make seed-gh`) and are shipped to CI inside the single `ENV_FILE` secret:
 
 | Value              | Source                          | Created Via                                      |
 | ------------------ | ------------------------------- | ------------------------------------------------ |
-| `ENV_FILE` (whole) | `.env` (incl. `ATLAS_CA_*_B64`) | `make gh-seed` → `gh secret set ENV_FILE < .env` |
+| `ENV_FILE` (whole) | `.env` (incl. `ATLAS_CA_*_B64`) | `make seed-gh` → `gh secret set ENV_FILE < .env` |
 
 **How they are consumed in CI/CD:**
 

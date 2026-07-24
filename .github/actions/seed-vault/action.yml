@@ -2,7 +2,7 @@ name: Vault Seeds
 description: "Seed platform secrets into Vault"
 
 # VL_* come from ENV_FILE, which the ci-base "Load ENV_FILE" step exports into
-# $GITHUB_ENV before this action runs. seed-from-env.sh also sources .env
+# $GITHUB_ENV before this action runs. seed-vault.sh also sources .env
 # directly, so both paths resolve the same vars.
 
 runs:
@@ -39,4 +39,4 @@ runs:
         done
 
         echo "===> Seeding platform secrets..."
-        ./security/vault/seed-from-env.sh
+        ./security/vault/seed-vault.sh

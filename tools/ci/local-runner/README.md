@@ -19,8 +19,8 @@ CI workflows (`ci-base`, `ci-middleware`, `ci-workload`, `ci-all`) on `push`/
 - **Repository secret** configured in GitHub
   (`Settings → Secrets → Actions`): `ENV_FILE` — the entire local `.env`
   (Vault seeds + root CA cert/key + cosign key, all base64-embedded). Uploaded
-  via `make gh-seed`. `ci-base` replays it into the job environment and the
-  `vault-seeds` step consumes it.
+  via `make seed-gh`. `ci-base` replays it into the job environment and the
+  `seed-vault` step consumes it.
 
 The runner job itself has no `container:`, so it executes directly inside the
 runner container. The `Install Tools` action downloads the required CLIs

@@ -49,7 +49,7 @@ This creates:
 > will fail with `decrypt: encrypted: decryption failed`.
 
 The private key is stored in `.env` as `COSIGN_PRIVATE_KEY_B64` (base64 of the
-PEM) and shipped together with the other CI secrets via `make gh-seed` into the
+PEM) and shipped together with the other CI secrets via `make seed-gh` into the
 single `ENV_FILE` GitHub secret. There is **no** separate `COSIGN_PRIVATE_KEY`
 secret — cosign reads the key from `env://COSIGN_PRIVATE_KEY`, which the
 workflow derives from `ENV_FILE`.
@@ -57,7 +57,7 @@ workflow derives from `ENV_FILE`.
 ```sh
 # base64-embed the key into .env (once), then upload the consolidated secret
 ATLAS_CA_CRT_B64=… COSIGN_PRIVATE_KEY_B64=$(base64 -w0 < security/cosign/cosign.key) …
-make gh-seed   # gh secret set ENV_FILE < .env
+make seed-gh   # gh secret set ENV_FILE < .env
 ```
 
 ## Signing in CI
@@ -102,7 +102,7 @@ for `v*` tags, plus a dev tag on `workflow_dispatch`) is signed.
 > key matching `security/cosign/cosign.pub`. If CI fails with
 > `decrypt: encrypted: decryption failed`, the base64 holds a key encrypted
 > with a real passphrase — regenerate with an empty passphrase, re-embed, and
-> re-run `make gh-seed`.
+> re-run `make seed-gh`.
 
 ## Local signing
 

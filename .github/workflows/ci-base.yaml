@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           # Persist the whole .env into the repo so local scripts
-          # (seed-from-env.sh) and composite actions behave like a dev machine.
+          # (seed-vault.sh) and composite actions behave like a dev machine.
           printf '%s\n' "$ENV_FILE" > .env
 
           # Export every var to $GITHUB_ENV so later steps see them as env vars.
@@ -71,4 +71,4 @@ jobs:
 
       - uses: ./.github/actions/terraform-incus
 
-      - uses: ./.github/actions/vault-seeds
+      - uses: ./.github/actions/seed-vault
