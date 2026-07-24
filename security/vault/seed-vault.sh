@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Resolve .env + seed-mapping.conf and seed platform + workload secrets into Vault.
-# Usage: make vault-seed                 (reads .env + all mappings)
-#   or:  unset VAULT_ADDR; ./seed-from-env.sh (relies on env vars already set)
+# Usage: make seed-vault                 (reads .env + all mappings)
+#   or:  unset VAULT_ADDR; ./seed-vault.sh (relies on env vars already set)
 # For each entry in ALL seed-mapping.conf files (platform + workloads), resolves
 # the ENV_VAR and writes it into a seed file, then delegates to seed-platform.sh.
 # In CI the env vars come from GitHub secrets / action inputs.
@@ -14,7 +14,7 @@ ENV_FILE="$ROOT_DIR/.env"
 PLATFORM_MAPPING="$SCRIPT_DIR/seed-mapping.conf"
 
 # Source .env if available (local dev). In CI env vars are already set.
-# Preserve an externally-provided VAULT_TOKEN: the CI vault-seeds step sets the
+# Preserve an externally-provided VAULT_TOKEN: the CI seed-vault step sets the
 # in-cluster root token via kubectl, while .env may carry a different local token
 # that must not clobber it.
 if [ -f "$ENV_FILE" ]; then

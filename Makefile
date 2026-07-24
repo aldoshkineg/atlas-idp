@@ -1,8 +1,8 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
-	argocd-login vault-seed gh-seed \
-	atlasctl atlasctl-seed atlasctl-list \
+	argocd-login seed-vault seed-gh \
+	atlasctl seed-atlas atlasctl-list \
 	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-argocd-rollout test-undeploy \
 	act-build act-ci act-stage-base act-stage-middleware act-stage-workload act-destroy \
 	incus-snap-create incus-snap-restore incus-snap-list incus-snap-delete \
@@ -59,7 +59,7 @@ help:
 	@echo "  argocd-login      Login to ArgoCD via CLI"
 	@echo ""
 	@echo "Vault:"
-	@echo "  vault-seed            Read .env + seed-mapping.conf, seed into Vault via port-forward"
+	@echo "  seed-vault          Read .env + seed-mapping.conf, seed into Vault via port-forward"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test             Deploy and verify all platform tests"
@@ -75,7 +75,7 @@ help:
 	@echo ""
 	@echo "Atlas Workload Management:"
 	@echo "  atlasctl-new    Scaffold a new workload (golden path)"
-	@echo "  atlasctl-seed   Seed workload secrets into Vault"
+	@echo "  seed-atlas   Seed workload secrets into Vault"
 	@echo "  atlasctl-list   List all registered workloads"
 	@echo ""
 	@echo "RBAC:"
@@ -83,7 +83,7 @@ help:
 	@echo "  rbac-delete       Remove RBAC policies"
 	@echo ""
 	@echo "GitHub Secrets (single ENV_FILE):"
-	@echo "  gh-seed           Upload the whole .env as one GitHub Secret (ENV_FILE)"
+	@echo "  seed-gh           Upload the whole .env as one GitHub Secret (ENV_FILE)"
 	@echo ""
 	@echo "Incus Snapshots:"
 	@echo "  incus-snap-create    Snapshot all Talos VMs (for rollback before destructive changes)"
@@ -140,8 +140,8 @@ argocd-login:
 
 # --- Vault ---
 # Read .env + seed-mapping.conf, resolve env vars, seed into Vault via port-forward
-vault-seed:
-	@unset VAULT_ADDR; ./security/vault/seed-from-env.sh
+seed-vault:
+	@unset VAULT_ADDR; ./security/vault/seed-vault.sh
 
 # --- Atlas Workload Management ---
 ATLASCTL_BIN ?= tools/atlasctl/bin/atlasctl
@@ -149,7 +149,7 @@ ATLASCTL_BIN ?= tools/atlasctl/bin/atlasctl
 atlasctl:
 	@echo "Usage: make atlasctl-{new,seed,list,build,test}"
 	@echo "  atlasctl-new  <args>   Create a new workload (via atlasctl Go binary)"
-	@echo "  atlasctl-seed          Seed all workload secrets into Vault"
+	@echo "  seed-atlas          Seed all workload secrets into Vault"
 	@echo "  atlasctl-list          List all registered workloads"
 	@echo "  atlasctl-build         Build atlasctl Go binary"
 	@echo "  atlasctl-test          Run atlasctl unit tests"
@@ -170,7 +170,7 @@ atlasctl-new:
 	@echo ""
 	@echo "Build first: make atlasctl-build"
 
-atlasctl-seed:
+seed-atlas:
 	$(ATLASCTL_BIN) seed $(filter-out $@,$(MAKECMDGOALS))
 
 atlasctl-list:
@@ -224,7 +224,7 @@ rbac-delete:
 # ci-base "Load ENV_FILE" step, so there is never a need to manage individual
 # secrets (CA, cosign key, Vault seeds, ...) by hand. Keep .env current first
 # (base64-embed the certs/key manually, see .env.example).
-gh-seed:
+seed-gh:
 	gh secret set ENV_FILE < .env
 	@echo "--> ENV_FILE secret uploaded to GitHub"
 

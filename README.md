@@ -201,7 +201,7 @@ make act-destroy    # destroy the stage infrastructure
 | `act-destroy`          | Destroy the stage infrastructure                               |
 | `argocd-login`         | Log in to Argo CD via the CLI                                  |
 | `atlasctl-new`         | Scaffold a new workload (golden path)                          |
-| `atlasctl-seed`        | Seed workload secrets into Vault                               |
+| `seed-atlas`           | Seed workload secrets into Vault                               |
 | `atlasctl-list`        | List registered workloads                                      |
 | `incus-snap-*`         | Snapshot / restore / list / delete Talos VM snapshots          |
 | `validate`             | Terraform fmt/validate, Trivy, yamllint                        |
@@ -239,7 +239,7 @@ secrets and generates the Argo CD Application:
 
 ```bash
 make atlasctl-new  <team>/<name>   # scaffold workload from templates/gold
-make atlasctl-seed <name>          # seed its secrets into Vault
+make seed-atlas <name>          # seed its secrets into Vault
 make atlasctl-list                 # list registered workloads
 ```
 

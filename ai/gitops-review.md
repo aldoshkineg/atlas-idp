@@ -33,7 +33,7 @@
 | 2.3 | `gitops/platform-kind/layers/storage/velero.yaml`                                | Remove `credentials.secretContents`, replace with `credentials.existingSecret: velero-aws` + ExternalSecret                     |
 | 2.4 | `gitops/platform-kind/layers/security/resources/platform-secrets/`               | Add ExternalSecret: `production-db-backup`, `grafana-admin`, `velero-aws`                                                       |
 | 2.5 | `.env.example`                                                                   | Add `VL_GRAFANA_PASSWORD` (if a separate one is needed)                                                                         |
-| 2.6 | `Makefile`                                                                       | Local-dev target renamed `vault-seed-from-env` → `vault-seed` (seeds via `seed-platform.sh`)                                    |
+| 2.6 | `Makefile`                                                                       | Local-dev target renamed `vault-seed-from-env` → `vault-seed` → `seed-vault` (seeds via `seed-vault.sh` → `seed-platform.sh`)   |
 | 2.7 | `tests/scripts/db-backup-test.sh`                                                | Instead of hardcoding — read `minio-auth` from cluster: `kubectl -n minio get secret minio-auth -o jsonpath='{.data.rootUser}'` |
 | 2.8 | `tests/db-backup/backup-secret.yaml`                                             | Remove; test creates secret dynamically                                                                                         |
 
@@ -132,7 +132,7 @@
 6. **Pin Bank-Vaults** image + `debug: false`
 7. **StorageClass** (3 items)
 8. **Root-app** exclude disabled → validate
-9. **Makefile** removed dead `vault-seed` target
+9. **Makefile** re-added local-dev target as `seed-vault` (renamed from `vault-seed`, originally `vault-seed-from-env`)
 10. **Tests** — dynamic secret reading
 
 > **Seal** — do not touch (per assignment).

@@ -6,11 +6,11 @@ set -euo pipefail
 # only ever has to fetch one secret and replay it.
 #
 # Requires: gh CLI, authenticated session, and a populated .env. Run
-#           `make gh-seed` first so the CA cert/key + cosign key are embedded as base64.
+#           `make seed-gh` first so the CA cert/key + cosign key are embedded as base64.
 #
 # Usage:
-#   make gh-seed                                # uploads repo-root .env
-#   ENV_FILE=.env GH_REPO=owner/repo ./gh-seeds.sh
+#   make seed-gh                                # uploads repo-root .env
+#   ENV_FILE=.env GH_REPO=owner/repo ./seed-gh.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -28,7 +28,7 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 if ! grep -q '^ATLAS_CA_CRT_B64=' "$ENV_FILE"; then
-  echo "ATLAS_CA_CRT_B64 missing in $ENV_FILE — embed the CA (see .env.example) and run 'make gh-seed' first" >&2
+  echo "ATLAS_CA_CRT_B64 missing in $ENV_FILE — embed the CA (see .env.example) and run 'make seed-gh' first" >&2
   exit 1
 fi
 

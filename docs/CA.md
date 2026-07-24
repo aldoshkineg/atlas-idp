@@ -14,7 +14,7 @@ service-to-service traffic trusts them once the root CA is in the trust store.
 ```
 security/certs/ca.{crt,key}          (local, git-ignored)
         │  base64 → .env (ATLAS_CA_CRT_B64 / ATLAS_CA_KEY_B64)
-        │  make gh-seed → GitHub secret ENV_FILE
+        │  make seed-gh → GitHub secret ENV_FILE
         ▼
 CI ci-base "Load ENV_FILE"  →  re-materialises security/certs/ca.{crt,key}
         │
@@ -66,7 +66,7 @@ embedded into `.env` and shipped as the single `ENV_FILE` secret:
    ATLAS_CA_CRT_B64=$(base64 -w0 < security/certs/ca.crt)
    ATLAS_CA_KEY_B64=$(base64 -w0 < security/certs/ca.key)
    ```
-2. Upload: `make gh-seed` → `gh secret set ENV_FILE < .env`.
+2. Upload: `make seed-gh` → `gh secret set ENV_FILE < .env`.
 3. In CI, the `ci-base` "Load ENV_FILE" step writes `.env` and re-materialises
    `security/certs/ca.{crt,key}` from base64 before Terraform runs.
 

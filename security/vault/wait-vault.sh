@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Wait until the local Vault instance is ready for seeding.
 # Usage: ./wait-vault.sh
-# Called automatically by CI (.github/actions/vault-seeds) before seeding.
+# Called automatically by CI (.github/actions/seed-vault) before seeding.
 # Requires: kubectl, a running cluster with Vault, and VAULT_ADDR reachable
 # (provided by the act-runner port-forward). Falls back to kubectl exec only
 # when VAULT_ADDR is not reachable.
