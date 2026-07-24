@@ -10,11 +10,11 @@ checked by Kyverno.
 
 ## Overview
 
-| Artifact          | Location                                          | Status    |
-| ----------------- | ------------------------------------------------- | --------- |
-| `cosign.pub`      | `security/cosign/cosign.pub` (committed)         | public    |
-| `cosign.key`      | GitHub Secret `COSIGN_PRIVATE_KEY` (git-ignored) | private   |
-| `COSIGN_PASSWORD` | empty (key has no passphrase)                    | —         |
+| Artifact          | Location                                                  | Status  |
+| ----------------- | --------------------------------------------------------- | ------- |
+| `cosign.pub`      | `security/cosign/cosign.pub` (committed)                  | public  |
+| `cosign.key`      | `.env` as `COSIGN_PRIVATE_KEY_B64` (in `ENV_FILE` secret) | private |
+| `COSIGN_PASSWORD` | empty (key has no passphrase)                             | —       |
 
 Flow:
 
@@ -48,27 +48,45 @@ This creates:
 > non-interactively without a TTY will get a random passphrase and CI signing
 > will fail with `decrypt: encrypted: decryption failed`.
 
-Upload the private key to GitHub Secrets (raw PEM, with newlines — **not**
-base64, because cosign reads it via `env://COSIGN_PRIVATE_KEY`):
+The private key is stored in `.env` as `COSIGN_PRIVATE_KEY_B64` (base64 of the
+PEM) and shipped together with the other CI secrets via `make gh-seed` into the
+single `ENV_FILE` GitHub secret. There is **no** separate `COSIGN_PRIVATE_KEY`
+secret — cosign reads the key from `env://COSIGN_PRIVATE_KEY`, which the
+workflow derives from `ENV_FILE`.
 
 ```sh
-gh secret set COSIGN_PRIVATE_KEY < security/cosign/cosign.key
+# base64-embed the key into .env (once), then upload the consolidated secret
+ATLAS_CA_CRT_B64=… COSIGN_PRIVATE_KEY_B64=$(base64 -w0 < security/cosign/cosign.key) …
+make gh-seed   # gh secret set ENV_FILE < .env
 ```
 
 ## Signing in CI
 
 `.github/workflows/seal-docker-publish.yml` builds and pushes images in a
-matrix over the services (`seal-api`, `seal-worker`, `seal-ui`) and tags.
-After the `docker/build-push-action` step, a signing step is added:
+matrix over the services (`seal-api`, `seal-worker`, `seal-ui`) and tags. It
+loads `ENV_FILE`, base64-decodes `COSIGN_PRIVATE_KEY_B64` into the
+`COSIGN_PRIVATE_KEY` env var, then signs after the `docker/build-push-action`
+step:
 
 ```yaml
+- name: Load ENV_FILE secret
+  env:
+    ENV_FILE: ${{ secrets.ENV_FILE }}
+  run: |
+    printf '%s\n' "$ENV_FILE" > .env
+    COSIGN_KEY="$(echo "$COSIGN_PRIVATE_KEY_B64" | base64 -d)"
+    echo "::add-mask::$COSIGN_KEY"
+    { echo "COSIGN_PRIVATE_KEY<<EOF"; echo "$COSIGN_KEY"; echo "EOF"; } >> "$GITHUB_ENV"
+
+# … build & push …
+
 - name: Install cosign
   uses: sigstore/cosign-installer@v3
 
 - name: Sign image with cosign
   env:
     COSIGN_PASSWORD: ""
-    COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+    COSIGN_PRIVATE_KEY: ${{ env.COSIGN_PRIVATE_KEY }}
   run: |
     for img in $(echo "${{ steps.meta.outputs.tags }}" | tr '\n' ' '); do
       cosign sign --yes --key env://COSIGN_PRIVATE_KEY "${img}"
@@ -80,10 +98,11 @@ After the `docker/build-push-action` step, a signing step is added:
 images. Every tag emitted by `docker/metadata-action` (`type=ref,event=tag`
 for `v*` tags, plus a dev tag on `workflow_dispatch`) is signed.
 
-> The GitHub Secret `COSIGN_PRIVATE_KEY` must contain the **unencrypted** key
-> matching `security/cosign/cosign.pub`. If CI fails with
-> `decrypt: encrypted: decryption failed`, the secret holds a key encrypted
-> with a real passphrase — regenerate with an empty passphrase and re-set it.
+> The private key in `.env` (`COSIGN_PRIVATE_KEY_B64`) must be the **unencrypted**
+> key matching `security/cosign/cosign.pub`. If CI fails with
+> `decrypt: encrypted: decryption failed`, the base64 holds a key encrypted
+> with a real passphrase — regenerate with an empty passphrase, re-embed, and
+> re-run `make gh-seed`.
 
 ## Local signing
 
@@ -113,11 +132,11 @@ make seal-verify TAG=v0.52.0
 
 ### Expected results
 
-| Image                                  | Result                                                     |
-| -------------------------------------- | ---------------------------------------------------------- |
-| `seal-api:v0.52.0` (latest signed)    | ✅ verified against our public key                          |
-| `seal-api:v0.25.0` (pre-cosign)       | ❌ `Error: no signatures found` (never signed)             |
-| `janeczku/cosign-example:latest`      | ❌ `Error: no matching signatures ... did not match` (signed by another key) |
+| Image                              | Result                                                                       |
+| ---------------------------------- | ---------------------------------------------------------------------------- |
+| `seal-api:v0.52.0` (latest signed) | ✅ verified against our public key                                           |
+| `seal-api:v0.25.0` (pre-cosign)    | ❌ `Error: no signatures found` (never signed)                               |
+| `janeczku/cosign-example:latest`   | ❌ `Error: no matching signatures ... did not match` (signed by another key) |
 
 The last two rows are the expected failures: an unsigned image and an image
 signed by someone else's key must **not** verify against our key.
@@ -136,13 +155,13 @@ rule and runs in **`Enforce`** mode with deterministic settings:
 # gitops/platform/security/kyverno-policies/require-image-signature.yaml
 spec:
   validationFailureAction: Enforce
-  failurePolicy: Fail        # deny anything that cannot be verified
+  failurePolicy: Fail # deny anything that cannot be verified
   rules:
     - name: verify-seal-images
       verifyImages:
         - imageReferences: ["ghcr.io/aldoshkineg/*"]
-          mutateDigest: true   # resolve tag -> digest so signatures verify
-          useCache: false      # resolve digest from registry (deterministic)
+          mutateDigest: true # resolve tag -> digest so signatures verify
+          useCache: false # resolve digest from registry (deterministic)
           verifyDigest: true
           required: true
           key: |-
