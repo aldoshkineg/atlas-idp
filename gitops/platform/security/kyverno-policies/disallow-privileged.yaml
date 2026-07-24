@@ -40,12 +40,18 @@ spec:
         message: "Privileged containers are not allowed."
         pattern:
           spec:
+            # Validate securityContext.privileged only when it is set. An unset
+            # field defaults to false, so requiring an explicit `privileged: false`
+            # would falsely fail otherwise-compliant containers.
             containers:
-              - securityContext:
-                  privileged: false
-            initContainers:
-              - securityContext:
-                  privileged: false
+              - =(securityContext):
+                  =(privileged): false
+            =(initContainers):
+              - =(securityContext):
+                  =(privileged): false
+            =(ephemeralContainers):
+              - =(securityContext):
+                  =(privileged): false
     - name: validate-hostpath
       match:
         any:
@@ -76,9 +82,11 @@ spec:
                 - redis
       validate:
         message: "hostPath volumes are not allowed."
-        deny:
-          conditions:
-            all:
-              - key: "{{ request.object.spec.volumes[].hostPath | length(@) }}"
-                operator: GreaterThanOrEquals
-                value: 1
+        # Pattern with anchors is null-safe: `=(volumes)` only evaluates when the
+        # pod declares volumes, and `X(hostPath): "null"` requires hostPath to be
+        # unset on every volume. The previous deny/JMESPath form crashed with
+        # "Invalid type for: <nil>" whenever spec.volumes was absent.
+        pattern:
+          spec:
+            =(volumes):
+              - X(hostPath): "null"

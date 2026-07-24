@@ -42,5 +42,3 @@ spec:
           spec:
             containers:
               - image: "!*:latest"
-            initContainers:
-              - image: "!*:latest"
