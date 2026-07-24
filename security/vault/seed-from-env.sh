@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Resolve .env + seed-mapping.conf and seed platform + workload secrets into Vault.
-# Usage: make vault-seed-from-env             (reads .env + all mappings)
+# Usage: make vault-seed                 (reads .env + all mappings)
 #   or:  unset VAULT_ADDR; ./seed-from-env.sh (relies on env vars already set)
 # For each entry in ALL seed-mapping.conf files (platform + workloads), resolves
 # the ENV_VAR and writes it into a seed file, then delegates to seed-platform.sh.

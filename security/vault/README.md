@@ -18,7 +18,7 @@ seed-mapping.conf ──► seed-from-env.sh ──► seed-platform.sh ──�
                                                      K8s Secrets
 ```
 
-- **Local dev**: `make vault-seed-from-env` reads `.env` + `seed-mapping.conf`, seeds Vault
+- **Local dev**: `make vault-seed` reads `.env` + `seed-mapping.conf`, seeds Vault
 - **CI**: the `ci-base` workflow replays a single `ENV_FILE` secret (the repo `.env`) via the
   "Load ENV_FILE" step, which exports the vars and materialises the CA; `vault-seeds` then calls
   `seed-from-env.sh` (with `.env` present on disk)
@@ -29,7 +29,7 @@ seed-mapping.conf ──► seed-from-env.sh ──► seed-platform.sh ──�
 | Script                   | Purpose                                                                                        | Used by                               |
 | ------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------- |
 | `seed-platform.sh`       | Core: read secrets file, write/patch/verify entries in Vault KV                                | CI (`vault-seeds`), direct invocation |
-| `seed-from-env.sh`       | Resolve env vars (from `.env` or already set) via `seed-mapping.conf`, call `seed-platform.sh` | `make vault-seed-from-env`, CI        |
+| `seed-from-env.sh`       | Resolve env vars (from `.env` or already set) via `seed-mapping.conf`, call `seed-platform.sh` | `make vault-seed`, CI                 |
 | `seed-mapping.conf`      | Mapping: `vault-path key=ENV_VAR_NAME`                                                         | `seed-from-env.sh`                    |
 | `wait-vault.sh`          | Wait for Vault namespace, pod readiness, KV engine availability                                | CI (`vault-seeds`)                    |
 | `bootstrap-eso-token.sh` | Create `external-secrets/vault-token` Secret from `vault-unseal-keys`                          | CI (`vault-seeds`)                    |
@@ -40,7 +40,7 @@ seed-mapping.conf ──► seed-from-env.sh ──► seed-platform.sh ──�
 ### Local dev — seed all platform secrets
 
 ```bash
-make vault-seed-from-env
+make vault-seed
 ```
 
 Reads `.env` + `seed-mapping.conf`. Auto port-forwards to `vault-0` via `kubectl`.
@@ -118,7 +118,7 @@ No hardcoded paths or inline secrets — all mapping is in `seed-mapping.conf`.
 3. Run locally to test:
 
    ```bash
-   make vault-seed-from-env
+   make vault-seed
    ```
 
 4. Add `ExternalSecret` manifest in `gitops/platform/layers/security/resources/platform-secrets/`

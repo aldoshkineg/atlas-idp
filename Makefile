@@ -1,7 +1,7 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
-	argocd-login vault-seed-from-env gh-seed \
+	argocd-login vault-seed gh-seed \
 	atlasctl atlasctl-seed atlasctl-list \
 	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-argocd-rollout test-undeploy \
 	act-build act-ci act-stage-base act-stage-middleware act-stage-workload act-destroy \
@@ -59,7 +59,7 @@ help:
 	@echo "  argocd-login      Login to ArgoCD via CLI"
 	@echo ""
 	@echo "Vault:"
-	@echo "  vault-seed-from-env     Read .env + seed-mapping.conf, seed into Vault via port-forward"
+	@echo "  vault-seed            Read .env + seed-mapping.conf, seed into Vault via port-forward"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test             Deploy and verify all platform tests"
@@ -140,7 +140,7 @@ argocd-login:
 
 # --- Vault ---
 # Read .env + seed-mapping.conf, resolve env vars, seed into Vault via port-forward
-vault-seed-from-env:
+vault-seed:
 	@unset VAULT_ADDR; ./security/vault/seed-from-env.sh
 
 # --- Atlas Workload Management ---
