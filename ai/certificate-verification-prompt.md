@@ -13,21 +13,24 @@ Verify that CA certificates used in this project are properly trusted by the sys
 
 ## GitHub Secrets Usage
 
-The CA certificate and key are stored as GitHub repository secrets for use in CI/CD:
+The root CA cert + key are **not** stored as separate GitHub secrets. They live in
+`.env` as base64 (`ATLAS_CA_CRT_B64` / `ATLAS_CA_KEY_B64`, embedded by
+`make gh-seed`) and are shipped to CI inside the single `ENV_FILE` secret:
 
-| Secret         | Source File             | Created Via                                                                     |
-| -------------- | ----------------------- | ------------------------------------------------------------------------------- |
-| `ATLAS_CA_CRT` | `security/certs/ca.crt` | `make github-secrets-ca` → `gh secret set ATLAS_CA_CRT < security/certs/ca.crt` |
-| `ATLAS_CA_KEY` | `security/certs/ca.key` | `make github-secrets-ca` → `gh secret set ATLAS_CA_KEY < security/certs/ca.key` |
+| Value              | Source                          | Created Via                                      |
+| ------------------ | ------------------------------- | ------------------------------------------------ |
+| `ENV_FILE` (whole) | `.env` (incl. `ATLAS_CA_*_B64`) | `make gh-seed` → `gh secret set ENV_FILE < .env` |
 
 **How they are consumed in CI/CD:**
 
-1. `.github/workflows/ci-base.yaml` passes both secrets to the `terraform-incus` composite action
-2. `.github/actions/terraform-incus/action.yml` uses them to create a Kubernetes TLS secret in the cluster:
+1. `.github/workflows/ci-base.yaml` "Load ENV_FILE" step writes `.env`, exports every
+   var to `$GITHUB_ENV`, and materialises `security/certs/ca.{crt,key}` from base64
+2. `.github/actions/terraform-incus/action.yml` uses those files to create a Kubernetes
+   TLS secret in the cluster:
    ```yaml
    kubectl create secret tls atlas-ca-secret \
-   --cert=<(echo "${{ inputs.atlas_ca_crt }}") \
-   --key=<(echo "${{ inputs.atlas_ca_key }}") \
+   --cert=security/certs/ca.crt \
+   --key=security/certs/ca.key \
    -n cert-manager \
    --dry-run=client -o yaml | kubectl apply -f -
    ```

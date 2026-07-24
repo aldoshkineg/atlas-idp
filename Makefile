@@ -1,7 +1,7 @@
 .PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
 	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
-	argocd-login vault-seed-from-env github-secrets-ca seed-ca \
+	argocd-login vault-seed-from-env gh-seed \
 	atlasctl atlasctl-seed atlasctl-list \
 	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-argocd-rollout test-undeploy \
 	act-build act-ci act-stage-base act-stage-middleware act-stage-workload act-destroy \
@@ -82,11 +82,8 @@ help:
 	@echo "  rbac-apply        Apply RBAC policies (ClusterRoles, bindings)"
 	@echo "  rbac-delete       Remove RBAC policies"
 	@echo ""
-	@echo "GitHub Secrets:"
-	@echo "  github-secrets-ca  Add root CA cert and key to GitHub secrets (ATLAS_CA_CRT, ATLAS_CA_KEY)"
-	@echo ""
-	@echo "CA Certificates:"
-	@echo "  seed-ca           Create atlas-ca-secret for cert-manager from security/certs/"
+	@echo "GitHub Secrets (single ENV_FILE):"
+	@echo "  gh-seed           Upload the whole .env as one GitHub Secret (ENV_FILE)"
 	@echo ""
 	@echo "Incus Snapshots:"
 	@echo "  incus-snap-create    Snapshot all Talos VMs (for rollback before destructive changes)"
@@ -132,8 +129,6 @@ infra-apply:
 	cd infra/environments/dev && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init
 	@echo "--> Applying infrastructure changes..."
 	cd infra/environments/dev && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform apply -auto-approve
-	@echo "--> Seeding CA certificate into cluster..."
-	$(MAKE) seed-ca
 
 gitops-bootstrap:
 	./clusters/scripts/bootstrap-gitops.sh
@@ -224,25 +219,14 @@ rbac-apply:
 rbac-delete:
 	kubectl delete -f security/rbac/ --ignore-not-found
 
-# --- GitHub Secrets ---
-github-secrets-ca:
-	@echo "--> Adding root CA certificate to GitHub secrets (ATLAS_CA_CRT)..."
-	gh secret set ATLAS_CA_CRT < security/certs/ca.crt
-	@echo "--> Adding root CA key to GitHub secrets (ATLAS_CA_KEY)..."
-	gh secret set ATLAS_CA_KEY < security/certs/ca.key
-	@echo "--> CA certificate and key added to GitHub secrets successfully"
-
-seed-ca:
-	@echo "--> Setting kubeconfig from kind cluster..."
-	@kind export kubeconfig --name $(CLUSTER_NAME) 2>/dev/null || true
-	@echo "--> Ensuring cert-manager namespace exists..."
-	kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
-	@echo "--> Creating atlas-ca-secret in cert-manager namespace..."
-	kubectl create secret tls atlas-ca-secret -n cert-manager \
-		--cert=security/certs/ca.crt \
-		--key=security/certs/ca.key \
-		--dry-run=client -o yaml | kubectl apply -f -
-	@echo "--> CA secret seeded successfully. ClusterIssuer atlas-ca-issuer should become Healthy."
+# --- GitHub Secrets (single ENV_FILE) ---
+# Upload the whole .env as one GitHub Secret (ENV_FILE). CI replays it via the
+# ci-base "Load ENV_FILE" step, so there is never a need to manage individual
+# secrets (CA, cosign key, Vault seeds, ...) by hand. Keep .env current first
+# (base64-embed the certs/key manually, see .env.example).
+gh-seed:
+	gh secret set ENV_FILE < .env
+	@echo "--> ENV_FILE secret uploaded to GitHub"
 
 # --- Quality Assurance & Linting ---
 validate: validate-terraform validate-yaml validate-security

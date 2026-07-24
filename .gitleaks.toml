@@ -1,0 +1,11 @@
+title = "Atlas IDP gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Template files carry empty placeholder secrets (e.g. ATLAS_CA_KEY_B64=) and must not trip the generic-api-key rule."
+paths = [
+  '''.*\.env\.example$''',
+  '''.*\.secrets\.example$''',
+]
