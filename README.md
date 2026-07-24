@@ -2,66 +2,78 @@
 
 **Internal Developer Platform — GitOps-driven Kubernetes platform engineering**
 
-Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP) monorepo designed as a DevOps portfolio project. It demonstrates end-to-end platform engineering with Infrastructure as Code (IaC), GitOps delivery, CI/CD automation, observability, secrets management, security scanning, and disaster recovery — all running locally on [kind](https://kind.sigs.k8s.io/) Kubernetes clusters while following AWS production patterns.
+Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP)
+monorepo built as a DevOps/platform-engineering portfolio project. It demonstrates
+an end-to-end platform: Infrastructure as Code, GitOps delivery, progressive
+delivery, policy-as-code, supply-chain security, secrets management, observability
+and disaster recovery — running locally on a **Talos Linux** Kubernetes cluster
+provisioned on **Incus** VMs, following production patterns.
+
+A sample tenant workload, **seal** (a PDF signing service: API + UI + worker),
+is onboarded through the platform's golden path (`atlasctl`) to exercise every
+capability end-to-end.
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                   CI/CD (GitHub Actions)                        │
-│   ┌─────────┐  ┌────────┐  ┌───────┐  ┌──────┐  ┌────────┐      │
-│   │Validate │  │Security│  │ Build │  │ Kind │  │ Deploy │      │
-│   └─────────┘  └────────┘  └───────┘  └──────┘  └────────┘      │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────┴───────────────────────────────────┐
-│                   GitOps (Argo CD)                              │
-│   App-of-Apps: root → platform services → workloads             │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────┴───────────────────────────────────┐
-│                Kubernetes Runtime (kind)                        │
-│   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│   │ Gateway  │ │ Metrics  │ │ Prom/    │ │ Vault    │           │
-│   │   API    │ │  Server  │ │ Grafana  │ │          │           │
-│   └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
-│   ┌──────────┐ ┌──────────┐ ┌──────────┐                        │
-│   │  Cert    │ │  Velero  │ │  Backend │  Worker  Cron          │
-│   │ Manager  │ │   (DR)   │ │   API    │                        │
-│   └──────────┘ └──────────┘ └──────────┘                        │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────┴───────────────────────────────────┐
-│                 Infrastructure (Terraform)                      │
-│   Local-kind (dev)      AWS (planned)            Modules        │
-│   ┌──────────────┐  ┌──────────────────┐  ┌────────────────┐    │
-│   │ kind cluster │  │ VPC · EKS · IRSA │  │ kind           │    │
-│   │ Argo CD helm │  │ S3 · EBS · AMP   │  │ argocd-boot    │    │
-│   │ GH Actions   │  │                  │  │ networking     │    │
-│   └──────────────┘  └──────────────────┘  │ iam · storage  │    │
-│                                           │ addons         │    │
-│                                           └────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                     CI/CD — GitHub Actions                         │
+│   run locally on a self-hosted runner or via `act` (nektos)        │
+│   ci-base  ──▶  ci-middleware  ──▶  ci-workload   (ci-all)          │
+└──────────────────────────────────────────────────────────────────┘
+                               │
+┌──────────────────────────────┴───────────────────────────────────┐
+│                       GitOps — Argo CD                             │
+│   App-of-Apps:  root-app ──▶ platform layers ──▶ workloads         │
+│   layers: base · storage · security · delivery · observability     │
+└──────────────────────────────────────────────────────────────────┘
+                               │
+┌──────────────────────────────┴───────────────────────────────────┐
+│                Kubernetes runtime — Talos Linux                    │
+│   ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐  │
+│   │ Cilium  │ │  Argo    │ │ Kyverno  │ │  Vault + │ │ KEDA +  │  │
+│   │ CNI+GW  │ │ Rollouts │ │ (policy) │ │   ESO    │ │ metrics │  │
+│   └─────────┘ └──────────┘ └──────────┘ └──────────┘ └─────────┘  │
+│   ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐  │
+│   │ Piraeus │ │ CloudNat.│ │  MinIO   │ │  Velero  │ │  Trivy  │  │
+│   │ LINSTOR │ │ PG/Redis │ │  (S3)    │ │   (DR)   │ │Operator │  │
+│   └─────────┘ └──────────┘ └──────────┘ └──────────┘ └─────────┘  │
+│   Observability: Prometheus · Grafana · Alertmanager ·            │
+│                  Loki · Tempo · Grafana Alloy                      │
+│   Workload (seal): seal-api · seal-ui · seal-worker · dlq CronJob  │
+└──────────────────────────────────────────────────────────────────┘
+                               │
+┌──────────────────────────────┴───────────────────────────────────┐
+│               Infrastructure — Terraform / OpenTofu               │
+│   Incus/Talos VMs (dev, active)          AWS/EKS (planned stub)    │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Tech Stack
 
-| Category           | Tools                                      |
-| ------------------ | ------------------------------------------ |
-| **Infrastructure** | Terraform / OpenTofu                       |
-| **Kubernetes**     | kind (local), EKS                          |
-| **GitOps**         | Argo CD                                    |
-| **CI/CD**          | GitHub Actions                             |
-| **Observability**  | Prometheus · Grafana · Loki                |
-| **Secrets**        | HashiCorp Vault                            |
-| **Security**       | Trivy · yamllint · RBAC · pre-commit hooks |
-| **Backup / DR**    | Velero                                     |
-| **Ingress**        | gateway-api · cert-manager                 |
-| **Languages**      | HCL · YAML · Shell                         |
+| Category                 | Tools                                                          |
+| ------------------------ | -------------------------------------------------------------- |
+| **Infrastructure**       | Terraform / OpenTofu, Incus (local VMs)                        |
+| **OS / Kubernetes**      | Talos Linux, Kubernetes v1.34                                  |
+| **CNI + Ingress**        | Cilium (kube-proxy-less) + Gateway API                         |
+| **GitOps**               | Argo CD (App-of-Apps)                                          |
+| **Progressive delivery** | Argo Rollouts (canary)                                         |
+| **Autoscaling**          | KEDA + metrics-server (HPA)                                    |
+| **CI/CD**                | GitHub Actions (self-hosted runner / `act`)                    |
+| **Observability**        | Prometheus · Grafana · Alertmanager · Loki · Tempo · Alloy     |
+| **Secrets**              | HashiCorp Vault + External Secrets Operator                    |
+| **Storage**              | Piraeus / LINSTOR (replicated block), snapshot-controller      |
+| **Databases**            | CloudNativePG (PostgreSQL), Redis                              |
+| **Object storage**       | MinIO (S3-compatible)                                          |
+| **Policy-as-code**       | Kyverno                                                        |
+| **Supply chain**         | Cosign image signatures (enforced via Kyverno), Trivy Operator |
+| **Backup / DR**          | Velero                                                         |
+| **Platform tooling**     | `atlasctl` (Go CLI — golden-path workload onboarding)          |
+| **Languages**            | Go · HCL · YAML · Shell                                        |
 
 ---
 
@@ -69,80 +81,38 @@ Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP) 
 
 ```
 atlas-idp/
-├── .github/
-│   ├── workflows/
-│   │   ├── ci-all.yaml         # Orchestrator: base -> middleware -> workloads
-│   │   ├── ci-base.yaml        # Base stage: tools + checks + terraform + vault seeds
-│   │   ├── ci-middleware.yaml  # Sync platform layers (storage/security/delivery/observability)
-│   │   ├── ci-workload.yaml    # Seed + sync workloads (seal)
-│   │   ├── ci-destroy.yaml     # Destroy stage infrastructure
-│   │   └── cleanup-local.yaml  # Manual KinD cluster cleanup
-│   ├── actions/
-│   │   ├── tools/              #   Install CLI tools (terraform, kubectl, kind, trivy)
-│   │   ├── checks/             #   terraform fmt/validate, yamllint, trivy
-│   │   ├── terraform-kind/     #   kind cluster + Argo CD bootstrap
-│   │   └── terraform-eks/      #   EKS stub (not implemented)
-│   └── scripts/
-│       └── install-tools.sh    #   Tool installation helper
-├── infra/                      # Infrastructure as Code (Terraform)
-│   ├── environments/
-│   │   ├── dev/                #   ACTIVE: kind cluster + Argo CD bootstrap
-│   │   └── aws/                #   Planned: EKS production environment
-│   └── modules/                #   Reusable Terraform modules
-│       ├── kind/               #     kind cluster (tehcyx/kind provider)
-│       ├── argocd-bootstrap/   #     Day-0 Argo CD Helm install
-│       ├── networking/         #     VPC · subnets · security groups (stub)
-│       ├── iam/                #     IRSA / IAM roles (stub)
-│       ├── storage/            #     S3 · PVC storage classes (stub)
-│       ├── addons/             #     Cluster addons (stub)
-│       └── observability/      #     Remote metrics/logs (stub)
-├── clusters/                   # Kubernetes cluster lifecycle
-│   ├── kind/                   #   kind cluster manifests
-│   │   ├── cluster.yaml        #     Production-like: 1 CP + 2 workers
-│   │   └── cluster-ci.yaml     #     CI: 1 CP + 1 worker
-│   └── scripts/                #   Cluster management scripts
-│       ├── create-cluster.sh   #     Create kind cluster
-│       ├── destroy-cluster.sh  #     Delete kind cluster
-│       ├── bootstrap-gitops.sh #     Day-0: Terraform + Argo CD root app
-│       └── ci-kind-*.sh        #     CI pipeline helpers
+├── apps/                       # Application source + Helm charts
+│   └── seal/                   #   Sample tenant workload (API/UI/worker) + chart
 ├── gitops/                     # GitOps manifests (Argo CD)
-│   ├── bootstrap/              #   App-of-Apps root and argocd self-mgmt
-│   │   ├── root-app.yaml       #     Root Application (platform layer)
-│   │   └── argocd/             #     Day-1 self-management manifests
-│   ├── platform/               #   Platform-layer Applications
-│   │   ├── gateway-api.yaml   #     Gateway API controller
-│   │   ├── cert-manager.yaml   #     TLS certificate management
-│   │   ├── metrics-server.yaml #     Resource metrics (HPA)
-│   │   └── monitoring.yaml     #     kube-prometheus-stack
-│   └── workloads/              #   Workload Applications
-│       └── application.yaml    #     Workloads app (backend-api, worker, cron)
-├── apps/                       # Seal project
-├── observability/              # Monitoring & alerting
-│   ├── alerts/                 #   Prometheus custom alert rules
-│   │   ├── custom-rule-1.yaml  #     HighErrorRate
-│   │   └── custom-rule-2.yaml  #     HPAMaxedOut
-│   └── dashboards/             #   Grafana dashboards (planned)
-├── vault/                      # HashiCorp Vault configuration
-│   ├── bootstrap/              #   Init, unseal, policy scripts
-│   ├── policies/               #   Vault ACL policies
-│   │   └── platform-read.hcl   #     Read-only access to platform secrets
-│   └── kubernetes-auth/        #   Kubernetes auth method roles
-│       └── role-backend-api.yaml
-├── velero/                     # Disaster recovery (planned)
-├── security/                   # Security tooling
-│   ├── trivy/                  #   Trivy configuration
-│   │   └── trivy.yaml
-│   └── rbac/                   #   RBAC policies (planned)
+│   ├── bootstrap/
+│   │   └── root-app.yaml       #   App-of-Apps root Application
+│   ├── platform/
+│   │   ├── layers/             #   Layer Applications (base/storage/security/…)
+│   │   ├── base/               #   Cilium Gateway, routes, network policies, cert issuers
+│   │   ├── storage/            #   Piraeus/LINSTOR, snapshot controller, CNPG, MinIO, Redis
+│   │   ├── security/           #   Kyverno (+ policies), Vault operator, ESO, Trivy
+│   │   ├── delivery/           #   Argo Rollouts, KEDA, metrics-server
+│   │   └── observability/      #   kube-prometheus-stack, Loki, Tempo, Alloy
+│   └── workloads/              #   Tenant workload Applications (atlasteam/seal)
+├── workloads/                  # Per-tenant workload definitions (atlasctl registry)
+│   └── atlasteam/seal/         #   app.yaml, infra, vault policy, monitoring
+├── infra/                      # Infrastructure as Code (Terraform/OpenTofu)
+│   ├── environments/           #   dev (Incus/Talos, active) · aws (planned)
+│   └── modules/                #   Reusable modules
+├── clusters/                   # Cluster lifecycle manifests/scripts
+├── security/                   # CA certs, RBAC, Trivy, Cosign keys
+├── vault/                      # Vault bootstrap, policies, k8s auth roles
+├── velero/                     # Backup / DR configuration
+├── observability/              # Extra dashboards / alert rules
+├── tools/                      # atlasctl (Go CLI) + CI runners (act/self-hosted)
+├── tests/                      # Platform smoke/integration tests (make test)
+├── templates/                  # Golden-path workload templates
 ├── docs/                       # Documentation
-│   ├── runbooks/               #   Operational runbooks (planned)
-│   └── diagrams/               #   Architecture diagrams (planned)
-├── ai/                         # AI-assisted design specification
-│   └── system-prompt.md        #   Full platform spec for AI agents
-├── Makefile                    # Developer workflow targets
-├── TODO.md                     # Implementation roadmap
+├── ai/                         # AI-assisted design specs / cluster checks
+├── Makefile                    # Developer + CI workflow targets
+├── TODO.md                     # Remaining roadmap
 ├── .pre-commit-config.yaml     # Pre-commit hooks
-├── .yamllint.yml               # YAML linting rules
-└── .gitignore
+└── .yamllint.yml               # YAML linting rules
 ```
 
 ---
@@ -151,175 +121,198 @@ atlas-idp/
 
 ### Prerequisites
 
-- [kind](https://kind.sigs.k8s.io/) v0.26+
-- [kubectl](https://kubernetes.io/docs/tasks/tools/) v1.31+
-- [Terraform](https://www.terraform.io/) v1.9+
-- [Docker](https://www.docker.com/) (for GitLab Runner)
-- [pre-commit](https://pre-commit.com/)
-- [yamllint](https://github.com/adrienverge/yamllint)
-- [Trivy](https://github.com/aquasecurity/trivy)
+- [Incus](https://linuxcontainers.org/incus/) (local VM host for Talos nodes)
+- [Terraform](https://www.terraform.io/) / [OpenTofu](https://opentofu.org/) v1.9+
+- [talosctl](https://www.talos.dev/) and [kubectl](https://kubernetes.io/docs/tasks/tools/) v1.31+
+- [Docker](https://www.docker.com/) (for the CI runner / `act`)
+- [Helm](https://helm.sh/), [Argo CD CLI](https://argo-cd.readthedocs.io/), [pre-commit](https://pre-commit.com/)
 
-### 1. Configure GitHub repository URL
+### 1. Configure the Git repository URL
 
-**IMPORTANT:** Before running Terraform, replace placeholder URLs:
+Argo CD pulls manifests from Git. Point the platform at your fork before deploying:
 
 ```bash
-# Edit infra/environments/dev/main.tf
-# Change: https://github.com/aldoshkineg/atlas-idp
-# To:     https://github.com/your-org/your-repo
-
-# Edit gitops/bootstrap/root-app.yaml
-# Change: https://github.com/aldoshkineg/atlas-idp.git
-# To:     https://github.com/your-org/your-repo.git
+# gitops/bootstrap/root-app.yaml and workloads/*/app.yaml
+#   repoURL: https://github.com/<your-org>/<your-repo>.git
 ```
 
-### 2. Deploy cluster + Argo CD (Day-0 bootstrap)
+### 2. Deploy the whole platform (recommended)
+
+The CI pipeline provisions the cluster and syncs every layer in the correct order:
 
 ```bash
-cd infra/environments/dev
-terraform init
-terraform plan
-terraform apply -auto-approve
+make act-build          # build the local CI runner image (once)
+make act-ci             # ci-all: base ▶ middleware ▶ workloads
 ```
 
-This will:
-
-1. Create a 3-node kind cluster (1 CP + 2 workers)
-2. Install Argo CD via Helm
-3. Apply root Application CR
-4. Argo CD syncs all platform services automatically
-
-### 3. Access Argo CD UI
+Or run the stages individually:
 
 ```bash
-# Get admin password
+make act-stage-base         # Incus/Talos cluster + Argo CD + Vault seeds
+make act-stage-middleware   # storage/security/delivery/observability layers
+make act-stage-workload     # seed + sync workloads (seal)
+```
+
+### 3. Access the platform
+
+Services are exposed through the Cilium Gateway (TLS via cert-manager). Map the
+gateway LoadBalancer IP to the `*.atlas` hostnames in `/etc/hosts`, then:
+
+| Service       | URL                        |
+| ------------- | -------------------------- |
+| Argo CD       | `https://argocd.atlas`     |
+| Grafana       | `https://grafana.atlas`    |
+| Vault         | `https://vault.atlas`      |
+| MinIO (S3)    | `https://s3.atlas`         |
+| MinIO console | `https://console.s3.atlas` |
+| seal          | `https://seal.atlas`       |
+
+```bash
+# Argo CD admin password
 kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d
-
-# Access UI
-open http://localhost:30080
-# Username: admin
-# Password: <from above>
 ```
 
-### 4. Validate everything
+### 4. Validate & test
 
 ```bash
-make validate       # Terraform fmt, Trivy, yamllint
+make validate       # Terraform fmt/validate, Trivy, yamllint
 make pre-commit     # Pre-commit hooks on all files
+make test           # Platform smoke/integration tests (see below)
 ```
 
 ### 5. Tear down
 
 ```bash
-make runner-down    # Stop GitLab Runner
-make cluster-down   # Delete kind cluster
+make act-destroy    # destroy the stage infrastructure
 ```
 
 ---
 
-## Makefile Targets
+## Workflow (Makefile Targets)
 
-| Target         | Description                       |
-| -------------- | --------------------------------- |
-| `cluster-up`   | Create kind cluster               |
-| `cluster-down` | Delete kind cluster               |
-| `infra-init`   | Terraform init (ENV=dev, default) |
-| `infra-plan`   | Terraform plan (ENV=dev, default) |
-| `validate`     | Run fmt, Trivy, yamllint checks   |
-| `pre-commit`   | Run pre-commit on all files       |
+| Target                 | Description                                                    |
+| ---------------------- | -------------------------------------------------------------- |
+| `act-build`            | Build the local CI runner image                                |
+| `act-ci`               | Full CI pipeline (base → middleware → workloads) via `act`     |
+| `act-stage-base`       | Provision Incus/Talos cluster + Argo CD + Vault seeds          |
+| `act-stage-middleware` | Sync platform layers (storage/security/delivery/observability) |
+| `act-stage-workload`   | Seed + sync workloads (seal)                                   |
+| `act-destroy`          | Destroy the stage infrastructure                               |
+| `argocd-login`         | Log in to Argo CD via the CLI                                  |
+| `atlasctl-new`         | Scaffold a new workload (golden path)                          |
+| `atlasctl-seed`        | Seed workload secrets into Vault                               |
+| `atlasctl-list`        | List registered workloads                                      |
+| `incus-snap-*`         | Snapshot / restore / list / delete Talos VM snapshots          |
+| `validate`             | Terraform fmt/validate, Trivy, yamllint                        |
+| `pre-commit`           | Run pre-commit hooks on all files                              |
+| `test`                 | Run all platform smoke/integration tests                       |
+
+> The Makefile also retains legacy `kind`/`cluster-*` targets from an earlier
+> phase; the active workflow is Incus/Talos via the `act-*` targets above.
 
 ---
 
 ## CI/CD Pipeline
 
-GitHub Actions workflows (`.github/workflows/`):
+GitHub Actions workflows (`.github/workflows/`) run on a **self-hosted runner**
+(or locally via [`act`](https://github.com/nektos/act)):
 
-| Workflow             | Trigger          | Purpose                                                  |
-| -------------------- | ---------------- | -------------------------------------------------------- |
-| `ci-all.yaml`        | push, PR, manual | Orchestrator: base → middleware → workloads (fail-fast)  |
-| `ci-base.yaml`       | call, manual     | Base stage: tools → checks → terraform → vault seeds     |
-| `ci-middleware.yaml` | call, manual     | Sync platform layers (DB/MinIO/Vault/monitoring)         |
-| `ci-workload.yaml`   | call, manual     | Seed + sync workloads (seal)                             |
-| `ci-destroy.yaml`    | manual           | Destroy stage infrastructure (confirm=destroy)           |
-| `cleanup-local.yaml` | manual           | Aggressive cleanup: delete KinD cluster, remove TF state |
+| Workflow             | Purpose                                                    |
+| -------------------- | ---------------------------------------------------------- |
+| `ci-all.yaml`        | Orchestrator: base → middleware → workloads (fail-fast)    |
+| `ci-base.yaml`       | Tools → checks → Terraform (Incus/Talos + Argo CD) → Vault |
+| `ci-middleware.yaml` | Sync platform layers (DB/MinIO/Vault/monitoring)           |
+| `ci-workload.yaml`   | Seed + sync workloads (seal)                               |
+| `ci-destroy.yaml`    | Destroy stage infrastructure                               |
+| `cleanup-local.yaml` | Manual local cleanup                                       |
 
-### Composite Actions Architecture
+The cluster persists after the pipeline completes (no auto-destroy).
 
-The CI uses **composite actions** for reusability:
+---
 
-| Action                     | Purpose                                                             |
-| -------------------------- | ------------------------------------------------------------------- |
-| `actions/tools/`           | Install CLI tools (terraform, kubectl, kind, trivy, yamllint)       |
-| `actions/checks/`          | Terraform fmt/validate, yamllint, Trivy IaC scan                    |
-| `actions/terraform-incus/` | Incus/Talos cluster + Argo CD bootstrap (init, plan, apply, verify) |
-| `actions/terraform-eks/`   | EKS stub (not implemented yet)                                      |
+## Golden Path — Workload Onboarding
 
-### CI Pipeline Flow (`ci-all.yaml` / `ci-base.yaml`)
+New tenant workloads are onboarded with the `atlasctl` Go CLI, which scaffolds
+the workload from templates, wires up a Gateway listener/route, provisions Vault
+secrets and generates the Argo CD Application:
 
-Runs on **self-hosted runner** (Docker on local machine):
+```bash
+make atlasctl-new  <team>/<name>   # scaffold workload from templates/gold
+make atlasctl-seed <name>          # seed its secrets into Vault
+make atlasctl-list                 # list registered workloads
+```
 
-1. **Checkout** — Fetch repository code
-2. **Tools** — Install/verify required CLI tools
-3. **Checks** — Terraform fmt/validate, yamllint, Trivy config scan
-4. **Terraform Incus** — Deploy infrastructure:
-   - Terraform init (with retry logic)
-   - Terraform plan
-   - Terraform apply (create Incus/Talos cluster + Argo CD)
-   - Verify cluster nodes ready
-   - Verify Argo CD deployment and Applications
+The bundled **seal** workload (`apps/seal`, `workloads/atlasteam/seal`) is the
+reference implementation: PostgreSQL (CloudNativePG) + Redis + MinIO, Argo
+Rollouts canary, KEDA autoscaling, ExternalSecrets from Vault, a DLQ CronJob,
+ServiceMonitors/alerts, OTel traces to Tempo, and a Cosign-signed image enforced
+by Kyverno.
 
-Cluster persists after workflow completes (no auto-destroy).
+---
+
+## Security & Policy
+
+- **Policy-as-code (Kyverno):** disallow `:latest`, disallow privileged/hostPath,
+  require non-root, require standard labels, and **enforce Cosign image
+  signatures** on tenant images.
+- **Secrets:** HashiCorp Vault as the source of truth; External Secrets Operator
+  syncs secrets into namespaces via a `vault` ClusterSecretStore.
+- **Runtime scanning:** Trivy Operator scans workloads for vulnerabilities.
+- **Supply chain:** container images are signed with Cosign and verified at
+  admission.
+- **TLS:** cert-manager issues certificates from an internal CA for all Gateway
+  listeners.
+- **Pre-commit:** trailing whitespace / EOF / YAML checks, merge-conflict &
+  private-key detection, `terraform fmt/validate`, yamllint, kubeconform, Trivy,
+  secret detection.
 
 ---
 
 ## Observability
 
-### Alert Rules
-
-| Rule            | Description                                         | Severity |
-| --------------- | --------------------------------------------------- | -------- |
-| `HighErrorRate` | >5% of HTTP requests return 5xx for 5 minutes       | critical |
-| `HPAMaxedOut`   | HPA current replicas == max replicas for 15 minutes | warning  |
+- **Metrics:** kube-prometheus-stack (Prometheus + Alertmanager) with recording
+  and alerting rules, including platform availability/capacity rules and
+  per-workload alerts (e.g. `seal-alerts`).
+- **Logs:** Loki + Grafana Alloy.
+- **Traces:** Tempo (OpenTelemetry from workloads).
+- **Dashboards:** Grafana (auto-provisioned).
 
 ---
 
-## Security
+## Testing
 
-### Pre-commit Hooks
+`make test` runs the platform smoke/integration suite (`tests/scripts/`):
 
-- Trailing whitespace · End-of-file fixes · YAML validation
-- Merge conflict detection · Private key detection
-- Terraform fmt · Terraform validate · Terraform docs
-- yamllint · Trivy (HIGH/CRITICAL)
-
-### Trivy
-
-Scans all IaC (`infra/`, `gitops/`, `vault/`, `velero/`) and container images for HIGH and CRITICAL severity vulnerabilities.
-
-### Vault
-
-HashiCorp Vault manages secrets with fine-grained ACL policies. The `platform-read` policy grants read/list access to `secret/data/platform/*`. Kubernetes auth is configured for the `backend-api` service account.
+| Test                  | Verifies                                        |
+| --------------------- | ----------------------------------------------- |
+| `test-ca-gateway`     | Gateway API TLS termination end-to-end          |
+| `test-vault`          | Vault seeding + secret injection                |
+| `test-network-policy` | NetworkPolicy isolation                         |
+| `test-velero`         | Velero backup/restore to S3                     |
+| `test-keda`           | KEDA autoscaling                                |
+| `test-redis`          | Redis connectivity/auth                         |
+| `test-db-backup`      | CloudNativePG backup/restore to MinIO           |
+| `test-argocd-rollout` | Argo Rollouts canary progression                |
+| `test-seal`           | seal end-to-end (pods, API, documents, gateway) |
 
 ---
 
 ## Environments
 
-### `dev` (Active)
+### `dev` (active)
 
-- **Cluster**: kind (1 control-plane + 2 workers)
-- **State**: Local filesystem
-- **Cache Images**: zot
-- **GitOps**: Argo CD installed via Terraform Helm provider
-- **CI/CD**: GitHub Actions (self-hosted runner)
+- **Cluster:** Talos Linux on Incus VMs (1 control-plane + 2 workers)
+- **State:** local filesystem
+- **Image cache:** Zot
+- **GitOps:** Argo CD (bootstrapped via Terraform)
+- **CI/CD:** GitHub Actions (self-hosted runner / `act`)
 
-### `aws` (Planned)
+### `aws` (planned)
 
-- **Cluster**: Amazon EKS
-- **Networking**: VPC · subnets · security groups
-- **IAM**: IRSA roles for service accounts
-- **Storage**: S3 buckets · EBS CSI driver
-- **Observability**: AMP (metrics) · AMG (Grafana)
+- **Cluster:** Amazon EKS
+- **Networking / IAM / Storage:** VPC · IRSA · S3 · EBS CSI
+- **Observability:** AMP (metrics) · AMG (Grafana)
 
 ---
 
