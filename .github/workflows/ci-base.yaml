@@ -6,8 +6,6 @@ on:
     secrets:
       ENV_FILE:
         required: true
-      GITHUB_TOKEN:
-        required: false
 
 # Canonical "base" stage: tools + checks + terraform (incus) apply + vault seeds.
 # Reused by ci-all.yaml via `uses:`. To promote it to the primary push/PR
