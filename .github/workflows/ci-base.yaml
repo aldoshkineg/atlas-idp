@@ -39,7 +39,9 @@ jobs:
           # (seed-vault.sh) and composite actions behave like a dev machine.
           printf '%s\n' "$ENV_FILE" > .env
 
-          # Export every var to $GITHUB_ENV so later steps see them as env vars.
+          # Export every var to $GITHUB_ENV so later steps see them as env vars,
+          # and into the current shell so the cert materialisation below can use
+          # them ($GITHUB_ENV only propagates to *subsequent* steps).
           # Skip GITHUB_TOKEN (provided automatically by Actions; avoid shadowing
           # it) and ENV_FILE itself (multiline; not needed as a plain env var).
           # `::add-mask::` registers each value for log redaction (GitHub and act
@@ -56,12 +58,13 @@ jobs:
             esac
             echo "::add-mask::$value"
             printf '%s\n' "$line" >> "$GITHUB_ENV"
+            export "$key=$value"
           done < .env
 
           # Materialise the CA cert + key (base64 in .env) into the expected files.
           mkdir -p security/certs
-          echo "$ATLAS_CA_CRT_B64" | base64 -d > security/certs/ca.crt
-          echo "$ATLAS_CA_KEY_B64" | base64 -d > security/certs/ca.key
+          echo "${ATLAS_CA_CRT_B64:-}" | base64 -d > security/certs/ca.crt
+          echo "${ATLAS_CA_KEY_B64:-}" | base64 -d > security/certs/ca.key
 
       - uses: ./.github/actions/tools
 
