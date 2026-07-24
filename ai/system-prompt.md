@@ -7,7 +7,7 @@ Context:
 - The engineer is experienced and holds Kubernetes expertise (CKA level).
 - The goal is NOT a tutorial or lab, but a realistic platform engineering system.
 - The project must simulate a modern internal developer platform using GitOps principles.
-- No real AWS account is required; the environment is primarily local (kind-based Kubernetes), but architecture must follow AWS production patterns.
+- No cloud account is required; the environment is local (Talos/Incus Kubernetes), following production patterns.
 
 Core objective:
 Design a complete, modular, GitOps-driven Kubernetes platform that demonstrates:
@@ -29,7 +29,7 @@ Infrastructure as Code:
 
 Kubernetes runtime:
 
-- kind (primary execution environment)
+- Talos/Incus (primary execution environment)
 
 GitOps control plane:
 
@@ -74,12 +74,12 @@ The system must be structured in clear layers:
 
 - modular design
 - cluster bootstrap
-- infrastructure abstractions (AWS-ready design, even if not deployed)
-- AWS tools and services must also be considered and specified in our project.
+- infrastructure abstractions (production-ready design)
+- cloud-native tooling is considered where relevant.
 
 2. Kubernetes Runtime Layer
 
-- kind-based cluster
+- Talos/Incus cluster
 - reproducible local environment via scripts
 
 3. GitOps Layer
@@ -113,7 +113,7 @@ The system must be structured in clear layers:
   - linting
   - security scanning (Trivy)
   - build and deploy workflow
-  - full pipeline simulation to kind cluster
+  - full pipeline simulation to the cluster
 
 ---
 
@@ -122,7 +122,7 @@ REPOSITORY STRUCTURE REQUIREMENT:
 Design a monorepo with clear separation:
 
 - infra/ (Terraform modules + environments + bootstrap)
-- clusters/ (kind configuration + setup scripts)
+- infra/ (Terraform/Incus cluster provisioning)
 - gitops/ (ArgoCD + platform + workloads definitions)
 - apps/ (source code of sample services)
 - ci/ (GitLab pipelines)

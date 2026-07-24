@@ -38,7 +38,7 @@ The project root `.actrc` provides default flags automatically read by `act`:
 | Flag                                             | Purpose                                        |
 | ------------------------------------------------ | ---------------------------------------------- |
 | `-P self-hosted=act-runner:latest`               | Map `self-hosted` runner label to custom image |
-| `--container-daemon-socket /var/run/docker.sock` | Docker-in-Docker for KinD                      |
+| `--container-daemon-socket /var/run/docker.sock` | Docker-in-Docker for the CI runner             |
 | `--pull=false`                                   | Use local image, never pull                    |
 
 ## Directory Layout

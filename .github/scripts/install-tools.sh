@@ -43,15 +43,6 @@ kubectl)
   sudo mv kubectl /usr/local/bin/
   ;;
 
-kind)
-
-  curl -Lo kind \
-    https://kind.sigs.k8s.io/dl/v${VERSION}/kind-linux-amd64
-
-  chmod +x kind
-  sudo mv kind /usr/local/bin/
-  ;;
-
 trivy)
 
   curl -sfL \

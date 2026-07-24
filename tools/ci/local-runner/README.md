@@ -24,7 +24,7 @@ CI workflows (`ci-base`, `ci-middleware`, `ci-workload`, `ci-all`) on `push`/
 
 The runner job itself has no `container:`, so it executes directly inside the
 runner container. The `Install Tools` action downloads the required CLIs
-(vault, terraform, kubectl, kind, trivy, yamllint, incus, argocd, atlasctl)
+(vault, terraform, kubectl, trivy, yamllint, incus, argocd, atlasctl)
 on each run, so no pre-installed toolchain is required in the image.
 
 ## Quick Start

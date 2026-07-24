@@ -1,4 +1,4 @@
-Debug the GitHub Actions pipeline failure for **Atlas IDP** (local `kind` cluster + Argo CD).
+Debug the GitHub Actions pipeline failure for **Atlas IDP** (local Talos cluster + Argo CD).
 CRITICAL: Keep log outputs strictly minimal to save context tokens. Never dump full workflow runs. Provide ONLY non-interactive, scriptable commands.
 
 ### Tracing & Diagnostic Commands:
@@ -11,7 +11,7 @@ CRITICAL: Keep log outputs strictly minimal to save context tokens. Never dump f
 
 ### K8s / ArgoCD Deep Tracing:
 
-- **Sync Status:** `kind export kubeconfig --name atlas-idp && kubectl wait --for=condition=Healthy application/bootstrap -n argocd --timeout=5m`
+- **Sync Status:** `kubectl --kubeconfig /var/tmp/atlas/talos/kubeconfig wait --for=condition=Healthy application/bootstrap -n argocd --timeout=5m`
 - **Crash Events (if Sync times out):** `kubectl get events -A --field-selector type=Warning --sort-by=.metadata.creationTimestamp | tail -n 10`
 
 ### Remediation & Lifecycle:

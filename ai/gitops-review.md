@@ -18,24 +18,24 @@
 
 **Problem:** plaintext credentials in Git:
 
-- `gitops/platform-kind/layers/observability/values/prom-stack.yaml:40` — Grafana admin password
-- `gitops/platform-kind/layers/storage/velero.yaml:50-54` — Velero MinIO credentials
-- `gitops/platform-kind/layers/data/resources/postgres-cluster/backup-secret.yaml:10-11` — CNPG backup creds
+- `gitops/platform/layers/observability/values/prom-stack.yaml:40` — Grafana admin password
+- `gitops/platform/layers/storage/velero.yaml:50-54` — Velero MinIO credentials
+- `gitops/platform/layers/data/resources/postgres-cluster/backup-secret.yaml:10-11` — CNPG backup creds
 - `tests/scripts/db-backup-test.sh:21` — test hardcodes minioadmin
 - `tests/db-backup/backup-secret.yaml:8-9` — test secret
 
 **Plan:**
 
-| #   | File                                                                             | Action                                                                                                                          |
-| --- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 2.1 | `gitops/platform-kind/layers/data/resources/postgres-cluster/backup-secret.yaml` | Remove, create ExternalSecret `production-db-backup` in `platform-secrets` (reference to `secret/platform/minio`)               |
-| 2.2 | `gitops/platform-kind/layers/observability/values/prom-stack.yaml`               | Remove `adminPassword`, replace with `admin.existingSecret` + ExternalSecret for Grafana                                        |
-| 2.3 | `gitops/platform-kind/layers/storage/velero.yaml`                                | Remove `credentials.secretContents`, replace with `credentials.existingSecret: velero-aws` + ExternalSecret                     |
-| 2.4 | `gitops/platform-kind/layers/security/resources/platform-secrets/`               | Add ExternalSecret: `production-db-backup`, `grafana-admin`, `velero-aws`                                                       |
-| 2.5 | `.env.example`                                                                   | Add `VL_GRAFANA_PASSWORD` (if a separate one is needed)                                                                         |
-| 2.6 | `Makefile`                                                                       | Local-dev target renamed `vault-seed-from-env` → `vault-seed` → `seed-vault` (seeds via `seed-vault.sh` → `seed-platform.sh`)   |
-| 2.7 | `tests/scripts/db-backup-test.sh`                                                | Instead of hardcoding — read `minio-auth` from cluster: `kubectl -n minio get secret minio-auth -o jsonpath='{.data.rootUser}'` |
-| 2.8 | `tests/db-backup/backup-secret.yaml`                                             | Remove; test creates secret dynamically                                                                                         |
+| #   | File                                                                        | Action                                                                                                                          |
+| --- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 2.1 | `gitops/platform/layers/data/resources/postgres-cluster/backup-secret.yaml` | Remove, create ExternalSecret `production-db-backup` in `platform-secrets` (reference to `secret/platform/minio`)               |
+| 2.2 | `gitops/platform/layers/observability/values/prom-stack.yaml`               | Remove `adminPassword`, replace with `admin.existingSecret` + ExternalSecret for Grafana                                        |
+| 2.3 | `gitops/platform/layers/storage/velero.yaml`                                | Remove `credentials.secretContents`, replace with `credentials.existingSecret: velero-aws` + ExternalSecret                     |
+| 2.4 | `gitops/platform/layers/security/resources/platform-secrets/`               | Add ExternalSecret: `production-db-backup`, `grafana-admin`, `velero-aws`                                                       |
+| 2.5 | `.env.example`                                                              | Add `VL_GRAFANA_PASSWORD` (if a separate one is needed)                                                                         |
+| 2.6 | `Makefile`                                                                  | Local-dev target renamed `vault-seed-from-env` → `vault-seed` → `seed-vault` (seeds via `seed-vault.sh` → `seed-platform.sh`)   |
+| 2.7 | `tests/scripts/db-backup-test.sh`                                           | Instead of hardcoding — read `minio-auth` from cluster: `kubectl -n minio get secret minio-auth -o jsonpath='{.data.rootUser}'` |
+| 2.8 | `tests/db-backup/backup-secret.yaml`                                        | Remove; test creates secret dynamically                                                                                         |
 
 ---
 
@@ -72,7 +72,7 @@
 | 5.7  | `gitops/.../base/keda.yaml`                       | + `RespectIgnoreDifferences=true`, + finalizer, + retry         |
 | 5.8  | `gitops/.../networking/gateway-api-crds.yaml`     | annotation `argocd.argoproj.io/sync-options: PruneLast=true`    |
 | 5.9  | `gitops/.../storage/snapshot-crds.yaml`           | Same                                                            |
-| 5.10 | `gitops/bootstrap/platform-kind.yaml`             | Consider `orphanedResources: warn: true`                        |
+| 5.10 | `gitops/bootstrap/platform.yaml`                  | Consider `orphanedResources: warn: true`                        |
 | 5.11 | `gitops/bootstrap/root-app.yaml:22`               | Second source `workloads/layers` — add `exclude: "disabled/**"` |
 
 ---
@@ -100,12 +100,12 @@
 
 **Plan:**
 
-| #   | File                                                 | Line                                                                          | Action |
-| --- | ---------------------------------------------------- | ----------------------------------------------------------------------------- | ------ |
-| 7.1 | `gitops/.../vault/vault-cr.yaml:27`                  | `bankVaultsImage: ...:latest` → `:v1.33.1` (chart default)                    |
-| 7.2 | `gitops/.../vault-secrets-webhook.yaml:23`           | `debug: true` → `false`                                                       |
-| 7.3 | `gitops/.../observability/values/prom-stack.yaml:40` | `adminPassword` → `admin.existingSecret` (see 2.2)                            |
-| 7.4 | `gitops/.../base/metrics-server.yaml`                | `--kubelet-insecure-tls` — keep for kind (see `values/metrics-server.yaml:3`) |
+| #   | File                                                 | Line                                                                               | Action |
+| --- | ---------------------------------------------------- | ---------------------------------------------------------------------------------- | ------ |
+| 7.1 | `gitops/.../vault/vault-cr.yaml:27`                  | `bankVaultsImage: ...:latest` → `:v1.33.1` (chart default)                         |
+| 7.2 | `gitops/.../vault-secrets-webhook.yaml:23`           | `debug: true` → `false`                                                            |
+| 7.3 | `gitops/.../observability/values/prom-stack.yaml:40` | `adminPassword` → `admin.existingSecret` (see 2.2)                                 |
+| 7.4 | `gitops/.../base/metrics-server.yaml`                | `--kubelet-insecure-tls` — keep for local dev (see `values/metrics-server.yaml:3`) |
 
 ---
 

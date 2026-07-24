@@ -151,7 +151,7 @@ User ──GET /documents/{id}/verify           ──▶ Seal UI ──▶ Seal
 ```
 gitops/
 ├── bootstrap/            # Root app (app-of-apps)
-├── platform-kind/        # Platform services
+├── platform/             # Platform services
 │   └── layers/
 │       ├── bootstrap/    # AppProject (sync-wave -1)
 │       ├── base/         # metrics-server, KEDA (wave 1)
@@ -383,7 +383,7 @@ Velero ──(MinIO storage)──▶ Backups
   └── Volume snapshots: PostgreSQL PVC, MinIO PVC
 
 DR Runbook:
-  1. kind delete cluster
+   1. make stage-destroy   # tear down the stage cluster
   2. terraform apply (fresh cluster + ArgoCD)
   3. Velero restore --from-backup latest
   4. Validate application state
@@ -555,22 +555,21 @@ task run-api     # go run ./apps/seal-api/cmd
 task run-worker  # go run ./apps/seal-worker/cmd
 ```
 
-### Kind Cluster (full platform)
+### Stage Cluster (full platform)
 
 ```bash
-make cluster-up    # kind cluster (root Makefile, platform)
-make infra-apply   # Terraform + ArgoCD
-task build-all     # build workload images (Taskfile)
-task kind-load-all # load images into kind
+make act-stage-base       # Incus/Talos cluster + Argo CD + Vault seeds
+make act-stage-workload   # seed + sync workloads (seal)
+# Workload images are pushed to GHCR; the Zot cache proxies pulls into the cluster
 ```
 
 ---
 
 ## Build System
 
-**Root Makefile** — platform tasks (cluster-up, infra-apply, pre-commit)
+**Root Makefile** — platform tasks (infra-apply, pre-commit, act-stage-\*)
 
-**Taskfile.yml** — workloads tasks (build, test, dc-up, run-api, kind-load)
+**Taskfile.yml** — workloads tasks (build, test, dc-up, run-api)
 
 ```yaml
 tasks:
@@ -670,6 +669,6 @@ apps/
 ├── tests/
 │   ├── integration/    # testcontainers-go
 │   └── load/           # k6 scripts
-├── Taskfile.yml        # Workloads: build, test, dc-up, run-api, kind-load
+├── Taskfile.yml        # Workloads: build, test, dc-up, run-api
 └── TODO.md
 ```

@@ -20,7 +20,7 @@ go-task -t tools/atlasctl/Taskfile.yml build
 ### Dependencies
 
 - Go 1.26+
-- Running `atlas-idp` kind cluster (for `seed`, `enable`, `status`)
+- Running the `atlas-idp` cluster (for `seed`, `enable`, `status`)
 - Access to Vault (via k8s or direct API)
 - Access to CNPG database (via k8s pod exec for `seed`)
 

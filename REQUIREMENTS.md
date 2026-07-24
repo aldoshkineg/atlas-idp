@@ -14,7 +14,6 @@ from `versions.tf`, `*.tf` variables, `.terraform.lock.hcl`, and Argo CD
 | pre-commit     | 4.5.1              |
 | terraform      | 1.15.3             |
 | kubectl        | 1.34.0             |
-| kind           | 0.29.0             |
 | helm           | 3.19               |
 | argocd         | 3.4.2              |
 | age            | 1.3.1              |
@@ -38,29 +37,26 @@ from `versions.tf`, `*.tf` variables, `.terraform.lock.hcl`, and Argo CD
 
 Exact resolved versions from `.terraform.lock.hcl`; constraint in `versions.tf`.
 
-| Provider             | Resolved | Constraint | Env        |
-| -------------------- | -------- | ---------- | ---------- |
-| hashicorp/helm       | 2.17.0   | ~> 2.14    | dev, stage |
-| hashicorp/kubernetes | 2.38.0   | ~> 2.33    | dev, stage |
-| hashicorp/local      | 2.9.0    | ~> 2.5     | dev, stage |
-| hashicorp/null       | 3.3.0    | ~> 3.2     | dev, stage |
-| hashicorp/random     | 3.9.0    | ~> 3.6     | dev, stage |
-| kreuzwerker/docker   | 3.9.0    | ~> 3.0     | dev        |
-| tehcyx/kind          | 0.7.0    | 0.7.0      | dev        |
-| lxc/incus            | 1.1.1    | ~> 1.1     | stage      |
-| siderolabs/talos     | 0.11.0   | ~> 0.7     | stage      |
-| devops-rob/terracurl | 1.2.2    | ~> 1.0     | stage      |
+| Provider             | Resolved | Constraint | Env   |
+| -------------------- | -------- | ---------- | ----- |
+| hashicorp/helm       | 2.17.0   | ~> 2.14    | stage |
+| hashicorp/kubernetes | 2.38.0   | ~> 2.33    | stage |
+| hashicorp/local      | 2.9.0    | ~> 2.5     | stage |
+| hashicorp/null       | 3.3.0    | ~> 3.2     | stage |
+| hashicorp/random     | 3.9.0    | ~> 3.6     | stage |
+| lxc/incus            | 1.1.1    | ~> 1.1     | stage |
+| siderolabs/talos     | 0.11.0   | ~> 0.7     | stage |
+| devops-rob/terracurl | 1.2.2    | ~> 1.0     | stage |
 
 ## Cluster Runtime (IaC-managed)
 
-| Component             | Version | Source                                                            |
-| --------------------- | ------- | ----------------------------------------------------------------- |
-| Talos OS              | v1.11.2 | `infra/environments/stage/variables.tf` (default `talos_version`) |
-| Kubernetes            | v1.34.1 | `infra/environments/stage/variables.tf` (default `k8s_version`)   |
-| Kubernetes (dev/kind) | v1.35.0 | `infra/environments/dev/main.tf`                                  |
-| Cilium (Helm chart)   | 1.19.4  | `infra/environments/{dev,stage}`: `cilium_chart_version`          |
-| Argo CD (Helm chart)  | 7.7.5   | `infra/environments/{dev,stage}`: `argocd_chart_version`          |
-| Zot registry cache    | v2.1.16 | `infra/environments/stage/variables.tf`: `zot_image_ref`          |
+| Component            | Version | Source                                                            |
+| -------------------- | ------- | ----------------------------------------------------------------- |
+| Talos OS             | v1.11.2 | `infra/environments/stage/variables.tf` (default `talos_version`) |
+| Kubernetes           | v1.34.1 | `infra/environments/stage/variables.tf` (default `k8s_version`)   |
+| Cilium (Helm chart)  | 1.19.4  | `infra/environments/stage`: `cilium_chart_version`                |
+| Argo CD (Helm chart) | 7.7.5   | `infra/environments/stage`: `argocd_chart_version`                |
+| Zot registry cache   | v2.1.16 | `infra/environments/stage/variables.tf`: `zot_image_ref`          |
 
 > Talos is pinned via the `talos_version` variable; the Incus/Talos image is
 > `ncloud-amd64.qcow2` for `talos_version` (with `-drbd` alias).
@@ -112,8 +108,8 @@ under `gitops/platform/`.
 
 ## Notes
 
-- The `dev` environment provisions a kind cluster; `stage` provisions a Talos/Incus
-  cluster. Provider sets differ between the two (see table above).
+- The `stage` environment provisions a Talos/Incus cluster (the former kind-based
+  `dev` environment has been removed). Provider sets are listed in the table above.
 - Terraform `required_version` is `>= 1.9.0` across all environments.
 - All GitOps `Application` manifests point at `targetRevision: main` of this repo
   for local manifests, and at pinned tags for upstream Helm charts / CRDs.

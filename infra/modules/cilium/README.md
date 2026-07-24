@@ -1,6 +1,6 @@
 # Cilium Module
 
-Terraform module for Cilium CNI installation via Helm. Replaces kindnet + kube-proxy with eBPF.
+Terraform module for Cilium CNI installation via Helm. Replaces kube-proxy with eBPF.
 
 ## Usage
 
@@ -9,9 +9,9 @@ module "cilium" {
   source = "../../modules/cilium"
 
   cilium_chart_version = "1.19.4"
-  cluster_name         = module.kind_cluster.cluster_name
+  cluster_name         = module.talos_cluster.cluster_name
 
-  depends_on = [module.kind_cluster]
+  depends_on = [module.talos_cluster]
 }
 ```
 
