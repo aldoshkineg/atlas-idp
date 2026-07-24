@@ -183,7 +183,7 @@ Managed by a separate Application `external-secrets-store` (sync-wave 3, after E
 Token is created via Terraform as a K8s Secret:
 
 ```hcl
-# infra/environments/dev/main.tf
+# infra/environments/stage/main.tf
 resource "kubernetes_secret" "vault_token" {
   metadata {
     name      = "vault-token"

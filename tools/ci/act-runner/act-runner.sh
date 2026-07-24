@@ -38,7 +38,6 @@ build() {
     [vault]=VAULT_VERSION
     [terraform]=TERRAFORM_VERSION
     [kubectl]=KUBECTL_VERSION
-    [kind]=KIND_VERSION
     [trivy]=TRIVY_VERSION
     [yamllint]=YAMLLINT_VERSION
     [incus]=INCUS_VERSION

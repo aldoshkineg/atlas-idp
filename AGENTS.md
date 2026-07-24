@@ -12,13 +12,13 @@ Atlas IDP is a production-grade Internal Developer Platform (IDP) monorepo demon
 - Security scanning (Trivy, yamllint, pre-commit hooks)
 - Disaster recovery foundation with Velero
 
-The platform runs locally on kind Kubernetes clusters while following AWS production patterns.
+The platform runs locally on a Talos Linux Kubernetes cluster provisioned on Incus VMs, following production patterns.
 
 ## Architecture Overview
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  GitHub Repo    │────▶│  GitHub Actions │────▶│ kind Kubernetes │
+│  GitHub Repo    │────▶│  GitHub Actions │────▶│ Talos Kubernetes │
 │  (IaC + GitOps) │     │  (CI/CD)        │     │  Cluster        │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
                                                         │
@@ -31,7 +31,7 @@ The platform runs locally on kind Kubernetes clusters while following AWS produc
 
 **Key Components:**
 
-- **Infrastructure Layer** (`infra/`): Terraform modules for kind cluster, Argo CD bootstrap
+- **Infrastructure Layer** (`infra/`): Terraform modules for Talos/Incus cluster, Argo CD bootstrap
 - **GitOps Layer** (`gitops/`): App-of-Apps pattern with root application managing platform services
 - **Platform Services**: gateway-api, cert-manager, metrics-server, monitoring (kube-prometheus-stack)
 - **Observability**: Custom Prometheus alert rules, Grafana dashboards (planned)
@@ -39,22 +39,22 @@ The platform runs locally on kind Kubernetes clusters while following AWS produc
 
 ## Directory Structure
 
-| Directory                 | Purpose                                                                                                        |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `infra/`                  | Terraform IaC - environments (dev/aws) and reusable modules (kind, argocd-bootstrap, networking, iam, storage) |
-| `gitops/`                 | Argo CD manifests - bootstrap (root app), platform (platform services), workloads (planned)                    |
-| `gitops/platform/layers/` | Platform layer configurations with values overrides                                                            |
-| `clusters/`               | kind cluster configs, scripts for create/destroy/bootstrap                                                     |
-| `observability/`          | Prometheus alert rules, Grafana dashboards (planned)                                                           |
-| `vault/`                  | Vault policies, Kubernetes auth roles, bootstrap scripts                                                       |
-| `security/`               | Trivy config, RBAC policies (planned)                                                                          |
-| `.github/`                | GitHub Actions workflows and composite actions                                                                 |
-| `apps/`                   | Seal project                                                                                                   |
-| `tools/atlasctl/`         | Go CLI for workload lifecycle management (scaffold, seed, enable, disable, status, list)                       |
+| Directory                 | Purpose                                                                                                                             |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `infra/`                  | Terraform IaC - environments (stage) and reusable modules (argocd-bootstrap, incus, talos-config, talos-cluster, cilium, zot-cache) |
+| `gitops/`                 | Argo CD manifests - bootstrap (root app), platform (platform services), workloads (planned)                                         |
+| `gitops/platform/layers/` | Platform layer configurations with values overrides                                                                                 |
+| `clusters/`               | (removed — cluster lifecycle now handled by Terraform/Incus)                                                                        |
+| `observability/`          | Prometheus alert rules, Grafana dashboards (planned)                                                                                |
+| `vault/`                  | Vault policies, Kubernetes auth roles, bootstrap scripts                                                                            |
+| `security/`               | Trivy config, RBAC policies (planned)                                                                                               |
+| `.github/`                | GitHub Actions workflows and composite actions                                                                                      |
+| `apps/`                   | Seal project                                                                                                                        |
+| `tools/atlasctl/`         | Go CLI for workload lifecycle management (scaffold, seed, enable, disable, status, list)                                            |
 
 **Key Files:**
 
-- `infra/environments/dev/main.tf` - Main Terraform entry point for dev environment
+- `infra/environments/stage/main.tf` - Main Terraform entry point for the stage environment
 - `gitops/bootstrap/root-app.yaml` - Root Application for app-of-apps pattern
 - `Makefile` - Developer workflow commands
 - `.pre-commit-config.yaml` - Pre-commit hook configuration
@@ -63,13 +63,13 @@ The platform runs locally on kind Kubernetes clusters while following AWS produc
 
 ### Prerequisites
 
-- kind v0.26+, kubectl v1.31+, Terraform v1.9+
+- talosctl v1.34+, kubectl v1.31+, Terraform v1.9+
 - Docker, pre-commit, yamllint, Trivy
 
 ### Build & Deploy
 
 ```bash
-# Create kind cluster
+# Create cluster (Incus/Talos via Terraform + act)
 make cluster-up
 
 # Deploy infrastructure (creates cluster + Argo CD)
@@ -96,7 +96,7 @@ kubectl port-forward -n argocd svc/argocd-server 30080:80
 ### Cleanup
 
 ```bash
-make cluster-nuke  # Force delete cluster and wipe tfstate
+make act-destroy   # Destroy the stage (Incus/Talos) infrastructure
 ```
 
 ### Testing
@@ -173,7 +173,7 @@ Pre-commit runs on every commit:
 | `incus`         | `infra/modules/incus/`         | Incus bridge + VM provisioning + seed ISOs                                           |
 | `talos-config`  | `infra/modules/talos-config/`  | Secrets, patches, machine config generation (NEW)                                    |
 | `talos-cluster` | `infra/modules/talos-cluster/` | Config apply, bootstrap, kubeconfig retrieval                                        |
-| `cilium`        | `infra/modules/cilium/`        | Cilium CNI via Helm (Talos + Kind)                                                   |
+| `cilium`        | `infra/modules/cilium/`        | Cilium CNI via Helm (Talos)                                                          |
 | (root)          | `infra/environments/stage/`    | Orchestration: backend, provider config, coordination                                |
 
 **`stage/main.tf` reduced from 311→170 lines** — all Talos config generation (secrets, patches, data sources, debug files) extracted into `infra/modules/talos-config/`. Circular dependency broken: `talos-config` outputs config YAMLs consumed by both `incus` (seed ISOs) and `talos-cluster` (apply).

@@ -47,7 +47,7 @@ capability end-to-end.
                                │
 ┌──────────────────────────────┴───────────────────────────────────┐
 │               Infrastructure — Terraform / OpenTofu               │
-│   Incus/Talos VMs (dev, active)          AWS/EKS (planned stub)    │
+│   Incus/Talos VMs (stage, active)                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -97,7 +97,7 @@ atlas-idp/
 ├── workloads/                  # Per-tenant workload definitions (atlasctl registry)
 │   └── atlasteam/seal/         #   app.yaml, infra, vault policy, monitoring
 ├── infra/                      # Infrastructure as Code (Terraform/OpenTofu)
-│   ├── environments/           #   dev (Incus/Talos, active) · aws (planned)
+│   ├── environments/           #   stage (Incus/Talos, active)                             │
 │   └── modules/                #   Reusable modules
 ├── clusters/                   # Cluster lifecycle manifests/scripts
 ├── security/                   # CA certs, RBAC, Trivy, Cosign keys
@@ -208,8 +208,7 @@ make act-destroy    # destroy the stage infrastructure
 | `pre-commit`           | Run pre-commit hooks on all files                              |
 | `test`                 | Run all platform smoke/integration tests                       |
 
-> The Makefile also retains legacy `kind`/`cluster-*` targets from an earlier
-> phase; the active workflow is Incus/Talos via the `act-*` targets above.
+> The active workflow is Incus/Talos via the `act-*` targets above.
 
 ---
 
@@ -300,19 +299,13 @@ by Kyverno.
 
 ## Environments
 
-### `dev` (active)
+### `stage` (active)
 
 - **Cluster:** Talos Linux on Incus VMs (1 control-plane + 2 workers)
 - **State:** local filesystem
 - **Image cache:** Zot
 - **GitOps:** Argo CD (bootstrapped via Terraform)
 - **CI/CD:** GitHub Actions (self-hosted runner / `act`)
-
-### `aws` (planned)
-
-- **Cluster:** Amazon EKS
-- **Networking / IAM / Storage:** VPC · IRSA · S3 · EBS CSI
-- **Observability:** AMP (metrics) · AMG (Grafana)
 
 ---
 

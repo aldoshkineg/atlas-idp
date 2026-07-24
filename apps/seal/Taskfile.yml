@@ -210,15 +210,6 @@ tasks:
     cmds:
       - act workflow_dispatch -W .github/workflows/seal-docker-publish.yml --secret-file .env --matrix "service:{{.SERVICE}}"
 
-  kind-load:
-    desc: Load dev images into kind cluster
-    deps:
-      - build-all
-    cmds:
-      - kind load docker-image ghcr.io/atlas-idp/seal-api:dev
-      - kind load docker-image ghcr.io/atlas-idp/seal-worker:dev
-      - kind load docker-image ghcr.io/atlas-idp/seal-ui:dev
-
   push-images:
     desc: Tag dev images, push to GHCR, and sign with cosign (tag from current git commit)
     vars:

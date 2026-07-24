@@ -14,9 +14,9 @@ This module handles the initial deployment of Argo CD into a Kubernetes cluster.
 
 - Creates `argocd` namespace with proper labels
 - Deploys Argo CD Helm chart from official argo-helm repository
-- Configures NodePort service for local kind access (port 30080)
+- Configures NodePort service for local cluster access (port 30080)
 - Insecure mode for local development (HTTP, no TLS)
-- Resource limits tuned for kind cluster
+- Resource limits tuned for the local cluster
 - Optional custom values override
 - Optional repository credential configuration
 

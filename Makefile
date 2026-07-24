@@ -1,5 +1,4 @@
-.PHONY: help cluster-up cluster-down cluster-ci-up cluster-ci-down \
-	infra-init infra-plan infra-apply cluster-nuke gitops-bootstrap validate pre-commit \
+.PHONY: help infra-init infra-plan infra-apply validate pre-commit \
 	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
 	argocd-login seed-vault seed-gh \
 	atlasctl seed-atlas atlasctl-list \
@@ -8,10 +7,7 @@
 	incus-snap-create incus-snap-restore incus-snap-list incus-snap-delete \
 	incus-vm-stop incus-vm-start
 
-CLUSTER_NAME     ?= atlas-idp
-KIND_CONFIG      ?= clusters/kind/cluster.yaml
-CI_CLUSTER       ?= atlas-idp-ci
-ENV              ?= dev
+ENV              ?= stage
 
 # Auto-load .env if present (local B2 credentials etc.)
 -include .env
@@ -27,15 +23,9 @@ ACT_RUNNER_DIR   ?= tools/ci/act-runner
 
 help:
 	@echo "Available Targets:"
-	@echo "  cluster-up        Create main kind cluster"
-	@echo "  cluster-down      Delete main kind cluster"
-	@echo "  cluster-nuke      Remove Zot container, delete kind cluster, wipe Terraform state"
-	@echo "  cluster-ci-up     Provision local CI-specific kind cluster"
-	@echo "  cluster-ci-down   Tear down local CI-specific kind cluster"
 	@echo "  infra-init        Terraform init (ENV=$(ENV))"
 	@echo "  infra-plan        Terraform plan (ENV=$(ENV))"
-	@echo "  infra-apply       Initialize and Apply Terraform in infra/environments/dev"
-	@echo "  gitops-bootstrap  Install Argo CD (day-0) and apply root app"
+	@echo "  infra-apply       Initialize and Apply Terraform in infra/environments/$(ENV)"
 	@echo "  validate          Run fmt/validate checks (Terraform, Trivy, Yamllint)"
 	@echo "  pre-commit        Run pre-commit hooks on all project files"
 	@echo ""
@@ -95,27 +85,6 @@ help:
 	@echo ""
 
 # --- Infrastructure Management ---
-cluster-up:
-	./clusters/scripts/create-cluster.sh
-
-cluster-down:
-	./clusters/scripts/destroy-cluster.sh
-
-cluster-nuke:
-	@echo "--> Removing Zot cache container..."
-	-docker rm -f kind-zot-registry
-	@echo "--> Force deleting Kind cluster '$(CLUSTER_NAME)'..."
-	kind delete cluster --name $(CLUSTER_NAME)
-	@echo "--> Wiping local Terraform state..."
-	sudo rm -rf $(TF_STATE_DIR)
-	@echo "--> State wiped"
-
-cluster-ci-up:
-	CLUSTER_NAME=$(CI_CLUSTER) ./clusters/scripts/ci-kind-provision.sh
-
-cluster-ci-down:
-	CLUSTER_NAME=$(CI_CLUSTER) ./clusters/scripts/ci-kind-down.sh
-
 infra-init:
 	mkdir -p $(TF_PLUGIN_CACHE_DIR) $(TF_STATE_DIR)
 	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init
@@ -124,14 +93,11 @@ infra-plan:
 	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform plan
 
 infra-apply:
-	@echo "--> Running initialization in dev environment..."
+	@echo "--> Running initialization in $(ENV) environment..."
 	mkdir -p $(TF_PLUGIN_CACHE_DIR) $(TF_STATE_DIR)
-	cd infra/environments/dev && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init
+	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init
 	@echo "--> Applying infrastructure changes..."
-	cd infra/environments/dev && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform apply -auto-approve
-
-gitops-bootstrap:
-	./clusters/scripts/bootstrap-gitops.sh
+	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform apply -auto-approve
 
 # --- ArgoCD ---
 argocd-login:
@@ -236,7 +202,7 @@ validate-terraform:
 	terraform fmt -check -recursive infra/
 	@echo "==> Running Terraform validate..."
 	mkdir -p $(TF_PLUGIN_CACHE_DIR)
-	cd infra/environments/dev && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init -backend=false && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform validate
+	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init -backend=false && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform validate
 
 validate-yaml:
 	@echo "==> Running YAML lint..."
@@ -281,9 +247,9 @@ zot-image:
 ci-cache-up: infra-apply
 
 ci-cache-purge:
-	@echo "--> Stopping and removing Zot container..."
-	-docker rm -f kind-zot-registry 2>/dev/null || true
-	@echo "--> Zot container removed. Cache data preserved at /var/tmp/atlas/zot_cache"
+	@echo "--> Stopping and removing Zot (Incus) instance..."
+	-incus delete zot-cache --force 2>/dev/null || true
+	@echo "--> Zot instance removed. Cache data preserved at /var/tmp/atlas/zot_cache"
 
 ci-runner-up:
 	@chmod +x $(LOCAL_RUNNER_DIR)/setup-runner.sh
