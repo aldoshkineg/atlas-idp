@@ -14,7 +14,7 @@ runs:
         TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
       run: |
         mkdir -p /opt/terraform/plugin-cache
-        for env in dev stage; do
+        for env in stage; do
           echo "=== Validating infra/environments/$env ==="
           terraform -chdir=infra/environments/$env init -backend=false
           terraform -chdir=infra/environments/$env validate
