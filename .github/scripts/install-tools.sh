@@ -70,6 +70,14 @@ incus)
   sudo mv incus /usr/local/bin/
   ;;
 
+xorriso)
+
+  # System package (no pinned version) — required by the incus module to build
+  # the cloud-init seed ISO (`xorriso -as mkisofs ... -V cidata`).
+  sudo apt-get update
+  sudo apt-get install -y --no-install-recommends xorriso
+  ;;
+
   argocd)
 
     curl -fsSL -o argocd \
