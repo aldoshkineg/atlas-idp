@@ -23,6 +23,7 @@ runs:
         .github/scripts/install-tools.sh trivy $TRIVY_VERSION
         .github/scripts/install-tools.sh yamllint $YAMLLINT_VERSION
         .github/scripts/install-tools.sh incus $INCUS_VERSION
+        .github/scripts/install-tools.sh xorriso
         .github/scripts/install-tools.sh atlasctl $ATLASCTL_VERSION
 
     - name: Verify tools
@@ -34,4 +35,5 @@ runs:
         trivy version
         yamllint --version
         incus version
+        xorriso -version
         atlasctl --version
