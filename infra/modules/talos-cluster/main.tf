@@ -1,6 +1,6 @@
 # Apply, bootstrap, and retrieve kubeconfig for a Talos cluster.
 # Config generation (talos_machine_configuration datasources) must happen
-# in the caller because the incus/kind module needs those configs for VMs,
+# in the caller because the incus module needs those configs for VMs,
 # creating a circular dependency if they were inside this module.
 
 resource "talos_machine_configuration_apply" "controlplane" {
