@@ -40,9 +40,11 @@ else
     [ -z "$tool" ] && continue
     [ "$tool" = "Tool" ] && continue
     [ "${tool//-/}" = "" ] && continue
+    soft=0
     case "$tool" in
       "docker compose") bin="docker"; cmd="docker compose version" ;;
       "docker buildx")  bin="docker"; cmd="docker buildx version" ;;
+      "atlasctl")       bin="atlasctl"; cmd=""; soft=1 ;;
       *) bin="$tool"; cmd="" ;;
     esac
     if [ -n "$cmd" ]; then
@@ -53,6 +55,8 @@ else
       fi
     elif command -v "$bin" >/dev/null 2>&1; then
       ok "binary: $tool ($(bin_version "$bin") | required $ver)"
+    elif [ "$soft" -eq 1 ]; then
+      warn "binary missing: $tool (required $ver) -- workloads layer cannot be installed without it; base and middleware layers are unaffected"
     else
       fail "binary missing: $tool (required $ver)"
     fi
