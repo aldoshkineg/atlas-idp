@@ -32,6 +32,7 @@ from `versions.tf`, `*.tf` variables, `.terraform.lock.hcl`, and Argo CD
 | shellcheck     | 0.10.0.1           |
 | gitleaks       | 8.24.3             |
 | golangci-lint  | 2.12.2             |
+| atlasctl       | 0.60.0             |
 
 ## Terraform Providers
 

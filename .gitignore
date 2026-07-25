@@ -32,6 +32,7 @@ kind-export/
 # Build artifacts
 dist/
 target/
+**/.task/
 __pycache__/
 *.pyc
 node_modules/
