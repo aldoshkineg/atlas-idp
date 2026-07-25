@@ -4,9 +4,8 @@ set -euo pipefail
 # Manage the Zot OCI pull-through cache image/instance in Incus.
 #
 # Usage:
-#   zot-image.sh {ensure|purge}
-#     ensure  Ensure the 'zot-cache' image alias exists (copy from ghcr if missing)
-#     purge   Delete the zot-cache Incus instance (cache data preserved)
+#   zot-image.sh ensure
+#     Ensure the 'zot-cache' image alias exists (copy from ghcr if missing)
 #
 # Environment:
 #   ZOT_REMOTE      Incus remote name   (default: ghcr-oci)
@@ -35,14 +34,7 @@ ensure() {
   fi
 }
 
-purge() {
-  echo "--> Stopping and removing Zot (Incus) instance..."
-  incus delete zot-cache --force 2>/dev/null || true
-  echo "--> Zot instance removed. Cache data preserved at ${ZOT_CACHE_DIR}"
-}
-
 case "${1:-ensure}" in
   ensure) ensure ;;
-  purge)  purge ;;
-  *) echo "Unknown command: ${1:-} (use ensure|purge)" >&2; exit 1 ;;
+  *) echo "Unknown command: ${1:-} (use ensure)" >&2; exit 1 ;;
 esac

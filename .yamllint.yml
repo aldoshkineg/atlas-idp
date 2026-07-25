@@ -5,6 +5,7 @@ ignore: |
   apps/seal/charts/seal/templates/
   apps/seal/Taskfile.yml
   gitops/platform/security/kyverno-crds/
+  gitops/workloads/atlasteam/seal/resources/monitoring/overiview-dashboard.yaml
   *.md
 
 rules:

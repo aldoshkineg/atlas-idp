@@ -567,7 +567,7 @@ make act-stage-workload   # seed + sync workloads (seal)
 
 ## Build System
 
-**Root Makefile** — platform tasks (pre-commit, act-stage-\*, ci-cache-up)
+**Root Makefile** — platform tasks (pre-commit, act-stage-\*, ci-runner-\*)
 
 **Taskfile.yml** — workloads tasks (build, test, dc-up, run-api)
 

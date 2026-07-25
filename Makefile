@@ -41,7 +41,7 @@ ARGS ?=
 
 # --- Phony targets ---------------------------------------------------------
 .PHONY: help \
-	zot-image ci-cache-up ci-cache-purge stage-sync \
+	zot-image stage-sync \
 	ci-runner-up ci-runner-down ci-runner-logs \
 	ci-runner-apply ci-runner-ci ci-runner-base ci-runner-middleware ci-runner-workload \
 	ci-runner-destroy ci-runner-destroy-force \
@@ -54,6 +54,7 @@ ARGS ?=
 	test test-ca-gateway test-vault test-velero test-keda test-redis \
 	test-network-policy test-db-backup test-seal test-argocd-rollout test-undeploy \
 	validate validate-terraform validate-yaml validate-security pre-commit \
+	preflight \
 	seal-verify \
 	incus-snap-create incus-snap-restore incus-snap-list incus-snap-delete \
 	incus-vm-stop incus-vm-start
@@ -62,20 +63,14 @@ ARGS ?=
 help:
 	@echo "Available Targets:"
 	@echo ""
-	@echo "Cluster & Registry Cache (Incus/Zot):"
-	@echo "  zot-image      Ensure Zot image alias present in Incus"
-	@echo "  ci-cache-up    Deploy Zot cache (applies infra via Terraform)"
-	@echo "  ci-cache-purge Remove Zot Incus instance (cache data preserved)"
-	@echo "  stage-sync     Sync GitOps platform layers"
-	@echo ""
 	@echo "Local Run (act):"
-	@echo "  act-build        Build custom act runner image"
 	@echo "  act-ci           Run full CI pipeline (base+middleware+workload) via act"
 	@echo "  act-stage-base   Run base stage (infra + vault seeds) via act"
 	@echo "  act-stage-middleware  Sync platform layers (DB/MinIO/Vault/monitoring) via act"
 	@echo "  act-stage-workload    Seed + sync workloads (seal) via act"
 	@echo "  act-destroy      Destroy stage infrastructure via act (ci-destroy workflow)"
 	@echo "  act-destroy-force  Hard teardown of stage (Incus/Talos + TF state) via ci-destroy-force workflow"
+	@echo "  act-build        Build custom act runner image"
 	@echo ""
 	@echo "Runner (local runner):"
 	@echo "  ci-runner-up        Start self-hosted GitHub runner (needs Docker+Incus)"
@@ -88,6 +83,10 @@ help:
 	@echo "  ci-runner-workload  Dispatch workload stage via runner"
 	@echo "  ci-runner-destroy   Dispatch destroy via runner (ci-destroy workflow)"
 	@echo "  ci-runner-destroy-force  Dispatch hard teardown via runner"
+	@echo ""
+	@echo "Cluster & Registry Cache (Incus/Zot):"
+	@echo "  zot-image      Pull + import Zot image into Incus (required to start the project)"
+	@echo "  stage-sync     Sync GitOps platform layers"
 	@echo ""
 	@echo "ArgoCD:"
 	@echo "  argocd-login    Login to ArgoCD via CLI"
@@ -113,10 +112,6 @@ help:
 	@echo "  seal-dc-logs    Follow seal integration stack logs"
 	@echo "  seal-unit       Run seal Go unit tests"
 	@echo ""
-	@echo "RBAC:"
-	@echo "  rbac-apply      Apply RBAC policies (ClusterRoles, bindings)"
-	@echo "  rbac-delete     Remove RBAC policies"
-	@echo ""
 	@echo "Tests:"
 	@echo "  test               Deploy and verify all platform tests"
 	@echo "  test-ca-gateway    Deploy CA gateway test and verify TLS endpoint"
@@ -133,8 +128,11 @@ help:
 	@echo "Quality:"
 	@echo "  validate          Run fmt/validate checks (Terraform, Yamllint, Trivy)"
 	@echo "  pre-commit        Run pre-commit hooks on all project files"
+	@echo "  preflight         Verify local host readiness for act/runner pipelines"
 	@echo ""
-	@echo "Security:"
+	@echo "Security & RBAC:"
+	@echo "  rbac-apply      Apply RBAC policies (ClusterRoles, bindings)"
+	@echo "  rbac-delete     Remove RBAC policies"
 	@echo "  seal-verify       Verify Seal image signatures (cosign); TAG=vX.Y.Z"
 	@echo ""
 	@echo "Incus VM lifecycle:"
@@ -150,12 +148,6 @@ help:
 # Zot cache is deployed directly here since it is a standalone Incus instance.
 zot-image:
 	./tools/incus/zot-image.sh ensure
-
-ci-cache-up:
-	./tools/infra/infra.sh apply $(ENV)
-
-ci-cache-purge:
-	./tools/incus/zot-image.sh purge
 
 stage-sync:
 	./tools/ci/sync-layers.sh
@@ -323,6 +315,11 @@ validate-security:
 
 pre-commit:
 	./tools/ci/pre-commit.sh
+
+# Verify the local host can actually run the act/runner pipelines before
+# kicking them off (binaries, images, paths, .env/.secrets, daemons).
+preflight:
+	./tools/ci/preflight.sh
 
 # --- Security --------------------------------------------------------------
 seal-verify:
