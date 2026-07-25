@@ -41,7 +41,7 @@ jobs:
       - name: Terraform Init
         shell: bash
         working-directory: ./infra/environments/stage
-        run: bash tools/ci/terraform-init.sh .
+        run: bash "${{ github.workspace }}/tools/ci/terraform-init.sh" "${{ github.workspace }}/infra/environments/stage"
 
       - name: Terraform Destroy
         shell: bash
