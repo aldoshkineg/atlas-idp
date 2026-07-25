@@ -1,0 +1,26 @@
+name: Base Lint & Validate
+description: "Terraform fmt/validate + yamllint (portable, no cluster needed)"
+
+runs:
+  using: composite
+  steps:
+    - name: Terraform Format
+      shell: bash
+      run: terraform fmt -check -recursive infra/
+
+    - name: Terraform Validate
+      shell: bash
+      env:
+        TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
+      run: |
+        mkdir -p /opt/terraform/plugin-cache
+        for env in stage; do
+          echo "=== Validating infra/environments/$env ==="
+          terraform -chdir=infra/environments/$env init -backend=false
+          terraform -chdir=infra/environments/$env validate
+        done
+
+    - name: YAML Lint
+      shell: bash
+      run: |
+        yamllint -c .yamllint.yml gitops/ observability/ security/ .github/

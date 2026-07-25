@@ -7,11 +7,18 @@ on:
       ENV_FILE:
         required: true
 
-# Canonical "base" stage: tools + checks + terraform (incus) apply + vault seeds.
-# Reused by ci-all.yaml via `uses:`. To promote it to the primary push/PR
-# trigger instead of the orchestrator, add:
-#   push: { branches: [main] }
-#   pull_request: { branches: [main] }
+# Part of the self-hosted (mutating) pipeline — serialized via the shared
+# `atlas-stage` concurrency group so two base runs never touch the cluster at once.
+concurrency:
+  group: atlas-stage
+  cancel-in-progress: false
+
+# Least-privilege: no token by default; only the steps that check out code
+# request `contents: read`. The repo secret (ENV_FILE) is passed separately.
+permissions: {}
+
+# Canonical "base" stage: tools + terraform (incus) apply + vault seeds.
+# Reused by ci-all.yaml via `uses:`.
 #
 # All secrets arrive as a single ENV_FILE (the repo's .env). The first step
 # replays it: writes .env, exports every var to $GITHUB_ENV, and materialises
@@ -20,6 +27,9 @@ on:
 jobs:
   base:
     runs-on: [self-hosted]
+    permissions:
+      contents: read
+    timeout-minutes: 45
 
     env:
       KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
@@ -28,6 +38,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Load ENV_FILE secret
         shell: bash
@@ -43,9 +54,9 @@ jobs:
           # and into the current shell so the cert materialisation below can use
           # them ($GITHUB_ENV only propagates to *subsequent* steps).
           # Skip GITHUB_TOKEN (provided automatically by Actions; avoid shadowing
-          # it) and ENV_FILE itself (multiline; not needed as a plain env var).
-          # `::add-mask::` registers each value for log redaction (GitHub and act
-          # do not auto-mask vars written to $GITHUB_ENV by hand).
+          # it), ENV_FILE itself (multiline; not needed as a plain env var), and
+          # VAULT_TOKEN (re-derived by seed-vault from the cluster). `::add-mask::`
+          # registers each value for log redaction.
           while IFS= read -r line; do
             line="${line#"${line%%[![:space:]]*}"}"
             line="${line%"${line##*[![:space:]]}"}"
@@ -67,9 +78,9 @@ jobs:
           echo "${ATLAS_CA_KEY_B64:-}" | base64 -d > security/certs/ca.key
 
       - uses: ./.github/actions/tools
+        with:
+          tools: "terraform vault kubectl incus xorriso"
 
-      - uses: ./.github/actions/checks
-
-      - uses: ./.github/actions/terraform-incus
+      - uses: ./.github/actions/terraform
 
       - uses: ./.github/actions/seed-vault

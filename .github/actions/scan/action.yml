@@ -1,0 +1,12 @@
+name: Trivy Security Scan
+description: "Repo-wide security scan: dependency CVEs + leaked secrets + IaC misconfig"
+
+runs:
+  using: composite
+  steps:
+    - name: Scan entire repository
+      shell: bash
+      run: |
+        trivy fs --config security/trivy/trivy.yaml \
+          --scanners vuln,secret,misconfig \
+          .

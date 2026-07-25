@@ -13,10 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY install-tools.sh /usr/local/bin/install-tools.sh
-COPY install-cmds.sh /tmp/install-cmds.sh
 
 RUN sed -i 's/sudo //g' /usr/local/bin/install-tools.sh
 
-RUN bash /tmp/install-cmds.sh && rm /tmp/install-cmds.sh
+RUN install-tools.sh
 
 RUN mkdir -p /opt/terraform/plugin-cache

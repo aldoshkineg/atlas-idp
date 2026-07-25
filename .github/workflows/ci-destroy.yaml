@@ -12,33 +12,36 @@ on:
         type: string
         required: true
 
+# Self-hosted (mutating) pipeline — serialized via `atlas-stage` so a destroy
+# never overlaps an apply (or another destroy) on the shared cluster.
+concurrency:
+  group: atlas-stage
+  cancel-in-progress: false
+
+permissions: {}
+
 jobs:
   destroy:
     if: ${{ inputs.confirm == 'destroy' }}
     runs-on: [self-hosted]
+    permissions:
+      contents: read
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - uses: ./.github/actions/tools
+        with:
+          tools: "terraform"
 
       - name: Terraform Init
         shell: bash
         working-directory: ./infra/environments/stage
-        env:
-          TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
-        run: |
-          mkdir -p /opt/terraform/plugin-cache
-          n=0
-          until [ "$n" -ge 3 ]; do
-            terraform init -reconfigure && break
-            n=$((n+1))
-            echo "Terraform init failed. Retry $n/3"
-            sleep 15
-          done
-          [ "$n" -lt 3 ] || exit 1
+        run: bash tools/ci/terraform-init.sh .
 
       - name: Terraform Destroy
         shell: bash

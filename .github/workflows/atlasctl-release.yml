@@ -11,8 +11,11 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v5
         with:
           go-version: stable
@@ -27,12 +30,15 @@ jobs:
   release:
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [linux, darwin]
         arch: [amd64, arm64]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@v5
         with:
@@ -46,10 +52,6 @@ jobs:
             -o bin/atlasctl-${{ matrix.os }}-${{ matrix.arch }} .
         working-directory: tools/atlasctl
 
-      - name: Generate checksum
-        run: sha256sum bin/atlasctl-${{ matrix.os }}-${{ matrix.arch }} >> bin/checksums.txt
-        working-directory: tools/atlasctl
-
       - uses: actions/upload-artifact@v4
         with:
           name: atlasctl-${{ matrix.os }}-${{ matrix.arch }}
@@ -58,8 +60,11 @@ jobs:
   publish:
     needs: release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/download-artifact@v4
         with:

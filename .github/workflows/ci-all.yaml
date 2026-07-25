@@ -20,9 +20,22 @@ on:
         type: boolean
         default: true
 
-# Default orchestrator: on push/PR runs all three phases in order
-# (base -> middleware -> workloads). Fail-fast via `needs:` — a failing
-# phase stops the chain.
+# Serialize every self-hosted (mutating + checks) run against the single shared
+# stage cluster. A new run waits for the in-progress one to finish; it is never
+# cancelled mid-apply (cancel-in-progress: false). The standalone `security` scan
+# and the cloud build workflows (seal, atlasctl) run independently.
+concurrency:
+  group: atlas-stage
+  cancel-in-progress: false
+
+# Least-privilege: no token by default; only jobs that check out code or are
+# called reusable workflows request what they need.
+permissions: {}
+
+# Default orchestrator: on push/PR runs lint -> base -> middleware -> workloads.
+# `lint` runs on the self-hosted runner (reusing its cached toolchain, so no
+# binary/provider downloads) and gates `base`: if fmt/validate/yamllint fail,
+# there is no point running `terraform apply`.
 #
 # Disable entirely: include `[skip-ci]` in the commit message / PR title.
 # Run only the base phase: include `[base-only]`.
@@ -30,7 +43,8 @@ on:
 
 jobs:
   gate:
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       skip: ${{ steps.eval.outputs.skip }}
       base_only: ${{ steps.eval.outputs.base_only }}
@@ -48,13 +62,33 @@ jobs:
           echo "skip=$skip" >> "$GITHUB_OUTPUT"
           echo "base_only=$base_only" >> "$GITHUB_OUTPUT"
 
-  base:
+  lint:
     needs: [gate]
+    if: needs.gate.outputs.skip != 'true'
+    runs-on: [self-hosted]
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: ./.github/actions/tools
+        with:
+          tools: "terraform yamllint"
+
+      - uses: ./.github/actions/lint
+
+  base:
+    needs: [gate, lint]
     if: >-
       needs.gate.outputs.skip != 'true' &&
       (github.event_name != 'workflow_dispatch' || inputs.run_base)
     uses: ./.github/workflows/ci-base.yaml
     secrets: inherit
+    timeout-minutes: 45
 
   middleware:
     needs: [gate, base]
@@ -64,6 +98,7 @@ jobs:
       (github.event_name != 'workflow_dispatch' || inputs.run_middleware) &&
       (needs.base.result == 'success' || needs.base.result == 'skipped')
     uses: ./.github/workflows/ci-middleware.yaml
+    timeout-minutes: 30
 
   workloads:
     needs: [gate, middleware]
@@ -73,3 +108,4 @@ jobs:
       (github.event_name != 'workflow_dispatch' || inputs.run_workloads) &&
       (needs.middleware.result == 'success' || needs.middleware.result == 'skipped')
     uses: ./.github/workflows/ci-workload.yaml
+    timeout-minutes: 30

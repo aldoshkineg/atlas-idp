@@ -28,6 +28,10 @@ ATLASCTL_BIN ?= tools/atlasctl/bin/atlasctl
 SEAL_TASKFILE     ?= apps/seal/Taskfile.yml
 ATLASCTL_TASKFILE ?= tools/atlasctl/Taskfile.yml
 
+# CLI toolchain installed by tools/ci/install-tools.sh (single source of pinned
+# versions lives in that script, not here). Override per-tool: make tools-install TOOLS="trivy yamllint"
+TOOLS ?= vault terraform kubectl trivy yamllint incus xorriso argocd atlasctl
+
 INCUS_SNAP_SCRIPT ?= tools/incus/incus-control.sh
 
 # Snapshot name for incus-snap-* targets, e.g. make incus-snap-restore SNAP=my-snap
@@ -72,6 +76,11 @@ help:
 ##@ Getting Started
 preflight: ## Verify host readiness (binaries, daemons, .env, images) [run before any pipeline]
 	./tools/ci/preflight.sh
+
+##@ Tooling
+tools-install: ## Install the CLI toolchain locally (subset via TOOLS=)
+	chmod +x tools/ci/install-tools.sh
+	./tools/ci/install-tools.sh $(TOOLS)
 
 ##@ Local Run (act)
 act-ci: ## Run full CI pipeline (base+middleware+workload) via act

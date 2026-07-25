@@ -15,7 +15,7 @@ services:
       - LABELS=self-hosted
       - RUNNER_TOKEN=${RUNNER_TOKEN}
       # noble is PEP 668 (externally-managed), so pip needs this for the
-      # yamllint install inside install-tools.sh.
+      # yamllint install inside tools/ci/install-tools.sh.
       - PIP_BREAK_SYSTEM_PACKAGES=1
       # The runner workdir MUST live under the host-visible /var/tmp/atlas bind
       # mount. Terraform's incus disk devices use absolute source paths (e.g.

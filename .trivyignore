@@ -1,0 +1,10 @@
+# Trivy ignore rules for the repo-wide scan.
+# Findings listed here are known/intentional and should not fail the build.
+# Review periodically — prefer fixing the root cause over widening this list.
+
+# Intentionally committed CA private key used by the platform's cert-manager bootstrap.
+security/certs/ca.key
+
+# Test fixtures and sample data (not real secrets/config).
+**/testdata/**
+**/*_test.go

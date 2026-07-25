@@ -4,14 +4,25 @@ on:
   workflow_dispatch:
   workflow_call:
 
+# Self-hosted (mutating) pipeline — serialized via `atlas-stage`.
+concurrency:
+  group: atlas-stage
+  cancel-in-progress: false
+
+permissions: {}
+
 jobs:
   destroy-force:
     runs-on: [self-hosted]
+    permissions:
+      contents: read
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - uses: ./.github/actions/tools
 

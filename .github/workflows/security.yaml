@@ -5,15 +5,23 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
 
+# Cloud scan of the WHOLE repository on every commit/PR: dependency CVEs
+# (seal/atlasctl Go modules, frontend locks), leaked secrets in scripts and
+# workflows, and IaC misconfig. Runs independently of ci-all (own concurrency
+# group, cancels superseded runs) so it never blocks provisioning.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: security-${{ github.ref }}
   cancel-in-progress: true
+
+permissions: {}
 
 jobs:
   trivy-iac:
-    name: Trivy IaC Scan
+    name: Trivy Repo Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
 
@@ -21,12 +29,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+          persist-credentials: false
 
-      - uses: ./.github/actions/tools
+      # Cache both the trivy binary and its vulnerability DB so the cloud scan
+      # does not re-download ~50 MB on every commit. The binary is installed
+      # into a writable dir (not /usr/local/bin) and added to PATH.
+      - name: Cache Trivy binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/trivy-bin
+          key: trivy-binary-0.70.0
 
-      - name: Scan IaC with Trivy
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db
+          restore-keys: trivy-db
+
+      - name: Install Trivy (cached)
+        shell: bash
+        env:
+          # Keep in sync with VERSION_MAP[trivy] in tools/ci/install-tools.sh
+          TRIVY_VERSION: "0.70.0"
         run: |
-          trivy config --severity HIGH,CRITICAL --exit-code 1 infra/
-          trivy config --severity HIGH,CRITICAL --exit-code 1 gitops/
-          trivy config --severity HIGH,CRITICAL --exit-code 1 vault/
+          if [ ! -x "${{ runner.temp }}/trivy-bin/trivy" ]; then
+            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+              | sh -s -- -b "${{ runner.temp }}/trivy-bin" v"${TRIVY_VERSION}"
+          fi
+          echo "${{ runner.temp }}/trivy-bin" >> "$GITHUB_PATH"
+
+      - uses: ./.github/actions/scan

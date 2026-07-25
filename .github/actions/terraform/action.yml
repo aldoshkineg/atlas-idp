@@ -1,23 +1,13 @@
-name: Terraform Incus
-description: "Deploy Talos cluster via Terraform + Incus"
+name: Terraform Apply (Incus/Talos)
+description: "Provision Talos cluster via Terraform + Incus"
+
 runs:
   using: composite
   steps:
     - name: Terraform Init
       shell: bash
       working-directory: ./infra/environments/stage
-      env:
-        TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
-      run: |
-        mkdir -p /opt/terraform/plugin-cache
-        n=0
-        until [ "$n" -ge 3 ]; do
-          terraform init -reconfigure && break
-          n=$((n+1))
-          echo "Terraform init failed. Retry $n/3"
-          sleep 15
-        done
-        [ "$n" -lt 3 ] || exit 1
+      run: bash tools/ci/terraform-init.sh .
 
     - name: Terraform Plan
       shell: bash

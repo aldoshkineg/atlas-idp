@@ -8,16 +8,12 @@ else
   REPO_ROOT="$(cd "$ACT_RUNNER_DIR/../../.." && pwd)"
 fi
 
-ACTION_YML="$REPO_ROOT/.github/actions/tools/action.yml"
-INSTALL_TOOLS="$REPO_ROOT/.github/scripts/install-tools.sh"
-INSTALL_CMD_LIST="/tmp/act-runner-install-cmds.sh"
-INSTALL_TOOLS_COPY="/tmp/act-runner-install-tools.sh"
+INSTALL_TOOLS="$REPO_ROOT/tools/ci/install-tools.sh"
 
 CACHE_DIR="/var/tmp/atlas/act_cache"
 
 cleanup() {
-  rm -f "$INSTALL_CMD_LIST" "$INSTALL_TOOLS_COPY" \
-        "$ACT_RUNNER_DIR/install-cmds.sh" "$ACT_RUNNER_DIR/install-tools.sh"
+  rm -f "$ACT_RUNNER_DIR/install-tools.sh"
 }
 trap cleanup EXIT
 
@@ -29,29 +25,12 @@ require_file() {
 }
 
 build() {
-  require_file "$ACTION_YML"
   require_file "$INSTALL_TOOLS"
 
-  cp "$INSTALL_TOOLS" "$INSTALL_TOOLS_COPY"
-
-  declare -A TOOL_VARS=(
-    [vault]=VAULT_VERSION
-    [terraform]=TERRAFORM_VERSION
-    [kubectl]=KUBECTL_VERSION
-    [trivy]=TRIVY_VERSION
-    [yamllint]=YAMLLINT_VERSION
-    [incus]=INCUS_VERSION
-    [argocd]=ARGOCD_VERSION
-    [atlasctl]=ATLASCTL_VERSION
-  )
-
-  for tool in "${!TOOL_VARS[@]}"; do
-    ver=$(grep -F "${TOOL_VARS[$tool]}:" "$ACTION_YML" | awk '{print $2}' | tr -d '"')
-    echo "install-tools.sh $tool $ver"
-  done > "$INSTALL_CMD_LIST"
-
-  cp "$INSTALL_TOOLS_COPY" "$ACT_RUNNER_DIR/install-tools.sh"
-  cp "$INSTALL_CMD_LIST" "$ACT_RUNNER_DIR/install-cmds.sh"
+  # The install script carries its own pinned versions (tools/ci/install-tools.sh);
+  # the act-runner image installs the full toolchain via `install-tools.sh` with
+  # no arguments. Just drop the script into the build context.
+  cp "$INSTALL_TOOLS" "$ACT_RUNNER_DIR/install-tools.sh"
 
   docker build -t act-runner:latest "$ACT_RUNNER_DIR"
 }

@@ -1,5 +1,11 @@
 name: Install Tools
-description: "Install required CLI tools"
+description: "Install required CLI tools (subset-selectable via the `tools` input)"
+
+inputs:
+  tools:
+    description: "Space-separated list of tools to install, e.g. 'trivy yamllint'"
+    required: false
+    default: "vault terraform kubectl trivy yamllint incus xorriso argocd atlasctl"
 
 runs:
   using: composite
@@ -7,35 +13,7 @@ runs:
     - name: Install required binaries
       shell: bash
       env:
-        VAULT_VERSION: "1.18.0"
-        TERRAFORM_VERSION: "1.15.3"
-        KUBECTL_VERSION: "1.34.0"
-        TRIVY_VERSION: "0.70.0"
-        YAMLLINT_VERSION: "1.35.1"
-        INCUS_VERSION: "7.2.0"
-        ARGOCD_VERSION: "3.4.2"
-        ATLASCTL_VERSION: "0.60.0"
+        TOOLS: ${{ inputs.tools }}
       run: |
-        chmod +x .github/scripts/install-tools.sh
-        .github/scripts/install-tools.sh vault $VAULT_VERSION
-        .github/scripts/install-tools.sh terraform $TERRAFORM_VERSION
-        .github/scripts/install-tools.sh kubectl $KUBECTL_VERSION
-        .github/scripts/install-tools.sh trivy $TRIVY_VERSION
-        .github/scripts/install-tools.sh yamllint $YAMLLINT_VERSION
-        .github/scripts/install-tools.sh incus $INCUS_VERSION
-        .github/scripts/install-tools.sh xorriso
-        .github/scripts/install-tools.sh argocd $ARGOCD_VERSION
-        .github/scripts/install-tools.sh atlasctl $ATLASCTL_VERSION
-
-    - name: Verify tools
-      shell: bash
-      run: |
-        vault version
-        terraform version
-        kubectl version --client
-        trivy version
-        yamllint --version
-        incus version
-        xorriso -version
-        argocd version --client
-        atlasctl --version
+        chmod +x tools/ci/install-tools.sh
+        tools/ci/install-tools.sh $TOOLS

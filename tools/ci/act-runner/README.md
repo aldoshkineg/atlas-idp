@@ -18,7 +18,7 @@ If `make act-ci` fails with "image not found", run `make act-build` first.
 
 ## How It Works
 
-- **`act-runner.sh build`** copies `install-tools.sh` from `.github/scripts/`,
+- **`act-runner.sh build`** copies `install-tools.sh` from `tools/ci/`,
   parses tool versions from `.github/actions/tools/action.yml` via an explicit
   tool-to-variable map, generates install commands, builds `act-runner:latest`,
   then cleans up temp files from both `/tmp` and the build context.
@@ -27,9 +27,11 @@ If `make act-ci` fails with "image not found", run `make act-build` first.
   workflow, volume mounts, and selected secrets. Extra flags can be appended:
   `act-runner.sh ci --list`
 
-All version numbers come from `.github/actions/tools/action.yml` at build time.
-Installation logic comes from `.github/scripts/install-tools.sh`.
-No version duplication — the Dockerfile itself contains zero hardcoded versions.
+All pinned versions live in `tools/ci/install-tools.sh` (VERSION_MAP) — a single
+source of truth shared by CI, the act-runner image, and `make tools-install`.
+Installation logic comes from `tools/ci/install-tools.sh`.
+No version duplication — the Dockerfile and `act-runner.sh` contain zero hardcoded
+versions.
 
 ### .actrc
 
@@ -51,9 +53,8 @@ act-runner/
 └── README.md
 ```
 
-Temp build files (`install-tools.sh`, `install-cmds.sh`) are written to `/tmp`
-and copied into the build context right before `docker build`. The cleanup trap
-removes them from both locations on exit.
+Temp build files (`install-tools.sh`) are written to the build context right before
+`docker build`. The cleanup trap removes it from the build context on exit.
 
 ## Caching
 
@@ -77,7 +78,6 @@ so cache is shared between `make` and `act` runs.
 
 ## Adding a New Tool
 
-1. Add version variable to `.github/actions/tools/action.yml` (e.g. `NEWTOOL_VERSION: "x.y.z"`)
-2. Add install case to `.github/scripts/install-tools.sh`
-3. Add tool-to-variable mapping to the `TOOL_VARS` associative array in `act-runner.sh`
-4. Rebuild: `make act-build`
+1. Add the pinned version to the `VERSION_MAP` in `tools/ci/install-tools.sh`
+2. Add an install case to `tools/ci/install-tools.sh`
+3. Rebuild: `make act-build`

@@ -1,9 +1,12 @@
-# Minimal Trivy config for CI (security stage)
+# Trivy config for the repo-wide security scan (security.yaml -> actions/scan).
 severity:
   - HIGH
   - CRITICAL
 scan:
   skip-dirs:
     - .git
+    - node_modules
+    - dist
+    - bin
     - kind-kubeconfig
   skip-files:
