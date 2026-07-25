@@ -74,7 +74,17 @@ run_workflow() {
   # Single ENV_FILE secret replayed by the ci-base "Load ENV_FILE" step, which
   # exports every var and materialises the CA cert/key. GITHUB_TOKEN is passed
   # separately (it is intentionally excluded from ENV_FILE / $GITHUB_ENV).
-  act -W "$wf" \
+  #
+  # Event selection: act defaults to "push", but the stage workflows only
+  # listen on workflow_dispatch (+workflow_call), so a bare `act -W` finds no
+  # jobs. Pick workflow_dispatch when the workflow declares it, otherwise fall
+  # back to push (e.g. ci-all).
+  local event="push"
+  if grep -qE "^[[:space:]]*workflow_dispatch:[[:space:]]*$" "$wf"; then
+    event="workflow_dispatch"
+  fi
+
+  act "$event" -W "$wf" \
     --container-options "-v $CACHE_DIR/tf:/opt/terraform/plugin-cache -v $CACHE_DIR/home:/root -v /var/tmp/atlas:/var/tmp/atlas -v /var/lib/incus/unix.socket:/var/lib/incus/unix.socket" \
     -s ENV_FILE="$(cat "$REPO_ROOT/.env")" \
     -s GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
@@ -82,11 +92,13 @@ run_workflow() {
 }
 
 run_ci() {
-  shift
   run_workflow "$REPO_ROOT/.github/workflows/ci-all.yaml" "$@"
 }
 
-case "${1:-}" in
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
   build)
     build
     ;;
