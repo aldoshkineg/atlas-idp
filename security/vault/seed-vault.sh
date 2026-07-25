@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Resolve .env + seed-mapping.conf and seed platform + workload secrets into Vault.
-# Usage: make seed-vault                 (reads .env + all mappings)
+# Seed platform secrets into Vault from security/vault/seed-mapping.conf.
+# Usage: make seed-vault                 (reads .env + platform mapping)
 #   or:  unset VAULT_ADDR; ./seed-vault.sh (relies on env vars already set)
-# For each entry in ALL seed-mapping.conf files (platform + workloads), resolves
-# the ENV_VAR and writes it into a seed file, then delegates to seed-platform.sh.
-# In CI the env vars come from GitHub secrets / action inputs.
+# For each entry in security/vault/seed-mapping.conf, resolves the ENV_VAR
+# and writes it into a seed file, then delegates to seed-platform.sh (which auto
+# port-forwards to vault-0 and auto-resolves the root token when VAULT_ADDR is unset).
+# Workload secrets are seeded separately via atlasctl (make atlas-seal / atlasctl seed),
+# not by this script. In CI the env vars come from GitHub secrets / action inputs.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null || echo "$SCRIPT_DIR/../..")"
