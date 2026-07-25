@@ -60,6 +60,4 @@ force_delete_ns keda-test
 force_delete_ns netpol-test
 force_delete_ns testing
 
-$KUBECTL delete sc csi-hostpath-sc --ignore-not-found 2>/dev/null || true
-
 echo "=== Done ==="
