@@ -1,0 +1,20 @@
+name: CI Destroy Force
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  destroy-force:
+    runs-on: [self-hosted]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: ./.github/actions/tools
+
+      - name: Force Destroy Stage
+        shell: bash
+        run: bash tools/ci/stage-terraform-destroy.sh

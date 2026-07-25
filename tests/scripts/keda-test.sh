@@ -29,7 +29,7 @@ for deploy in keda-operator keda-operator-metrics-apiserver keda-admission-webho
   if kubectl wait --for=condition=Available "deployment/$deploy" -n keda --timeout=60s > /dev/null 2>&1; then
     ok "$deploy is ready"
   else
-    fail "$deploy not ready — run 'make infra-apply' first"
+    fail "$deploy not ready — run 'make act-stage-base' first"
     echo "=== Results: $PASS passed, $FAIL failed ==="
     exit 1
   fi

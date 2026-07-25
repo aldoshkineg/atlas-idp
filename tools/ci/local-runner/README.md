@@ -31,7 +31,6 @@ on each run, so no pre-installed toolchain is required in the image.
 
 ```bash
 make ci-runner-up        # fetch token via gh, start the runner container
-make ci-runner-status    # docker compose ps
 make ci-runner-logs      # docker compose logs -f
 make ci-runner-down      # docker compose down
 ```

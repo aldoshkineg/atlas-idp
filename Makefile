@@ -1,158 +1,289 @@
-.PHONY: help infra-init infra-plan infra-apply validate pre-commit \
-	ci-cache-up ci-cache-purge ci-runner-up ci-runner-down ci-runner-status ci-runner-logs \
-	argocd-login seed-vault seed-gh \
-	atlasctl seed-atlas atlasctl-list \
-	test test-ca-gateway test-vault test-velero test-network-policy test-db-backup test-argocd-rollout test-undeploy \
-	act-build act-ci act-stage-base act-stage-middleware act-stage-workload act-destroy \
-	incus-snap-create incus-snap-restore incus-snap-list incus-snap-delete \
-	incus-vm-stop incus-vm-start
+# ---------------------------------------------------------------------------
+# Atlas IDP — Task dispatcher
+#
+# The Makefile is intentionally thin: every target delegates to an
+# executable wrapper under tools/ (see each section for the script path).
+# All real logic lives in those scripts so the Makefile stays declarative
+# and easy to audit.
+# ---------------------------------------------------------------------------
 
-ENV              ?= stage
+ENV ?= stage
 
-# Auto-load .env if present (local B2 credentials etc.)
+# Auto-load .env if present (local B2 credentials, Vault seeds, etc.)
 -include .env
 export
 
-# Terraform provider plugin cache
+# --- Shared locations ------------------------------------------------------
 TF_PLUGIN_CACHE_DIR ?= /var/tmp/atlas/act_cache/tf
-TF_STATE_DIR ?= /var/tmp/atlas/terraform
+TF_STATE_DIR        ?= /var/tmp/atlas/terraform
 
-# Local CI / Automation Directories
 LOCAL_RUNNER_DIR ?= tools/ci/local-runner
 ACT_RUNNER_DIR   ?= tools/ci/act-runner
 
+ATLASCTL_BIN ?= tools/atlasctl/bin/atlasctl
+
+# Taskfiles (invoked via go-task)
+SEAL_TASKFILE     ?= apps/seal/Taskfile.yml
+ATLASCTL_TASKFILE ?= tools/atlasctl/Taskfile.yml
+
+INCUS_SNAP_SCRIPT ?= tools/incus/incus-control.sh
+
+# Zot registry cache (consumed by tools/incus/zot-image.sh)
+ZOT_REMOTE      ?= ghcr-oci
+ZOT_IMAGE_REF   ?= ghcr.io/project-zot/zot:v2.1.16
+ZOT_IMAGE_ALIAS ?= zot-cache
+
+# Snapshot name for incus-snap-* targets, e.g. make incus-snap-restore SNAP=my-snap
+SNAP ?=
+
+# App/group argument for atlasctl targets, e.g. make atlasctl-status ARGS=aldoshkineg/seal
+ARGS ?=
+
+# --- Phony targets ---------------------------------------------------------
+.PHONY: help \
+	zot-image ci-cache-up ci-cache-purge stage-sync \
+	ci-runner-up ci-runner-down ci-runner-logs \
+	ci-runner-apply ci-runner-ci ci-runner-base ci-runner-middleware ci-runner-workload \
+	ci-runner-destroy ci-runner-destroy-force \
+	act-build act-ci act-stage-base act-stage-middleware act-stage-workload act-destroy act-destroy-force \
+	argocd-login \
+	seed-vault seed-gh \
+	atlasctl-build atlasctl-test atlasctl-vet atlasctl-new seed-atlas atlasctl-list atlasctl-status \
+	seal-build seal-push seal-dc-up seal-dc-down seal-dc-logs seal-unit \
+	rbac-apply rbac-delete \
+	test test-ca-gateway test-vault test-velero test-keda test-redis \
+	test-network-policy test-db-backup test-seal test-argocd-rollout test-undeploy \
+	validate validate-terraform validate-yaml validate-security pre-commit \
+	seal-verify \
+	incus-snap-create incus-snap-restore incus-snap-list incus-snap-delete \
+	incus-vm-stop incus-vm-start
+
+# --- Help ------------------------------------------------------------------
 help:
 	@echo "Available Targets:"
-	@echo "  infra-init        Terraform init (ENV=$(ENV))"
-	@echo "  infra-plan        Terraform plan (ENV=$(ENV))"
-	@echo "  infra-apply       Initialize and Apply Terraform in infra/environments/$(ENV)"
-	@echo "  validate          Run fmt/validate checks (Terraform, Trivy, Yamllint)"
-	@echo "  pre-commit        Run pre-commit hooks on all project files"
 	@echo ""
-	@echo "Local CI & Registry Cache Subsystem:"
-	@echo "  ci-cache-up       Deploy Zot cache (via Terraform; delegates to infra-apply)"
-	@echo "  ci-cache-purge    Stop and remove Zot container (cache data preserved)"
-	@echo "  ci-runner-up      Fetch fresh token via 'gh', start self-hosted runner (runs real ci-* workflows; needs Docker+Incus on host)"
-	@echo "  ci-runner-down    Stop and remove local GitHub runner container"
-	@echo "  ci-runner-status  Check status of local GitHub runner container"
-	@echo "  ci-runner-logs    Follow logs from the local GitHub runner container"
+	@echo "Cluster & Registry Cache (Incus/Zot):"
+	@echo "  zot-image      Ensure Zot image alias present in Incus"
+	@echo "  ci-cache-up    Deploy Zot cache (applies infra via Terraform)"
+	@echo "  ci-cache-purge Remove Zot Incus instance (cache data preserved)"
+	@echo "  stage-sync     Sync GitOps platform layers"
 	@echo ""
-	@echo "Act (Local CI Runner):"
-	@echo "  act-build           Build custom act runner image (parses action.yml for tool versions)"
-	@echo "  act-ci              Run full CI pipeline (ci-all: base+middleware+workloads) via act"
-	@echo "  act-stage-base      Run base stage (ci-base: infra + vault seeds) via act"
-	@echo "  act-stage-middleware  Sync platform layers (ci-middleware: DB/MinIO/Vault/monitoring) via act"
-	@echo "  act-stage-workload    Seed + sync workloads (ci-workload: seal) via act"
-	@echo "  act-destroy         Destroy stage infrastructure (ci-destroy) via act"
+	@echo "Local Run (act):"
+	@echo "  act-build        Build custom act runner image"
+	@echo "  act-ci           Run full CI pipeline (base+middleware+workload) via act"
+	@echo "  act-stage-base   Run base stage (infra + vault seeds) via act"
+	@echo "  act-stage-middleware  Sync platform layers (DB/MinIO/Vault/monitoring) via act"
+	@echo "  act-stage-workload    Seed + sync workloads (seal) via act"
+	@echo "  act-destroy      Destroy stage infrastructure via act (ci-destroy workflow)"
+	@echo "  act-destroy-force  Hard teardown of stage (Incus/Talos + TF state) via ci-destroy-force workflow"
+	@echo ""
+	@echo "Runner (local runner):"
+	@echo "  ci-runner-up        Start self-hosted GitHub runner (needs Docker+Incus)"
+	@echo "  ci-runner-down      Stop and remove the runner container"
+	@echo "  ci-runner-logs      Follow runner logs"
+	@echo "  ci-runner-apply     Dispatch apply via runner (ci-base workflow)"
+	@echo "  ci-runner-ci        Dispatch full CI via runner (ci-all workflow)"
+	@echo "  ci-runner-base      Dispatch base stage via runner"
+	@echo "  ci-runner-middleware Dispatch middleware stage via runner"
+	@echo "  ci-runner-workload  Dispatch workload stage via runner"
+	@echo "  ci-runner-destroy   Dispatch destroy via runner (ci-destroy workflow)"
+	@echo "  ci-runner-destroy-force  Dispatch hard teardown via runner"
 	@echo ""
 	@echo "ArgoCD:"
-	@echo "  argocd-login      Login to ArgoCD via CLI"
+	@echo "  argocd-login    Login to ArgoCD via CLI"
 	@echo ""
-	@echo "Vault:"
-	@echo "  seed-vault          Read .env + seed-mapping.conf, seed into Vault via port-forward"
+	@echo "Vault & Secrets:"
+	@echo "  seed-vault      Read .env + seed-mapping.conf, seed into Vault via port-forward"
+	@echo "  seed-gh         Upload the whole .env as one GitHub Secret (ENV_FILE)"
 	@echo ""
-	@echo "Tests:"
-	@echo "  test             Deploy and verify all platform tests"
-	@echo "  test-ca-gateway  Deploy CA gateway test and verify TLS endpoint"
-	@echo "  test-vault       Seed Vault, deploy injection pod, verify secrets"
-	@echo "  test-velero      Test Velero backup/restore to S3"
-	@echo "  test-keda        Test KEDA autoscaling via ConfigMap trigger"
-	@echo "  test-network-policy  Test NetworkPolicy isolation between pods"
-	@echo "  test-db-backup       Test CNPG backup/restore to MinIO"
-	@echo "  test-seal            Test Seal deployment (pods, API, documents, gateway)"
-	@echo "  test-argocd-rollout  Test Argo Rollouts canary progression"
-	@echo "  test-undeploy    Remove all test resources"
-	@echo ""
-	@echo "Atlas Workload Management:"
-	@echo "  atlasctl-new    Scaffold a new workload (golden path)"
-	@echo "  seed-atlas   Seed workload secrets into Vault"
+	@echo "Workloads (atlasctl):"
+	@echo "  atlasctl-build  Build the atlasctl Go binary"
+	@echo "  atlasctl-test   Run atlasctl unit tests"
+	@echo "  atlasctl-vet    Run 'go vet' on atlasctl"
+	@echo "  atlasctl-new    Scaffold a new workload (see: $(ATLASCTL_BIN) new --help)"
+	@echo "  seed-atlas      Seed workload secrets into Vault"
 	@echo "  atlasctl-list   List all registered workloads"
+	@echo "  atlasctl-status Show status of a workload (e.g. make atlasctl-status ARGS=aldoshkineg/seal)"
+	@echo ""
+	@echo "Apps (seal):"
+	@echo "  seal-build      Build all seal Docker images (api/worker/ui)"
+	@echo "  seal-push       Tag + push seal images to GHCR (needs .env; TAG=git default)"
+	@echo "  seal-dc-up      Start seal integration stack (docker compose)"
+	@echo "  seal-dc-down    Stop seal integration stack"
+	@echo "  seal-dc-logs    Follow seal integration stack logs"
+	@echo "  seal-unit       Run seal Go unit tests"
 	@echo ""
 	@echo "RBAC:"
-	@echo "  rbac-apply        Apply RBAC policies (ClusterRoles, bindings)"
-	@echo "  rbac-delete       Remove RBAC policies"
+	@echo "  rbac-apply      Apply RBAC policies (ClusterRoles, bindings)"
+	@echo "  rbac-delete     Remove RBAC policies"
 	@echo ""
-	@echo "GitHub Secrets (single ENV_FILE):"
-	@echo "  seed-gh           Upload the whole .env as one GitHub Secret (ENV_FILE)"
+	@echo "Tests:"
+	@echo "  test               Deploy and verify all platform tests"
+	@echo "  test-ca-gateway    Deploy CA gateway test and verify TLS endpoint"
+	@echo "  test-vault         Seed Vault, deploy injection pod, verify secrets"
+	@echo "  test-velero        Test Velero backup/restore to S3"
+	@echo "  test-keda          Test KEDA autoscaling via ConfigMap trigger"
+	@echo "  test-redis         Test Redis availability/connectivity"
+	@echo "  test-network-policy  Test NetworkPolicy isolation between pods"
+	@echo "  test-db-backup     Test CNPG backup/restore to MinIO"
+	@echo "  test-seal          Test Seal deployment (pods, API, documents, gateway)"
+	@echo "  test-argocd-rollout  Test Argo Rollouts canary progression"
+	@echo "  test-undeploy      Remove all test resources"
 	@echo ""
-	@echo "Incus Snapshots:"
-	@echo "  incus-snap-create    Snapshot all Talos VMs (for rollback before destructive changes)"
-	@echo "  incus-snap-restore   Restore all Talos VMs from a snapshot (stops VMs, restores, starts)"
-	@echo "  incus-snap-list      List snapshots for all Talos VMs"
-	@echo "  incus-snap-delete    Delete a named snapshot from all Talos VMs"
-	@echo "  incus-vm-stop        Stop all Talos VMs (hard stop)"
-	@echo "  incus-vm-start       Start all Talos VMs"
+	@echo "Quality:"
+	@echo "  validate          Run fmt/validate checks (Terraform, Yamllint, Trivy)"
+	@echo "  pre-commit        Run pre-commit hooks on all project files"
 	@echo ""
+	@echo "Security:"
+	@echo "  seal-verify       Verify Seal image signatures (cosign); TAG=vX.Y.Z"
+	@echo ""
+	@echo "Incus VM lifecycle:"
+	@echo "  incus-snap-create   Snapshot all Talos VMs (SNAP=name optional)"
+	@echo "  incus-snap-restore  Restore all Talos VMs from a snapshot (SNAP=name)"
+	@echo "  incus-snap-list     List snapshots for all Talos VMs"
+	@echo "  incus-snap-delete   Delete a named snapshot (SNAP=name)"
+	@echo "  incus-vm-stop       Stop all Talos VMs (hard stop)"
+	@echo "  incus-vm-start      Start all Talos VMs"
 
-# --- Infrastructure Management ---
-infra-init:
-	mkdir -p $(TF_PLUGIN_CACHE_DIR) $(TF_STATE_DIR)
-	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init
+# --- Cluster & Registry Cache (Incus/Zot) ---------------------------------
+# Terraform is driven through `act` (which runs terraform internally); the
+# Zot cache is deployed directly here since it is a standalone Incus instance.
+zot-image:
+	./tools/incus/zot-image.sh ensure
 
-infra-plan:
-	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform plan
+ci-cache-up:
+	./tools/infra/infra.sh apply $(ENV)
 
-infra-apply:
-	@echo "--> Running initialization in $(ENV) environment..."
-	mkdir -p $(TF_PLUGIN_CACHE_DIR) $(TF_STATE_DIR)
-	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init
-	@echo "--> Applying infrastructure changes..."
-	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform apply -auto-approve
+ci-cache-purge:
+	./tools/incus/zot-image.sh purge
 
-# --- ArgoCD ---
+stage-sync:
+	./tools/ci/sync-layers.sh
+
+# --- Runner (local runner) ------------------------------------------------
+ci-runner-up:
+	./$(LOCAL_RUNNER_DIR)/runner.sh up
+
+ci-runner-down:
+	./$(LOCAL_RUNNER_DIR)/runner.sh down
+
+ci-runner-logs:
+	./$(LOCAL_RUNNER_DIR)/runner.sh logs
+
+ci-runner-apply:
+	./$(LOCAL_RUNNER_DIR)/runner.sh apply
+
+ci-runner-ci:
+	./$(LOCAL_RUNNER_DIR)/runner.sh ci
+
+ci-runner-base:
+	./$(LOCAL_RUNNER_DIR)/runner.sh base
+
+ci-runner-middleware:
+	./$(LOCAL_RUNNER_DIR)/runner.sh middleware
+
+ci-runner-workload:
+	./$(LOCAL_RUNNER_DIR)/runner.sh workload
+
+ci-runner-destroy:
+	./$(LOCAL_RUNNER_DIR)/runner.sh destroy
+
+ci-runner-destroy-force:
+	./$(LOCAL_RUNNER_DIR)/runner.sh destroy-force
+
+# --- Local Run (act) -------------------------------------------------------
+act-build:
+	$(ACT_RUNNER_DIR)/act-runner.sh build
+
+act-ci:
+	$(ACT_RUNNER_DIR)/act-runner.sh ci
+
+act-stage-base:
+	$(ACT_RUNNER_DIR)/act-runner.sh base
+
+act-stage-middleware:
+	$(ACT_RUNNER_DIR)/act-runner.sh middleware
+
+act-stage-workload:
+	$(ACT_RUNNER_DIR)/act-runner.sh workload
+
+act-destroy:
+	$(ACT_RUNNER_DIR)/act-runner.sh destroy
+
+act-destroy-force:
+	$(ACT_RUNNER_DIR)/act-runner.sh destroy-force
+
+# --- ArgoCD ----------------------------------------------------------------
 argocd-login:
-	@chmod +x tools/argocd-login.sh
 	./tools/argocd-login.sh
 
-# --- Vault ---
-# Read .env + seed-mapping.conf, resolve env vars, seed into Vault via port-forward
+# --- Vault & Secrets -------------------------------------------------------
 seed-vault:
 	@unset VAULT_ADDR; ./security/vault/seed-vault.sh
 
-# --- Atlas Workload Management ---
-ATLASCTL_BIN ?= tools/atlasctl/bin/atlasctl
+seed-gh:
+	./security/vault/seed-gh.sh
 
-atlasctl:
-	@echo "Usage: make atlasctl-{new,seed,list,build,test}"
-	@echo "  atlasctl-new  <args>   Create a new workload (via atlasctl Go binary)"
-	@echo "  seed-atlas          Seed all workload secrets into Vault"
-	@echo "  atlasctl-list          List all registered workloads"
-	@echo "  atlasctl-build         Build atlasctl Go binary"
-	@echo "  atlasctl-test          Run atlasctl unit tests"
-
+# --- Workloads (atlasctl) --------------------------------------------------
 atlasctl-build:
-	go-task -t tools/atlasctl/Taskfile.yml build
+	go-task -t $(ATLASCTL_TASKFILE) build
 
 atlasctl-test:
-	go-task -t tools/atlasctl/Taskfile.yml test
+	go-task -t $(ATLASCTL_TASKFILE) test
 
 atlasctl-vet:
-	go-task -t tools/atlasctl/Taskfile.yml vet
+	go-task -t $(ATLASCTL_TASKFILE) vet
 
 atlasctl-new:
-	@echo "Run: $(ATLASCTL_BIN) new <app> --group <group> --repo <url> [options]"
+	@echo "Scaffold a new workload:"
+	@echo "  $(ATLASCTL_BIN) new <app> --group <group> --repo <url> [options]"
 	@echo "Example:"
 	@echo "  $(ATLASCTL_BIN) new seal --group aldoshkineg --repo https://github.com/aldoshkineg/atlas-idp.git --repo-path charts/seal --helm"
-	@echo ""
 	@echo "Build first: make atlasctl-build"
 
 seed-atlas:
-	$(ATLASCTL_BIN) seed $(filter-out $@,$(MAKECMDGOALS))
+	$(ATLASCTL_BIN) seed $(ARGS)
 
 atlasctl-list:
 	$(ATLASCTL_BIN) list
 
 atlasctl-status:
-	$(ATLASCTL_BIN) status $(filter-out $@,$(MAKECMDGOALS))
+	$(ATLASCTL_BIN) status $(ARGS)
 
-# --- Tests ---
+# --- Apps: Seal ------------------------------------------------------------
+seal-build:
+	go-task -t $(SEAL_TASKFILE) build-all
+
+seal-push:
+	go-task -t $(SEAL_TASKFILE) push-images
+
+seal-dc-up:
+	go-task -t $(SEAL_TASKFILE) dc-up
+
+seal-dc-down:
+	go-task -t $(SEAL_TASKFILE) dc-down
+
+seal-dc-logs:
+	go-task -t $(SEAL_TASKFILE) dc-logs
+
+seal-unit:
+	go-task -t $(SEAL_TASKFILE) test
+
+# --- RBAC ------------------------------------------------------------------
+rbac-apply:
+	./tools/rbac/rbac.sh apply
+
+rbac-delete:
+	./tools/rbac/rbac.sh delete
+
+# --- Tests -----------------------------------------------------------------
+test: test-ca-gateway test-vault test-network-policy test-velero test-keda test-redis test-db-backup test-argocd-rollout test-seal
+
 test-ca-gateway:
 	./tests/scripts/gateway-test.sh
 
 test-vault:
 	./tests/scripts/vault-test.sh
-
-test: test-ca-gateway test-vault test-network-policy test-velero test-keda test-redis test-db-backup test-argocd-rollout test-seal
 
 test-velero:
 	./tests/scripts/velero-test.sh
@@ -178,150 +309,42 @@ test-argocd-rollout:
 test-undeploy:
 	./tests/scripts/test-undeploy.sh
 
-# --- RBAC ---
-rbac-apply:
-	kubectl apply -f security/rbac/
-
-rbac-delete:
-	kubectl delete -f security/rbac/ --ignore-not-found
-
-# --- GitHub Secrets (single ENV_FILE) ---
-# Upload the whole .env as one GitHub Secret (ENV_FILE). CI replays it via the
-# ci-base "Load ENV_FILE" step, so there is never a need to manage individual
-# secrets (CA, cosign key, Vault seeds, ...) by hand. Keep .env current first
-# (base64-embed the certs/key manually, see .env.example).
-seed-gh:
-	gh secret set ENV_FILE < .env
-	@echo "--> ENV_FILE secret uploaded to GitHub"
-
-# --- Quality Assurance & Linting ---
+# --- Quality ---------------------------------------------------------------
 validate: validate-terraform validate-yaml validate-security
 
 validate-terraform:
-	@echo "==> Running Terraform format check..."
-	terraform fmt -check -recursive infra/
-	@echo "==> Running Terraform validate..."
-	mkdir -p $(TF_PLUGIN_CACHE_DIR)
-	cd infra/environments/$(ENV) && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform init -backend=false && TF_PLUGIN_CACHE_DIR=$(TF_PLUGIN_CACHE_DIR) terraform validate
+	./tools/ci/validate.sh terraform
 
 validate-yaml:
-	@echo "==> Running YAML lint..."
-	@command -v yamllint >/dev/null && yamllint -c .yamllint.yml gitops/ observability/ security/ tests/ || echo "yamllint not installed, skip"
+	./tools/ci/validate.sh yaml
 
 validate-security:
-	@echo "==> Running security scan..."
-	@command -v trivy >/dev/null && (trivy config --config security/trivy/trivy.yaml --severity HIGH,CRITICAL infra/; trivy config --config security/trivy/trivy.yaml --severity HIGH,CRITICAL gitops/) || echo "trivy not installed, skip"
+	./tools/ci/validate.sh security
 
 pre-commit:
-	pre-commit run --all-files
+	./tools/ci/pre-commit.sh
 
-# --- Cosign image signature verification ---
-# Verifies seal-api / seal-worker / seal-ui against security/cosign/cosign.pub.
-# Requires cosign in PATH; override the tag with TAG=vX.Y.Z
+# --- Security --------------------------------------------------------------
 seal-verify:
-	@echo "--> Verifying Seal image signatures (tag: $(or $(TAG),v0.50.0))"
-	@for svc in seal-api seal-worker seal-ui; do \
-	  cosign verify --key security/cosign/cosign.pub "ghcr.io/aldoshkineg/$${svc}:$(or $(TAG),v0.50.0)" || exit 1; \
-	done
+	./tools/security/seal-verify.sh $(TAG)
 
-# --- Local CI & Registry Cache Subsystem ---
-# The Zot image is NOT managed by Terraform. It is pulled once, outside
-# Terraform, via `make zot-image` (which copies ghcr.io/project-zot/zot into
-# Incus under the alias "zot-cache" only when that alias is missing). Run
-# `make zot-image` before `make act-stage-base` on a fresh host.
-ZOT_REMOTE      ?= ghcr-oci
-ZOT_IMAGE_REF   ?= ghcr.io/project-zot/zot:v2.1.16
-ZOT_IMAGE_ALIAS ?= zot-cache
-
-zot-image:
-	@echo "--> Ensuring Zot image '$(ZOT_IMAGE_ALIAS)' is present in Incus..."
-	@incus remote list 2>/dev/null | grep -qw "$(ZOT_REMOTE)" || \
-		incus remote add "$(ZOT_REMOTE)" https://ghcr.io --protocol oci --public
-	@if incus image list 2>/dev/null | grep -qw "$(ZOT_IMAGE_ALIAS)"; then \
-		echo "    '$(ZOT_IMAGE_ALIAS)' already present, skipping copy"; \
-	else \
-		echo "    copying $(ZOT_IMAGE_REF) ..."; \
-		incus image copy "$(ZOT_REMOTE):project-zot/zot:v2.1.16" --alias "$(ZOT_IMAGE_ALIAS)"; \
-	fi
-
-ci-cache-up: infra-apply
-
-ci-cache-purge:
-	@echo "--> Stopping and removing Zot (Incus) instance..."
-	-incus delete zot-cache --force 2>/dev/null || true
-	@echo "--> Zot instance removed. Cache data preserved at /var/tmp/atlas/zot_cache"
-
-ci-runner-up:
-	@chmod +x $(LOCAL_RUNNER_DIR)/setup-runner.sh
-	cd $(LOCAL_RUNNER_DIR) && ./setup-runner.sh
-
-ci-runner-down:
-	docker compose -f $(LOCAL_RUNNER_DIR)/docker-compose.yml down
-
-ci-runner-status:
-	docker compose -f $(LOCAL_RUNNER_DIR)/docker-compose.yml ps
-
-ci-runner-logs:
-	docker compose -f $(LOCAL_RUNNER_DIR)/docker-compose.yml logs -f
-
-# --- Act (Local CI Runner) ---
-# Each target drives a single GitHub workflow via act (tools/ci/act-runner).
-# Build the runner image once with `make act-build` (or pass STAGE_BUILD).
-act-build:
-	tools/ci/act-runner/act-runner.sh build
-
-# Full CI pipeline (ci-all.yaml: base -> middleware -> workloads) via act.
-act-ci:
-	tools/ci/act-runner/act-runner.sh ci
-
-# Base stage only (ci-base.yaml: tools + checks + terraform apply + vault seeds).
-act-stage-base:
-	tools/ci/act-runner/act-runner.sh base
-
-# Platform middleware (ci-middleware.yaml: storage/security/delivery/observability).
-# Requires a running base stage (make act-stage-base).
-act-stage-middleware:
-	tools/ci/act-runner/act-runner.sh middleware
-
-# Workloads (ci-workload.yaml: seed + sync seal). Requires the middleware stage up.
-act-stage-workload:
-	tools/ci/act-runner/act-runner.sh workload
-
-act-destroy:
-	tools/ci/act-runner/act-runner.sh destroy
-
-stage-destroy:
-	./tools/ci/stage-terrafrom-destroy.sh
-
-stage-sync:
-	./tools/ci/sync-layers.sh
-
-# --- Incus Snapshots ---
-INCUS_SNAP_SCRIPT ?= tools/incus/incus-control.sh
-
+# --- Incus VM lifecycle ----------------------------------------------------
 incus-snap-create:
-	@chmod +x $(INCUS_SNAP_SCRIPT)
-	$(INCUS_SNAP_SCRIPT) create $(filter-out $@,$(MAKECMDGOALS))
+	$(INCUS_SNAP_SCRIPT) create $(SNAP)
 
 incus-snap-restore:
-	@chmod +x $(INCUS_SNAP_SCRIPT)
-	$(INCUS_SNAP_SCRIPT) restore $(filter-out $@,$(MAKECMDGOALS))
+	@test -n "$(SNAP)" || (echo "Usage: make incus-snap-restore SNAP=<name>" >&2; exit 1)
+	$(INCUS_SNAP_SCRIPT) restore $(SNAP)
 
 incus-snap-list:
-	@chmod +x $(INCUS_SNAP_SCRIPT)
 	$(INCUS_SNAP_SCRIPT) list
 
 incus-snap-delete:
-	@chmod +x $(INCUS_SNAP_SCRIPT)
-	$(INCUS_SNAP_SCRIPT) delete $(filter-out $@,$(MAKECMDGOALS))
+	@test -n "$(SNAP)" || (echo "Usage: make incus-snap-delete SNAP=<name>" >&2; exit 1)
+	$(INCUS_SNAP_SCRIPT) delete $(SNAP)
 
 incus-vm-stop:
-	@chmod +x $(INCUS_SNAP_SCRIPT)
 	$(INCUS_SNAP_SCRIPT) stop
 
 incus-vm-start:
-	@chmod +x $(INCUS_SNAP_SCRIPT)
 	$(INCUS_SNAP_SCRIPT) start
-
-# Swallow extra args passed to incus-snap targets (e.g. make incus-snap-restore my-snap)
-%:;
