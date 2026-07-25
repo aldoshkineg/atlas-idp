@@ -63,7 +63,7 @@ ARGS ?=
 
 # --- Help (self-documenting) ----------------------------------------------
 help:
-	@echo "Atlas IDP"
+	@echo "Atlas IDP (Internal Developer Platform)"
 	@echo "Quick start:  make preflight  →  make act-stage-base"
 	@echo "Full guide:   docs/setup.md"
 	@echo
@@ -140,6 +140,15 @@ stage-sync: ## Sync GitOps platform layers
 
 argocd-login: ## Login to ArgoCD via CLI
 	./tools/argocd-login.sh
+
+argolist: ## List ArgoCD apps by layer [base|security|storage|delivery|observability|workloads|all]
+	./tools/argocd-list.sh $(filter-out $@,$(MAKECMDGOALS))
+
+# Layer words accepted as positional args for `argolist` (e.g. `make argolist base`).
+# Declared as no-op phony targets so Make does not treat them as real goals.
+.PHONY: base security storage delivery observability workloads all
+base security storage delivery observability workloads all:
+	@:
 
 ##@ Vault & Secrets
 seed-vault: ## Read .env + seed-mapping.conf, seed into Vault via port-forward
