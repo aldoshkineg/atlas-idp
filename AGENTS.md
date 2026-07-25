@@ -33,7 +33,7 @@ The platform runs locally on a Talos Linux Kubernetes cluster provisioned on Inc
 
 - **Infrastructure Layer** (`infra/`): Terraform modules for Talos/Incus cluster, Argo CD bootstrap
 - **GitOps Layer** (`gitops/`): App-of-Apps pattern with root application managing platform services
-- **Platform Services**: gateway-api, cert-manager, metrics-server, monitoring (kube-prometheus-stack)
+- **Platform Services**: gateway-api, cert-manager, metrics-server, monitoring (kube-prometheus-stack), KEDA (event-driven autoscaling), Redis (cache/broker)
 - **Observability**: Custom Prometheus alert rules, Grafana dashboards (planned)
 - **Security**: Vault policies, Trivy scanning, pre-commit hooks
 
@@ -69,11 +69,15 @@ The platform runs locally on a Talos Linux Kubernetes cluster provisioned on Inc
 ### Build & Deploy
 
 ```bash
-# Create cluster (Incus/Talos via Terraform + act)
-make cluster-up
+# Deploy the base stage (Terraform + Vault seeds) via act.
+# Terraform is driven through act, not a standalone Make target.
+make act-stage-base
 
-# Deploy infrastructure (creates cluster + Argo CD)
-make infra-apply
+# Sync platform layers (DB/MinIO/Vault/monitoring) via act
+make act-stage-middleware
+
+# Seed + sync workloads (seal) via act
+make act-stage-workload
 
 # Validate all changes
 make validate
@@ -157,7 +161,7 @@ Pre-commit runs on every commit:
 
 - **Repo:** `aldoshkineg/atlas-dip` (extracted; ArgoCD Application in `gitops/workloads/layers/seal/seal.yaml` points there)
 - **Images on GHCR:** `ghcr.io/aldoshkineg/seal-{api,worker,ui}` — all three have `v0.25.0` and `0.2.0-alpha`; seal-api/seal-worker also have `latest`
-- **Build:** `go-task -t apps/seal/Taskfile.yml build-all` (local `docker buildx`), `push-images` (tag `:dev` → `ghcr.io/aldoshkineg/*:v0.25.0` + push)
+- **Build:** `go-task -t apps/seal/Taskfile.yml build-all` (local `docker buildx`), `push-images` (tag `:dev` → `ghcr.io/aldoshkineg/*:v0.52.0` + push). A minimal set is also exposed from the root Makefile: `make seal-build`, `make seal-push`, `make seal-dc-up/down/logs`, `make seal-unit`. All other seal tasks remain available directly via `go-task -t apps/seal/Taskfile.yml <task>`.
 - **CI workflow:** `.github/workflows/seal-docker-publish.yml` — triggers on push main/push tag `v*`/PR main; uses `type=ref,event=tag` preserving `v` prefix
 - **act issues:** parallel matrix jobs fail (Docker context canceled); use `go-task act-build` for sequential builds
 - **Task CLI:** `task` a distrobox wrapper — use `go-task` directly
@@ -214,7 +218,7 @@ Pre-commit runs on every commit:
 - **act issues:** parallel matrix jobs fail (Docker context canceled); use `go-task act-build`
 - **Task CLI:** `task` is a distrobox wrapper — use `go-task` directly
 - **Credentials in `.env`:** `GITHUB_TOKEN=ghp_...`
-- 3 pods running with `ghcr.io/aldoshkineg/*:v0.25.0`
+- 3 pods running with `ghcr.io/aldoshkineg/*:v0.52.0`
 - **seal-api** exposed on 8080; needs Postgres (`production-db-rw.database.svc:5432`, user `app`/`MyzuMb6...`), Redis (`redis-master.redis.svc:6379`, pw `e5f2190c...`), MinIO (`minio.minio.svc:9000`, admin creds from Vault)
 - **seal-worker** needs Redis + MinIO
 - **seal-ui** exposed on 3000; no env vars

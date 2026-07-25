@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# stage-terrafrom-destroy.sh — Quick destroy of stage environment.
+# stage-terraform-destroy.sh — Quick destroy of stage environment.
 #
 # Cleans up all Incus-managed resources for the Talos-based stage cluster
 # and removes the local Terraform state so the next apply starts fresh:
@@ -84,7 +84,7 @@ fi
 # 8. Clean up Terraform state
 echo "--> Cleaning up Terraform state..."
 if [ -f "$TF_STATE" ]; then
-  sudo rm -f "$TF_STATE"
+  rm -f "$TF_STATE" 2>/dev/null || sudo rm -f "$TF_STATE"
   echo "    deleted: $TF_STATE"
 else
   echo "    skip (not found)"

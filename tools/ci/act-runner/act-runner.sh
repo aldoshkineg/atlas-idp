@@ -111,8 +111,12 @@ case "${1:-}" in
     run_workflow "$REPO_ROOT/.github/workflows/ci-destroy.yaml" --input confirm=destroy "$@"
     ;;
 
+  destroy-force)
+    run_workflow "$REPO_ROOT/.github/workflows/ci-destroy-force.yaml" "$@"
+    ;;
+
   *)
-    echo "Usage: $0 {build|ci|base|middleware|workload|destroy}"
+    echo "Usage: $0 {build|ci|base|middleware|workload|destroy|destroy-force}"
     exit 1
     ;;
 esac
