@@ -30,11 +30,6 @@ ATLASCTL_TASKFILE ?= tools/atlasctl/Taskfile.yml
 
 INCUS_SNAP_SCRIPT ?= tools/incus/incus-control.sh
 
-# Zot registry cache (consumed by tools/incus/zot-image.sh)
-ZOT_REMOTE      ?= ghcr-oci
-ZOT_IMAGE_REF   ?= ghcr.io/project-zot/zot:v2.1.16
-ZOT_IMAGE_ALIAS ?= zot-cache
-
 # Snapshot name for incus-snap-* targets, e.g. make incus-snap-restore SNAP=my-snap
 SNAP ?=
 
@@ -43,7 +38,7 @@ ARGS ?=
 
 # --- Phony targets ---------------------------------------------------------
 .PHONY: help \
-	zot-image stage-sync \
+	stage-sync \
 	ci-runner-up ci-runner-down ci-runner-logs \
 	ci-runner-apply ci-runner-ci ci-runner-base ci-runner-middle ci-runner-workload \
 	ci-runner-destroy ci-runner-destroy-force \
@@ -77,9 +72,6 @@ help:
 ##@ Getting Started
 preflight: ## Verify host readiness (binaries, daemons, .env, images) [run before any pipeline]
 	./tools/ci/preflight.sh
-
-zot-image: ## Pull + import Zot image into Incus (required to start the project) [alias=zot-cache]
-	./tools/incus/zot-image.sh ensure
 
 ##@ Local Run (act)
 act-ci: ## Run full CI pipeline (base+middleware+workload) via act

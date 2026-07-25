@@ -73,7 +73,7 @@ fi
 if incus image list -f csv 2>/dev/null | cut -d, -f1 | grep -qx zot-cache; then
   ok "incus image alias: zot-cache"
 else
-  fail "incus image alias missing: zot-cache (run 'make zot-image')"
+  warn "incus image alias missing: zot-cache (created automatically during 'terraform apply' / act-stage-base)"
 fi
 
 echo "==> Paths"

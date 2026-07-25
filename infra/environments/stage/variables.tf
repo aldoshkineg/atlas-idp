@@ -118,13 +118,20 @@ variable "seed_iso_dir" {
 }
 
 # === Zot Registry Cache ===
-# The Zot image is provisioned outside Terraform via `make zot-image`; the
-# source reference for that hook lives in the Makefile (ZOT_IMAGE_REF).
+# The Zot image is imported into Incus by Terraform itself via `incus image
+# copy` from the ghcr OCI remote (only when the alias is absent), so there is no
+# external `make zot-image` hook and the image survives `terraform destroy`.
 
 variable "zot_enable" {
   description = "Enable Zot registry cache container"
   type        = bool
   default     = true
+}
+
+variable "zot_image_ref" {
+  description = "Zot image reference (registry/repo:tag) pulled into Incus by Terraform"
+  type        = string
+  default     = "ghcr.io/project-zot/zot:v2.1.16"
 }
 
 variable "zot_cache_dir" {

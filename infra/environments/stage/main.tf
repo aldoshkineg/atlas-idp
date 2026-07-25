@@ -41,8 +41,6 @@ module "talos_config" {
 }
 
 # === Incus provider (local socket only) ===
-# The Zot image is pulled outside Terraform via the `make zot-image` hook, so
-# no OCI remote is declared here.
 provider "incus" {
   default_remote = "local"
 
@@ -53,7 +51,9 @@ provider "incus" {
 }
 
 # === Zot registry cache ===
-# Consumes the already-present "zot-cache" image (see `make zot-image`).
+# Terraform imports the "zot-cache" image into Incus once via `incus image
+# copy` from the ghcr OCI remote (only when the alias is absent). Idempotent,
+# no destroy provisioner, so the image survives `terraform destroy`.
 module "zot_cache" {
   source = "../../modules/zot-cache"
 
@@ -63,6 +63,7 @@ module "zot_cache" {
   network     = module.incus.bridge_name
   gateway     = var.gateway
   image_alias = "zot-cache"
+  image_ref   = var.zot_image_ref
   static_ip   = var.zot_address
 }
 

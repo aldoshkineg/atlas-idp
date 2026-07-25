@@ -27,9 +27,33 @@ variable "gateway" {
 }
 
 variable "image_alias" {
-  description = "Alias of the already-present Zot image in Incus (provisioned externally via 'make zot-image')"
+  description = "Alias of the Zot image in Incus (created by Terraform via null_resource.import_zot)"
   type        = string
   default     = "zot-cache"
+}
+
+variable "image_ref" {
+  description = "Full source reference of the Zot image (registry/repo:tag)"
+  type        = string
+  default     = "ghcr.io/project-zot/zot:v2.1.16"
+}
+
+variable "image_registry" {
+  description = "Registry host prefix stripped from image_ref to build the OCI remote path"
+  type        = string
+  default     = "ghcr.io"
+}
+
+variable "image_remote" {
+  description = "Incus OCI remote name used to copy the image"
+  type        = string
+  default     = "ghcr-oci"
+}
+
+variable "image_registry_url" {
+  description = "OCI registry URL for the Incus remote"
+  type        = string
+  default     = "https://ghcr.io"
 }
 
 variable "static_ip" {

@@ -129,12 +129,14 @@ atlas-idp/
 
 ### 0. One-time Getting Started
 
-Before any pipeline, prepare the startup images and verify the host:
+Before any pipeline, verify the host:
 
 ```bash
-make preflight    # verify binaries, daemons, .env, zot-cache alias
-make zot-image    # pull + import Zot image into Incus (required before bootstrap)
+make preflight    # verify binaries, daemons, .env
 ```
+
+The Zot image is pulled and imported into Incus automatically by `terraform apply`
+during `make act-stage-base` (no separate manual step required).
 
 See `docs/setup.md` for the full getting-started guide (`.env`, CA, cosign, memory).
 

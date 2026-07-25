@@ -124,21 +124,14 @@ EOF
 
 ## 4. Prepare the startup images
 
-### `zot-cache` (manual — required before `act-stage-base`)
+### `zot-cache` (automatic)
 
-Terraform does **not** manage the Zot registry-cache image: it only launches
-an Incus container from the already-present `zot-cache` image alias (by design,
-so the cache survives `terraform destroy`). The base layer pulls platform
-charts/images through this cache, so the image **must** exist before the
-cluster can be bootstrapped. Create the alias once:
-
-```bash
-make zot-image
-# pulls ghcr.io/project-zot/zot:v2.1.16 and imports it into Incus
-# under the alias "zot-cache" (the image required to start the project)
-```
-
-If the alias already exists, the script is a no-op.
+The Zot registry-cache image is pulled and imported into Incus **automatically**
+by the `zot_cache` Terraform module during `apply` (via `incus image copy` from
+the ghcr OCI remote, idempotent — skipped if the `zot-cache` alias already
+exists). There is no destroy provisioner, so the image survives
+`terraform destroy` and is reused across destroy/apply cycles. No manual step is
+required before `act-stage-base`.
 
 ### Talos VM image (automatic)
 
@@ -161,7 +154,8 @@ It verifies, and must report **0 failures, 0 warnings**:
 
 - **Binaries** — every tool in `REQUIREMENTS.md` (Local CLI Tooling) is present.
 - **Daemons** — Docker and Incus are reachable.
-- **Images** — the `zot-cache` Incus alias exists (`make zot-image`).
+- **Images** — the `zot-cache` Incus alias is created automatically by
+  Terraform during `apply` (no manual step needed).
 - **Config** — `.env` exists with the required `ATLAS_CA_CRT_B64` /
   `ATLAS_CA_KEY_B64` pair (and the other Vault/cosign seeds); `.secrets`
   contains `GITHUB_TOKEN`.
@@ -173,7 +167,7 @@ It verifies, and must report **0 failures, 0 warnings**:
   recommended for the base layer (3 nodes: argocd, linstor, vault, gateway,
   eso); **~32 GB RAM** for a full all-layers run.
 
-Fix any reported failure (most commonly: run `make zot-image`, or populate the
+Fix any reported failure (most commonly: populate the
 missing `.env` / CA values) and re-run until clean.
 
 ---

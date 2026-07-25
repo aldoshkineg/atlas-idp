@@ -2,9 +2,9 @@
 
 Terraform module that launches a local [Zot](https://zotregistry.dev/) OCI
 registry container inside an Incus instance, used as a pull-through cache proxy
-for the Talos/Incus cluster. The Zot image itself is NOT managed by Terraform
-(see `make zot-image`); Terraform only instantiates the container from the
-already-present `zot-cache` image alias.
+for the Talos/Incus cluster. Terraform imports the Zot image into Incus itself
+(via `incus image copy` from the ghcr OCI remote, in `null_resource.import_zot`),
+then instantiates the container from the resulting `zot-cache` image alias.
 
 ## Features
 
@@ -36,7 +36,7 @@ module "zot_cache" {
 | cache_dir   | Host path for Zot cache storage (mapped to /var/lib/registry) | `string` | `/var/tmp/atlas/zot_cache/zot-cache-data` | no       |
 | network     | Incus bridge network name                                     | `string` | —                                         | yes      |
 | gateway     | Bridge gateway IP (used for resolv.conf nameserver)           | `string` | —                                         | yes      |
-| image_alias | Alias of the already-present Zot image in Incus               | `string` | `"zot-cache"`                             | no       |
+| image_alias | Alias of the Zot image in Incus (created by Terraform)        | `string` | `"zot-cache"`                             | no       |
 | static_ip   | Static IPv4 address for the Zot container                     | `string` | `"10.200.10.2"`                           | no       |
 
 ## Outputs
@@ -47,8 +47,9 @@ module "zot_cache" {
 
 ## Notes
 
-- The Zot image must be provisioned once outside Terraform via `make zot-image`
-  (copies `ghcr.io/project-zot/zot` into Incus under the alias `zot-cache`).
+- The Zot image is imported into Incus by Terraform (`null_resource.import_zot`,
+  `incus image copy` from the ghcr OCI remote) when the `zot-cache` alias is
+  absent — no external `make zot-image` step is needed.
 - `terraform destroy` removes only the container instance; the cached image and
   the host cache directory survive across destroy/apply cycles.
-- Image tag is pinned at provisioning time via `make zot-image`.
+- Image tag is pinned via the `image_ref` variable.
