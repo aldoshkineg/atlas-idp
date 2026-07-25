@@ -10,7 +10,8 @@ CI workflows (`ci-base`, `ci-middleware`, `ci-workload`, `ci-all`) on `push`/
 
 ## Prerequisites
 
-- **GitHub CLI (`gh`)** installed and authenticated (`gh auth login`).
+- **GitHub CLI (`gh`)** installed and authenticated (`gh auth login`), or
+  `GH_TOKEN`/`GITHUB_TOKEN` exported in the environment (e.g. `source .secrets`).
 - **Docker & Docker Compose** (daemon reachable via `/var/run/docker.sock`).
 - **Incus** running on the host — the `terraform-incus` action drives the Talos
   cluster through `/var/lib/incus/unix.socket`.

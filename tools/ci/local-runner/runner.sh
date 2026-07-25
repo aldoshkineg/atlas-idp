@@ -18,7 +18,17 @@ REPO="aldoshkineg/atlas-idp"
 
 require_gh() {
   command -v gh >/dev/null 2>&1 || { echo "ERROR: gh CLI not found" >&2; exit 1; }
-  gh auth status >/dev/null 2>&1 || { echo "ERROR: gh not authenticated (run 'gh auth login')" >&2; exit 1; }
+  # gh honours GH_TOKEN/GITHUB_TOKEN for API calls even without `gh auth login`
+  # (the token in .secrets lacks the read:org scope `gh auth login` requires),
+  # so accept either an authenticated gh or a token in the environment.
+  if gh auth status >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
+    return 0
+  fi
+  echo "ERROR: gh not authenticated (run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN)" >&2
+  exit 1
 }
 
 # Resolve the active ref so the dispatched workflow runs from the current

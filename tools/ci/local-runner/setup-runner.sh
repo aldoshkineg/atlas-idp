@@ -12,10 +12,12 @@ if ! command -v gh >/dev/null 2>&1; then
     exit 1
 fi
 
-# Check if gh is authenticated
-if ! gh auth status >/dev/null 2>&1; then
+# Check if gh is authenticated. gh honours GH_TOKEN/GITHUB_TOKEN for API calls
+# even without `gh auth login` (the token in .secrets lacks the read:org scope
+# `gh auth login` requires), so accept a token in the environment too.
+if ! gh auth status >/dev/null 2>&1 && [ -z "${GH_TOKEN:-}" ] && [ -z "${GITHUB_TOKEN:-}" ]; then
     echo "Error: gh is not authenticated."
-    echo "Please run 'gh auth login' before executing this script."
+    echo "Please run 'gh auth login' or set GH_TOKEN/GITHUB_TOKEN (e.g. 'source .secrets')."
     exit 1
 fi
 
