@@ -127,6 +127,17 @@ atlas-idp/
 - [Docker](https://www.docker.com/) (for the CI runner / `act`)
 - [Helm](https://helm.sh/), [Argo CD CLI](https://argo-cd.readthedocs.io/), [pre-commit](https://pre-commit.com/)
 
+### 0. One-time Getting Started
+
+Before any pipeline, prepare the startup images and verify the host:
+
+```bash
+make preflight    # verify binaries, daemons, .env, zot-cache alias
+make zot-image    # pull + import Zot image into Incus (required before bootstrap)
+```
+
+See `docs/setup.md` for the full getting-started guide (`.env`, CA, cosign, memory).
+
 ### 1. Configure the Git repository URL
 
 Argo CD pulls manifests from Git. Point the platform at your fork before deploying:
@@ -191,24 +202,11 @@ make act-destroy    # destroy the stage infrastructure
 
 ## Workflow (Makefile Targets)
 
-| Target                 | Description                                                    |
-| ---------------------- | -------------------------------------------------------------- |
-| `act-build`            | Build the local CI runner image                                |
-| `act-ci`               | Full CI pipeline (base → middleware → workloads) via `act`     |
-| `act-stage-base`       | Provision Incus/Talos cluster + Argo CD + Vault seeds          |
-| `act-stage-middleware` | Sync platform layers (storage/security/delivery/observability) |
-| `act-stage-workload`   | Seed + sync workloads (seal)                                   |
-| `act-destroy`          | Destroy the stage infrastructure                               |
-| `argocd-login`         | Log in to Argo CD via the CLI                                  |
-| `atlasctl-new`         | Scaffold a new workload (golden path)                          |
-| `atlas-seal`           | Seed Seal workload secrets into Vault (ARGS=group/app)         |
-| `atlasctl-list`        | List registered workloads                                      |
-| `incus-snap-*`         | Snapshot / restore / list / delete Talos VM snapshots          |
-| `validate`             | Terraform fmt/validate, Trivy, yamllint                        |
-| `pre-commit`           | Run pre-commit hooks on all files                              |
-| `test`                 | Run all platform smoke/integration tests                       |
+The Makefile is a thin task dispatcher: every target delegates to a script under
+`tools/` and is **self-documenting**. Run `make` (or `make help`) to print the
+full, grouped target list with descriptions and required arguments.
 
-> The active workflow is Incus/Talos via the `act-*` targets above.
+> The active workflow is Incus/Talos via the `act-*` and `ci-runner-*` targets.
 
 ---
 

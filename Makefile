@@ -12,15 +12,12 @@
 
 .DEFAULT_GOAL := help
 
-ENV ?= stage
-
 # Auto-load .env if present (local B2 credentials, Vault seeds, etc.)
 -include .env
 export
 
 # --- Shared locations ------------------------------------------------------
 TF_PLUGIN_CACHE_DIR ?= /var/tmp/atlas/act_cache/tf
-TF_STATE_DIR        ?= /var/tmp/atlas/terraform
 
 LOCAL_RUNNER_DIR ?= tools/ci/local-runner
 ACT_RUNNER_DIR   ?= tools/ci/act-runner
@@ -50,7 +47,7 @@ ARGS ?=
 	ci-runner-up ci-runner-down ci-runner-logs \
 	ci-runner-apply ci-runner-ci ci-runner-base ci-runner-middle ci-runner-workload \
 	ci-runner-destroy ci-runner-destroy-force \
-	act-build act-ci act-stage-base act-stage-middle act-stage-workload act-destroy act-destroy-force \
+	act-build act-ci act-stage-base act-stage-middleware act-stage-workload act-destroy act-destroy-force \
 	argocd-login \
 	seed-vault seed-gh \
 	atlasctl-build atlasctl-test atlasctl-vet atlasctl-new atlas-seal atlasctl-list atlasctl-status \
@@ -81,7 +78,7 @@ help:
 preflight: ## Verify host readiness (binaries, daemons, .env, images) [run before any pipeline]
 	./tools/ci/preflight.sh
 
-zot-image: ## Pull + import Zot image into Incus (required to start the project) [make zot-image]
+zot-image: ## Pull + import Zot image into Incus (required to start the project) [alias=zot-cache]
 	./tools/incus/zot-image.sh ensure
 
 ##@ Local Run (act)
@@ -91,10 +88,10 @@ act-ci: ## Run full CI pipeline (base+middleware+workload) via act
 act-stage-base: ## Run base stage (infra + vault seeds) via act
 	$(ACT_RUNNER_DIR)/act-runner.sh base
 
-act-stage-middle: ## Sync platform layers (DB/MinIO/monitoring) via act
+act-stage-middleware: ## Sync platform layers (DB/MinIO/monitoring) via act
 	$(ACT_RUNNER_DIR)/act-runner.sh middleware
 
-act-stage-workload: ## Sync workloads (seal) + seed worloads via act
+act-stage-workload: ## Sync workloads (seal) + seed workloads via act
 	$(ACT_RUNNER_DIR)/act-runner.sh workload
 
 act-destroy: ## Destroy stage infrastructure via act (ci-destroy workflow)
@@ -137,11 +134,10 @@ ci-runner-destroy: ## Dispatch destroy via runner (ci-destroy workflow)
 ci-runner-destroy-force: ## Dispatch hard teardown via runner
 	./$(LOCAL_RUNNER_DIR)/runner.sh destroy-force
 
-##@ Cluster & Registry Cache (Incus/Zot)
+##@ GitOps
 stage-sync: ## Sync GitOps platform layers
 	./tools/ci/sync-layers.sh
 
-##@ ArgoCD
 argocd-login: ## Login to ArgoCD via CLI
 	./tools/argocd-login.sh
 
@@ -232,8 +228,7 @@ test-undeploy: ## Remove all test resources
 	./tests/scripts/test-undeploy.sh
 
 ##@ Quality
-validate: ## Run fmt/validate checks (Terraform, Yamllint, Trivy)
-	validate-terraform validate-yaml validate-security
+validate: validate-terraform validate-yaml validate-security ## Run fmt/validate checks (Terraform, Yamllint, Trivy)
 
 validate-terraform: ## Terraform fmt/validate
 	./tools/ci/validate.sh terraform
