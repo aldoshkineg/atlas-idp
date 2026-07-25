@@ -32,6 +32,14 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      # Single source of truth for the trivy version is VERSION_MAP in
+      # tools/ci/install-tools.sh — resolve it instead of hardcoding here.
+      - name: Resolve Trivy version
+        id: trivy
+        shell: bash
+        run: |
+          echo "version=$(bash tools/ci/install-tools.sh --version trivy)" >> "$GITHUB_OUTPUT"
+
       # Cache both the trivy binary and its vulnerability DB so the cloud scan
       # does not re-download ~50 MB on every commit. The binary is installed
       # into a writable dir (not /usr/local/bin) and added to PATH.
@@ -39,7 +47,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/trivy-bin
-          key: trivy-binary-0.70.0
+          key: trivy-binary-${{ steps.trivy.outputs.version }}
 
       - name: Cache Trivy DB
         uses: actions/cache@v4
@@ -48,16 +56,17 @@ jobs:
           key: trivy-db
           restore-keys: trivy-db
 
+      # Install via the single source of truth (tools/ci/install-tools.sh) into
+      # the cached dir. The conditional `command -v` inside the script skips the
+      # download on a cache hit; the binary is added to PATH for the scan step.
       - name: Install Trivy (cached)
         shell: bash
         env:
-          # Keep in sync with VERSION_MAP[trivy] in tools/ci/install-tools.sh
-          TRIVY_VERSION: "0.70.0"
+          BIN_DIR: ${{ runner.temp }}/trivy-bin
         run: |
-          if [ ! -x "${{ runner.temp }}/trivy-bin/trivy" ]; then
-            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-              | sh -s -- -b "${{ runner.temp }}/trivy-bin" v"${TRIVY_VERSION}"
-          fi
-          echo "${{ runner.temp }}/trivy-bin" >> "$GITHUB_PATH"
+          mkdir -p "$BIN_DIR"
+          export PATH="$BIN_DIR:$PATH"
+          bash tools/ci/install-tools.sh trivy
+          echo "$BIN_DIR" >> "$GITHUB_PATH"
 
       - uses: ./.github/actions/scan

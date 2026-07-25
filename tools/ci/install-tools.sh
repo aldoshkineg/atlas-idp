@@ -13,6 +13,7 @@
 # Usage:
 #   ./install-tools.sh                 # install all pinned tools
 #   ./install-tools.sh trivy yamllint  # install a subset
+#   ./install-tools.sh --version trivy # print the pinned version (no install)
 #
 # We intentionally support a single version per tool (no side-by-side installs).
 
@@ -31,6 +32,19 @@ declare -A VERSION_MAP=(
 )
 # xorriso is a system package (no pinned version) — required by the incus module
 # to build the cloud-init seed ISO (`xorriso -as mkisofs ... -V cidata`).
+
+# Subcommand: print the pinned version for a tool WITHOUT installing it. Used by
+# workflows (e.g. security.yaml) that install a tool themselves but still want a
+# single source of truth for the version. `install-tools.sh --version trivy` → 0.70.0
+if [ "$1" = "--version" ]; then
+  _tool="${2:-}"
+  if [ -z "${VERSION_MAP[$_tool]:-}" ]; then
+    echo "install-tools.sh: no pinned version for '$_tool'" >&2
+    exit 1
+  fi
+  printf '%s\n' "${VERSION_MAP[$_tool]}"
+  exit 0
+fi
 
 install_one() {
   local TOOL="$1"
@@ -68,10 +82,16 @@ install_one() {
       ;;
 
     trivy)
+      # BIN_DIR lets callers install to a writable dir (e.g. a CI cache dir)
+      # without sudo; defaults to /usr/local/bin for local/dev use.
+      BIN_DIR="${BIN_DIR:-/usr/local/bin}"
+      mkdir -p "$BIN_DIR"
+      if [ -w "$BIN_DIR" ]; then SUDO=""; else SUDO="sudo"; fi
+      echo "Installing trivy v${VERSION} into ${BIN_DIR}"
       curl -sfL \
         https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh |
-        sudo sh -s -- -b /usr/local/bin v${VERSION}
-      command -v trivy >/dev/null || { echo "trivy install failed"; exit 1; }
+        $SUDO sh -s -- -b "$BIN_DIR" v"${VERSION}"
+      [ -x "$BIN_DIR/trivy" ] || { echo "trivy install failed"; exit 1; }
       ;;
 
     yamllint)
