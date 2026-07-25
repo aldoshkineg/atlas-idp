@@ -267,8 +267,8 @@ incus-snap-delete: ## Delete a named snapshot [SNAP=name]
 	@test -n "$(SNAP)" || (echo "Usage: make incus-snap-delete SNAP=<name>" >&2; exit 1)
 	$(INCUS_SNAP_SCRIPT) delete $(SNAP)
 
-incus-vm-stop: ## Stop all Talos VMs (hard stop)
-	$(INCUS_SNAP_SCRIPT) stop
+incus-vm-stop: ## Stop Talos VM(s) [VM=name|all]
+	$(INCUS_SNAP_SCRIPT) stop $(or $(VM),all)
 
-incus-vm-start: ## Start all Talos VMs
-	$(INCUS_SNAP_SCRIPT) start
+incus-vm-start: ## Start Talos VM(s) [VM=name|all]
+	$(INCUS_SNAP_SCRIPT) start $(or $(VM),all)
