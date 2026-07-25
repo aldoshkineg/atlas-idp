@@ -19,7 +19,8 @@ resource "null_resource" "import_zot" {
   }
 
   provisioner "local-exec" {
-    command = <<-EOT
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOT
       set -euo pipefail
       if incus image show '${var.image_alias}' >/dev/null 2>&1; then
         echo "=== Incus image alias '${var.image_alias}' already present, skipping import ==="
