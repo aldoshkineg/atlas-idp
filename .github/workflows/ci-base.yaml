@@ -84,3 +84,11 @@ jobs:
       - uses: ./.github/actions/terraform
 
       - uses: ./.github/actions/seed-vault
+
+      - name: Cleanup secrets from workspace
+        if: always()
+        shell: bash
+        run: |
+          rm -f .env
+          rm -f security/certs/ca.crt security/certs/ca.key
+          echo "Removed workspace secrets (.env, ca.crt, ca.key)"

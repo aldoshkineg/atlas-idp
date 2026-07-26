@@ -138,7 +138,45 @@ if [[ "${PHASE}" == "all" || "${PHASE}" == "workloads" ]]; then
   fi
 fi
 
-log "Final status:"
-argocd app list | awk 'NR==1 || $4!="Synced" || $5!="Healthy"{print}'
+  # --- Health gate: fail the job if any targeted layer is not Synced/Healthy ---
+  # Previously sync_layer swallowed errors (|| true / "continuing"), so a red CI
+  # run could hide a broken deploy. Now we fail the job when a layer is not
+  # Synced or sits in a bad health state, so green actually means healthy.
+  health_ok() {
+    local st="$1"
+    local status="${st%% *}"
+    local health="${st##* }"
+    [ "$status" = "Synced" ] || return 1
+    case "$health" in
+      Degraded|Missing|Failed|Suspended|Unknown|"") return 1 ;;
+    esac
+    return 0
+  }
 
-log "Done. Verify with: argocd app list"
+  gate_layers=()
+  if [[ "${PHASE}" == "all" || "${PHASE}" == "middleware" ]]; then
+    gate_layers+=("${LAYERS[@]}")
+  fi
+  if [[ "${PHASE}" == "all" || "${PHASE}" == "workloads" ]]; then
+    gate_layers+=("workloads")
+  fi
+
+  gate_failed=0
+  for layer in "${gate_layers[@]}"; do
+    st="$(layer_state "${layer}")"
+    if health_ok "$st"; then
+      log "[${layer}] healthy (${st})"
+    else
+      echo "❌ [${layer}] NOT healthy: '${st}'" >&2
+      gate_failed=1
+    fi
+  done
+  if [[ "${gate_failed}" -ne 0 ]]; then
+    echo "Health gate FAILED — one or more layers are not Synced/Healthy." >&2
+    exit 1
+  fi
+
+  log "Final status:"
+  argocd app list | awk 'NR==1 || $4!="Synced" || $5!="Healthy"{print}'
+
+  log "Done. Verify with: argocd app list"
