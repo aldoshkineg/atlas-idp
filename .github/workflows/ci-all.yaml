@@ -20,50 +20,23 @@ on:
         type: boolean
         default: true
 
-# Serialize every self-hosted (mutating + checks) run against the single shared
-# stage cluster. A new run waits for the in-progress one to finish; it is never
-# cancelled mid-apply (cancel-in-progress: false). The standalone `security` scan
-# and the cloud build workflows (seal, atlasctl) run independently.
-# Default orchestrator: on push/PR runs lint -> base -> middleware -> workloads.
-# `lint` runs on the self-hosted runner (reusing its cached toolchain, so no
-# binary/provider downloads) and gates `base`: if fmt/validate/yamllint fail,
-# there is no point running `terraform apply`.
+# Serialize every self-hosted (mutating) run against the single shared stage
+# cluster via the `atlas-stage` concurrency group declared in each called
+# workflow. A new run waits for the in-progress one; it is never cancelled
+# mid-apply. The standalone `security` scan and the cloud build workflows
+# (seal, atlasctl) run independently.
 #
-# Disable entirely: include `[skip-ci]` in the commit message / PR title.
-# Run only the base phase: include `[base-only]`.
-# Force a full deploy even with `[skip-ci]`: include `run: deploy`.
-# Manual runs (workflow_dispatch) honour the toggles above instead of markers.
+# Triggers:
+#   - push to main         -> full pipeline: lint -> base -> middleware -> workloads
+#   - pull_request to main -> lint only (validation, NO cluster mutation)
+#   - workflow_dispatch    -> full pipeline; phases controlled by the run_base /
+#                             run_middleware / run_workloads toggles (all default true)
+#
+# No commit-message parsing: behaviour is driven solely by the event type and
+# the dispatch toggles above.
 
 jobs:
-  gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      skip: ${{ steps.eval.outputs.skip }}
-      base_only: ${{ steps.eval.outputs.base_only }}
-      deploy: ${{ steps.eval.outputs.deploy }}
-    steps:
-      - id: eval
-        shell: bash
-        env:
-          MSG: "${{ github.event.head_commit.message }}"
-          PRTITLE: "${{ github.event.pull_request.title }}"
-        run: |
-          text="${MSG:-$PRTITLE}"
-          skip="false"; base_only="false"; deploy="false"
-          if echo "$text" | grep -qiE '\[skip[-_ ]?ci\]'; then skip="true"; fi
-          if echo "$text" | grep -qiE '\[base[-_ ]?only\]'; then base_only="true"; fi
-          # `run: deploy` forces a full deploy even if [skip-ci] is present
-          # (e.g. an empty "run: deploy" commit to re-apply the stage).
-          if echo "$text" | grep -qiE 'run:[[:space:]]*deploy'; then deploy="true"; fi
-          if [ "$deploy" = "true" ]; then skip="false"; base_only="false"; fi
-          echo "skip=$skip" >> "$GITHUB_OUTPUT"
-          echo "base_only=$base_only" >> "$GITHUB_OUTPUT"
-          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
-
   lint:
-    needs: [gate]
-    if: needs.gate.outputs.skip != 'true'
     runs-on: [self-hosted]
     permissions:
       contents: read
@@ -81,28 +54,26 @@ jobs:
       - uses: ./.github/actions/lint
 
   base:
-    needs: [gate, lint]
+    needs: [lint]
     if: >-
-      needs.gate.outputs.skip != 'true' &&
+      github.event_name != 'pull_request' &&
       (github.event_name != 'workflow_dispatch' || inputs.run_base)
     uses: ./.github/workflows/ci-base.yaml
     secrets:
       ENV_FILE: ${{ secrets.ENV_FILE }}
 
   middleware:
-    needs: [gate, base]
+    needs: [base]
     if: >-
-      needs.gate.outputs.skip != 'true' &&
-      needs.gate.outputs.base_only != 'true' &&
+      github.event_name != 'pull_request' &&
       (github.event_name != 'workflow_dispatch' || inputs.run_middleware) &&
       (needs.base.result == 'success' || needs.base.result == 'skipped')
     uses: ./.github/workflows/ci-middleware.yaml
 
   workloads:
-    needs: [gate, middleware]
+    needs: [middleware]
     if: >-
-      needs.gate.outputs.skip != 'true' &&
-      needs.gate.outputs.base_only != 'true' &&
+      github.event_name != 'pull_request' &&
       (github.event_name != 'workflow_dispatch' || inputs.run_workloads) &&
       (needs.middleware.result == 'success' || needs.middleware.result == 'skipped')
     uses: ./.github/workflows/ci-workload.yaml
