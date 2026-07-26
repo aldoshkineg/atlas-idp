@@ -14,7 +14,6 @@ override.tf.json
 # Kubernetes / kind
 kubeconfig
 *.kubeconfig
-kind-export/
 
 # Secrets (local files, stay in repo tree)
 .env
@@ -77,9 +76,3 @@ apps/seal/tests/load/reports
 
 # Talos generated configs (sensitive: CA, keys, kubeconfig)
 infra/**/talos/
-
-# Seed ISO staging
-/var/tmp/atlas/incus/seed/
-
-# GitOps rebuild backup (kept until full rollout verified)
-gitops.bak/

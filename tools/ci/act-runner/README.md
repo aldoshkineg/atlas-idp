@@ -28,7 +28,7 @@ If `make act-ci` fails with "image not found", run `make act-build` first.
   `act-runner.sh ci --list`
 
 All pinned versions live in `tools/ci/install-tools.sh` (VERSION_MAP) — a single
-source of truth shared by CI, the act-runner image, and `make tools-install`.
+source of truth shared by CI and the act-runner image.
 Installation logic comes from `tools/ci/install-tools.sh`.
 No version duplication — the Dockerfile and `act-runner.sh` contain zero hardcoded
 versions.
