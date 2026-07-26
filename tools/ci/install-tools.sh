@@ -64,9 +64,13 @@ install_one() {
   local TOOL="$1"
   local VERSION=""
   VERSION="$(req_version "$TOOL" || true)"
+  local BIN="$TOOL"
+  case "$TOOL" in
+    go-task) BIN=task ;;
+  esac
 
-  if command -v "$TOOL" &>/dev/null; then
-    echo "$TOOL already installed ($(command -v "$TOOL"))"
+  if command -v "$BIN" &>/dev/null; then
+    echo "$TOOL already installed ($(command -v "$BIN"))"
     return 0
   fi
 
@@ -149,6 +153,15 @@ install_one() {
       # System package (no pinned version) — used to parse argocd JSON output.
       sudo apt-get update
       sudo apt-get install -y --no-install-recommends jq
+      ;;
+
+    go-task)
+      # go-task (task) — pinned via docs/requirements.md (Local CLI Tooling).
+      curl -fsSL -o task.tgz \
+        "https://github.com/go-task/task/releases/download/v${VERSION}/task_linux_amd64.tar.gz"
+      tar -xzf task.tgz task
+      sudo mv task /usr/local/bin/
+      rm -f task.tgz
       ;;
 
     *)

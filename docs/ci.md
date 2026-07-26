@@ -18,6 +18,19 @@ them locally / via a self-hosted runner.
 | `.github/workflows/seal-docker-publish.yml` | Build/push/sign seal images (on tag `v*`).                                            |
 | `.github/workflows/atlasctl-release.yml`    | Release `atlasctl` (on tag `v*`).                                                     |
 
+## Test Workflows
+
+Fast, path-filtered unit tests (no cluster) plus a manual full-stack e2e:
+
+| File                                   | Purpose                                                                                                                                       |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/test-seal.yaml`     | Unit tests for `apps/seal` (`task -d apps/seal test`). Triggered by push/PR to `apps/seal/**` and `workflow_dispatch`.                        |
+| `.github/workflows/test-atlasctl.yaml` | Unit tests for `tools/atlasctl` (`task -d tools/atlasctl test`). Triggered by push/PR to `tools/atlasctl/**` and `workflow_dispatch`.         |
+| `.github/workflows/test-platform.yaml` | Manual platform e2e (`make test` + `make test-undeploy` + secret cleanup) on the `self-hosted` runner. Triggered only by `workflow_dispatch`. |
+
+`go-task` is installed in the unit-test jobs via `tools/ci/install-tools.sh go-task`
+(pinned in `docs/requirements.md`, `Local CLI Tooling`).
+
 ### Composite Actions (reusable steps)
 
 | Action                        | What it does                                                                                                                                                                 |
@@ -32,7 +45,7 @@ them locally / via a self-hosted runner.
 
 ### Scripts (`tools/ci/`)
 
-- `install-tools.sh` — reads toolchain versions from `docs/requirements.md` (single source of truth), including `jq`.
+- `install-tools.sh` — reads toolchain versions from `docs/requirements.md` (single source of truth), including `jq` and `go-task`.
 - `terraform-init.sh` — `terraform init` with retry.
 - `sync-layers.sh` — sync ArgoCD layers; parses `argocd app get -o json | jq`; includes a **health-gate** (fails if layer is not `Synced/Healthy`).
 - `seed-gh.sh` — uploads `.env` into the `ENV_FILE` secret.

@@ -1,21 +1,21 @@
-name: atlasctl Tests
+name: Seal Tests
 
 on:
   push:
     paths:
-      - "tools/atlasctl/**"
+      - "apps/seal/**"
   pull_request:
     paths:
-      - "tools/atlasctl/**"
+      - "apps/seal/**"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  atlasctl-test:
+  seal-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,7 +26,7 @@ jobs:
           go-version: "1.26"
 
       - name: Install go-task
-        run: sh -c "$(curl -sSfL https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+        run: bash tools/ci/install-tools.sh go-task
 
       - name: Run unit tests
-        run: task -d tools/atlasctl test
+        run: task -d apps/seal test
