@@ -10,26 +10,17 @@
 
 ```mermaid
 flowchart TB
-  subgraph HOST["Incus host (bare metal / VM)"]
-    I1[Talos control-plane]
-    I2[Talos worker]
-    I3[Talos worker]
-    Z[Zot registry cache]
+  CI[CI: act / self-hosted runner]
+  TF[Terraform / OpenTofu: Talos, Incus VMs, Cilium CNI]
+  subgraph ARGO["Argo CD — App-of-Apps"]
+    direction TB
+    BASE[base: LINSTOR, Vault, ESO]
+    MID[middleware: monitoring, security, delivery]
+    WL[workloads: developer projects]
+    BASE --> MID --> WL
   end
-  subgraph K8S["Talos Kubernetes cluster"]
-    direction LR
-    CIL[Cilium eBPF: CNI + LB + Gateway + netpols]
-    ARGO[Argo CD + Rollouts]
-    KYV[Kyverno]
-    VE[Vault + External Secrets]
-    LS[LINSTOR / DRBD]
-    OBS[Prometheus · Grafana · Loki · Tempo · Alloy]
-  end
-  subgraph TF["Terraform / OpenTofu (infra/)"]
-    M1[talos-config] --> M2[talos-cluster] --> M3[incus] --> M4[cilium] --> M5[zot-cache] --> M6[argocd-bootstrap]
-  end
-  TF --> HOST
-  HOST --> K8S
+  CI --> ARGO
+  TF --> ARGO
 ```
 
 ---

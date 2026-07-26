@@ -43,24 +43,17 @@ capability end-to-end.
 
 ```mermaid
 flowchart TB
-  subgraph CI["CI/CD — GitHub Actions (self-hosted / act)"]
-    A[ci-base] --> B[ci-middleware] --> C[ci-workload]
+  CI[CI: act / self-hosted runner]
+  TF[Terraform / OpenTofu: Talos, Incus VMs, Cilium CNI]
+  subgraph ARGO["Argo CD — App-of-Apps"]
+    direction TB
+    BASE[base: LINSTOR, Vault, ESO]
+    MID[middleware: monitoring, security, delivery]
+    WL[workloads: developer projects]
+    BASE --> MID --> WL
   end
-  subgraph GO["GitOps — Argo CD (App-of-Apps)"]
-    R[root-app] --> L[platform layers] --> W[workloads]
-    L --> LB[base] & LS[storage] & LSEC[security] & LD[delivery] & LO[observability]
-  end
-  subgraph K8S["Kubernetes — Talos Linux"]
-    direction LR
-    C1[Cilium: CNI + Gateway] & C2[Argo Rollouts] & C3[Kyverno] & C4[Vault + ESO] & C5[KEDA + metrics-server]
-    D1[LINSTOR / DRBD] & D2[CNPG · Redis] & D3[MinIO] & D4[Velero] & D5[Trivy]
-    OBS[Prometheus · Grafana · Loki · Tempo · Alloy]
-    SEAL[seal: api · ui · worker]
-  end
-  subgraph INF["Infrastructure — Terraform / OpenTofu"]
-    I[Incus / Talos VMs]
-  end
-  CI --> GO --> K8S --> INF
+  CI --> ARGO
+  TF --> ARGO
 ```
 
 <details>
