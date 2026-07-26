@@ -1,6 +1,6 @@
 # Applications (`apps/`)
 
-Source projects owned by the platform team, distinct from tenant workloads.
+Source projects owned by the platform team, distinct from tenant workloads. Seal is a demonstration workload: it lives in-repo to exercise the full platform pipeline (atlasctl → GitOps → Vault → Gateway) and the image build/sign flow (GHCR + cosign).
 
 ## What lives here
 

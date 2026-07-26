@@ -101,11 +101,11 @@ under `gitops/platform/`.
 | bitnamilegacy/kubectl           | 1.33.4     | `platform/base/resources/*/wait-*.yaml`, `platform/storage/velero.yaml` |
 | ghcr.io/aldoshkineg/pause       | 3.10-amd64 | `infra/environments/stage/variables.tf`: `pause_image`                  |
 
-## Workloads (external repos / images)
+## Workloads (images)
 
-| Workload             | Image                                    | Version | Source                                         |
-| -------------------- | ---------------------------------------- | ------- | ---------------------------------------------- |
-| Seal (api/worker/ui) | ghcr.io/aldoshkineg/seal-{api,worker,ui} | v0.25.0 | `AGENTS.md` (app repo `aldoshkineg/atlas-dip`) |
+| Workload             | Image                                    | Version | Source                                                                |
+| -------------------- | ---------------------------------------- | ------- | --------------------------------------------------------------------- |
+| Seal (api/worker/ui) | ghcr.io/aldoshkineg/seal-{api,worker,ui} | v0.25.0 | `apps/seal` (in-repo demo app; images at ghcr.io/aldoshkineg/seal-\*) |
 
 ## Notes
 
