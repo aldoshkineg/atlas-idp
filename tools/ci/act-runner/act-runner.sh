@@ -70,8 +70,16 @@ run_workflow() {
     "$@"
 }
 
-run_ci() {
-  run_workflow "$REPO_ROOT/.github/workflows/ci-all.yaml" "$@"
+# `act` (0.2.89) cannot run ci-all.yaml because it uses reusable workflows
+# (`uses: ./.github/workflows/ci-*.yaml`), which act's schema validator rejects.
+# GitHub-native runners (make ci-runner-ci) handle that fine, so the real
+# ci-all orchestration is tested there. For the local `act` path we replicate
+# ci-all's job order (base -> middleware -> workload) by running the three
+# component workflows sequentially — the same jobs, executed locally.
+run_ci_pipeline() {
+  run_workflow "$REPO_ROOT/.github/workflows/ci-base.yaml" "$@"
+  run_workflow "$REPO_ROOT/.github/workflows/ci-middleware.yaml" "$@"
+  run_workflow "$REPO_ROOT/.github/workflows/ci-workload.yaml" "$@"
 }
 
 cmd="${1:-}"
@@ -82,8 +90,13 @@ case "$cmd" in
     build
     ;;
 
-  ci|apply)
-    run_ci "$@"
+  ci)
+    run_ci_pipeline "$@"
+    ;;
+
+  # `apply` mirrors runner.sh: run only the base stage (infra + vault seeds).
+  apply)
+    run_workflow "$REPO_ROOT/.github/workflows/ci-base.yaml" "$@"
     ;;
 
   base)
