@@ -41,61 +41,44 @@ capability end-to-end.
 
 ## Architecture
 
-```mermaid
-flowchart TB
-  CI[CI: act / self-hosted runner]
-  TF[Terraform / OpenTofu: Talos, Incus VMs, Cilium CNI]
-  subgraph ARGO["Argo CD — App-of-Apps"]
-    direction TB
-    BASE[base: LINSTOR, Vault, ESO]
-    MID[middleware: monitoring, security, delivery]
-    WL[workloads: developer projects]
-    BASE --> MID --> WL
-  end
-  CI --> ARGO
-  TF --> ARGO
-```
-
-<details>
-<summary>Legacy ASCII architecture diagram</summary>
-
 ```text
-
-
-┌──────────────────────────────────────────────────────────────────┐
-│                     CI/CD — GitHub Actions                         │
-│   run locally on a self-hosted runner or via `act` (nektos)        │
-│   ci-base  ──▶  ci-middleware  ──▶  ci-workload   (ci-all)          │
-└──────────────────────────────────────────────────────────────────┘
-                               │
-┌──────────────────────────────┴───────────────────────────────────┐
-│                       GitOps — Argo CD                             │
-│   App-of-Apps:  root-app ──▶ platform layers ──▶ workloads         │
-│   layers: base · storage · security · delivery · observability     │
-└──────────────────────────────────────────────────────────────────┘
-                               │
-┌──────────────────────────────┴───────────────────────────────────┐
-│                Kubernetes runtime — Talos Linux                    │
-│   ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐  │
-│   │ Cilium  │ │  Argo    │ │ Kyverno  │ │  Vault + │ │ KEDA +  │  │
-│   │ CNI+GW  │ │ Rollouts │ │ (policy) │ │   ESO    │ │ metrics │  │
-│   └─────────┘ └──────────┘ └──────────┘ └──────────┘ └─────────┘  │
-│   ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐  │
-│   │ Piraeus │ │ CloudNat.│ │  MinIO   │ │  Velero  │ │  Trivy  │  │
-│   │ LINSTOR │ │ PG/Redis │ │  (S3)    │ │   (DR)   │ │Operator │  │
-│   └─────────┘ └──────────┘ └──────────┘ └──────────┘ └─────────┘  │
-│   Observability: Prometheus · Grafana · Alertmanager ·            │
-│                  Loki · Tempo · Grafana Alloy                      │
-│   Workload (seal): seal-api · seal-ui · seal-worker · dlq CronJob  │
-└──────────────────────────────────────────────────────────────────┘
-                               │
-┌──────────────────────────────┴───────────────────────────────────┐
-│               Infrastructure — Terraform / OpenTofu               │
-│   Incus/Talos VMs (stage, active)                                                  │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  atlasctl — workload lifecycle: new · enable · disable                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                      │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                       CI/CD — GitHub Actions                                 │
+│   self-hosted / cloud runner, or local via `act`                             │
+│   ci-base ──▶ ci-middleware ──▶ ci-workload        (ci-all)                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                      │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                         GitOps — Argo CD                                     │
+│   Layers: base · storage · security · delivery · observability               │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                      │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                        WORKLOADS — seal                                      │
+│   seal-api · seal-ui · seal-worker · dlq CronJob                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                      │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                 Kubernetes runtime — Talos Linux                             │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
+│  │ CNI + GW    │ │ Rollouts    │ │ (policy)    │ │ ESO         │ │ metrics   │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
+│  │ storage     │ │ PG / Redis  │ │ (S3)        │ │ (DR)        │ │ Operator  │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
+│   Observability: Prometheus · Grafana · Alertmanager ·                       │
+│                    Loki · Tempo · Grafana Alloy                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                      │
+┌──────────────────────────────────────────────────────────────────────────────┐
+│               Infrastructure — Terraform / OpenTofu                          │
+│   Incus / Talos VMs (stage, active)                                          │
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
-
-</details>
 
 ---
 
