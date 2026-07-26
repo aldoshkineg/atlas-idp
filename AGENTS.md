@@ -34,25 +34,27 @@ The platform runs locally on a Talos Linux Kubernetes cluster provisioned on Inc
 - **Infrastructure Layer** (`infra/`): Terraform modules for Talos/Incus cluster, Argo CD bootstrap
 - **GitOps Layer** (`gitops/`): App-of-Apps pattern with root application managing platform services
 - **Platform Services**: gateway-api, cert-manager, metrics-server, monitoring (kube-prometheus-stack), KEDA (event-driven autoscaling), Redis (cache/broker)
-- **Observability**: Custom Prometheus alert rules, Grafana dashboards (planned)
-- **Security**: Vault policies, Trivy scanning, pre-commit hooks
+- **Observability**: Prometheus alert rules, Grafana dashboards, Loki
+- **Security**: Vault policies, Trivy scanning, network policies, pre-commit hooks
 
 ## Directory Structure
 
-| Directory                 | Purpose                                                                                                                             |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `infra/`                  | Terraform IaC - environments (stage) and reusable modules (argocd-bootstrap, incus, talos-config, talos-cluster, cilium, zot-cache) |
-| `gitops/`                 | Argo CD manifests - bootstrap (root app), platform (platform services), workloads (tenant apps)                                     |
-| `gitops/platform/layers/` | Platform layer configurations with values overrides                                                                                 |
-| `workloads/`              | User workload projects managed by atlasctl — single source of truth; `atlasctl enable` promotes to gitops/workloads                 |
-| `templates/gold/`         | Golden-path templates (`.tmpl`) used by atlasctl to scaffold new workloads                                                          |
-| `recipes/`                | Standalone cluster snippets applied manually with kubectl (outside GitOps)                                                          |
-| `clusters/`               | (removed — cluster lifecycle now handled by Terraform/Incus)                                                                        |
-| `tools/vault/`            | Vault policies, Kubernetes auth roles, bootstrap scripts                                                                            |
-| `security/`               | Trivy config, RBAC policies (planned)                                                                                               |
-| `.github/`                | GitHub Actions workflows and composite actions                                                                                      |
-| `apps/`                   | Seal project                                                                                                                        |
-| `tools/atlasctl/`         | Go CLI for workload lifecycle management (scaffold, seed, enable, disable, status, list)                                            |
+| Directory                 | Purpose                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------- |
+| `infra/`                  | Terraform IaC — environments (stage) and reusable modules                          |
+| `gitops/`                 | Argo CD manifests — bootstrap (root app), platform layers, workloads (tenant apps) |
+| `gitops/platform/layers/` | Platform layer configurations with values overrides                                |
+| `workloads/`              | Tenant workload definitions managed by atlasctl (single source of truth)           |
+| `templates/gold/`         | Golden-path templates (`.tmpl`) used by atlasctl to scaffold new workloads         |
+| `recipes/`                | Standalone cluster snippets applied manually with kubectl (outside GitOps)         |
+| `apps/`                   | Source projects (e.g. seal): code, Helm charts, per-app tests                      |
+| `tools/vault/`            | Vault policies, Kubernetes auth roles, bootstrap scripts                           |
+| `security/`               | CA certs, RBAC, Trivy config, Cosign keys                                          |
+| `tests/`                  | Platform-level e2e suites and runners (`tests/scripts/*.sh`)                       |
+| `.github/`                | GitHub Actions workflows and composite actions                                     |
+| `tools/atlasctl/`         | Go CLI for workload lifecycle management                                           |
+
+See `docs/README.md` for the full documentation index.
 
 **Key Files:**
 
@@ -110,6 +112,7 @@ make act-destroy   # Destroy the stage (Incus/Talos) infrastructure
 - Terraform: `terraform fmt -check -recursive infra/`, `terraform validate`
 - YAML: `yamllint -c .yamllint.yml gitops/ security/`
 - Security: `trivy config --severity HIGH,CRITICAL infra/ gitops/`
+- Platform e2e: `make test` (suites under `tests/`, runners in `tests/scripts/`)
 
 ## Code Standards
 
@@ -140,95 +143,3 @@ Pre-commit runs on every commit:
 - Terraform fmt/validate/docs
 - yamllint
 - Trivy (HIGH/CRITICAL only)
-
-## Session Context
-
-### Cluster Access
-
-- **KUBECONFIG**: `/var/tmp/atlas/talos/kubeconfig`
-- **Talosconfig**: `/var/tmp/atlas/talos/talosconfig`
-- **ArgoCD CLI login**: `bash tools/argocd-login.sh` (auto-fetches password, answers `Proceed?` prompt, no expect needed)
-- **Usage**: run `bash tools/argocd-login.sh` then `argocd app list`
-- **Sync app**: `argocd app sync <app-name>`
-
-### CNPG / PostgreSQL Cluster State (June 2026)
-
-- **Cluster:** `production-db` in `database` namespace, 1 instance, PG 17.6, csi-hostpath-sc
-- **Operator:** cloudnative-pg 0.28.3 (app 1.29.1) in `cnpg-system`, `INCLUDE_PLUGINS: barman-cloud.cloudnative-pg.io`
-- **Backup config moved to** `recipes/cnpg-backup/` (ObjectStore + Secret + ScheduledBackup)
-- **MinIO:** bucket `cnpg-backups`, endpoint `http://minio.minio.svc.cluster.local:9000`, creds `minioadmin`/`minioadminpassword`
-- **Next commit removes** all backup CRs from gitops; infra cluster will run as plain PostgreSQL without plugins.
-
-### Seal Project
-
-- **Repo:** `aldoshkineg/atlas-dip` (extracted; ArgoCD Application in `gitops/workloads/layers/seal/seal.yaml` points there)
-- **Images on GHCR:** `ghcr.io/aldoshkineg/seal-{api,worker,ui}` — all three have `v0.25.0` and `0.2.0-alpha`; seal-api/seal-worker also have `latest`
-- **Build:** `go-task -t apps/seal/Taskfile.yml build-all` (local `docker buildx`), `push-images` (tag `:dev` → `ghcr.io/aldoshkineg/*:v0.52.0` + push). A minimal set is also exposed from the root Makefile: `make seal-build`, `make seal-push`, `make seal-dc-up/down/logs`, `make seal-unit`. All other seal tasks remain available directly via `go-task -t apps/seal/Taskfile.yml <task>`.
-- **CI workflow:** `.github/workflows/seal-docker-publish.yml` — triggers on push main/push tag `v*`/PR main; uses `type=ref,event=tag` preserving `v` prefix
-- **act issues:** parallel matrix jobs fail (Docker context canceled); use `go-task act-build` for sequential builds
-- **Task CLI:** `task` a distrobox wrapper — use `go-task` directly
-- **Credentials in `.env`:** `GITHUB_TOKEN=ghp_...` (repo, workflow, write:packages, delete:packages)
-
-### Stage: Incus + Talos + Cilium (July 2026)
-
-**Refactored into 6 modules (Feb 2026):**
-
-| Module          | Path                           | Purpose                                                                                                |
-| --------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `zot-cache`     | `infra/modules/zot-cache/`     | OCI registry pull-through proxy (Incus container); image imported into Incus by Terraform (variant ii) |
-| `incus`         | `infra/modules/incus/`         | Incus bridge + VM provisioning + seed ISOs                                                             |
-| `talos-config`  | `infra/modules/talos-config/`  | Secrets, patches, machine config generation (NEW)                                                      |
-| `talos-cluster` | `infra/modules/talos-cluster/` | Config apply, bootstrap, kubeconfig retrieval                                                          |
-| `cilium`        | `infra/modules/cilium/`        | Cilium CNI via Helm (Talos)                                                                            |
-| (root)          | `infra/environments/stage/`    | Orchestration: backend, provider config, coordination                                                  |
-
-**`stage/main.tf` reduced from 311→170 lines** — all Talos config generation (secrets, patches, data sources, debug files) extracted into `infra/modules/talos-config/`. Circular dependency broken: `talos-config` outputs config YAMLs consumed by both `incus` (seed ISOs) and `talos-cluster` (apply).
-
-**Generated files moved to `/var/tmp/atlas/talos/`** — kubeconfig, talosconfig, debug YAMLs.
-
-**Zot image is managed by Terraform (variant ii):** Terraform imports
-`ghcr.io/project-zot/zot:v2.1.16` into Incus via the `zot_cache` module
-(a `null_resource.import_zot` runs `incus image copy` from the ghcr OCI
-remote, idempotent — skipped when the `zot-cache` alias is already present).
-There is **no** destroy provisioner, so `terraform destroy` removes only the
-container and never the image, letting the cache survive destroy/apply cycles
-with no separate `make zot-image` step. The `image_ref` / `image_registry*`
-values come from `stage` variables (`zot_image_ref`); the image is pulled
-only on a fresh host where the alias is absent.
-
-**Cluster running (all green):**
-
-- 3 Talos nodes (1 CP + 2 workers), K8s v1.34.1
-- Cilium v1.18.0, 3 agents + 2 operators + 3 envoy, Hubble enabled
-- LB pool `default-pool` (10.200.10.100-200), 101 IPs
-- Zot registry cache via Incus container
-
-**Next:** Argo CD integration for stage (needs `kubernetes` provider workaround — kubeconfig not available at first plan after destroy).
-
-### atlasctl (Go CLI)
-
-- **Location:** `tools/atlasctl/` — standalone Go module (`go.mod` at `tools/atlasctl/go.mod`)
-- **Module path:** `github.com/aldoshkineg/atlas-idp/tools/atlasctl`
-- **CLI framework:** Cobra (github.com/spf13/cobra v1.10+)
-- **Commands:** `new`, `seed`, `enable`, `disable`, `delete`, `status`, `list`, `logs`, `backup`
-- **Build:** `go-task -t tools/atlasctl/Taskfile.yml build` → binary at `tools/atlasctl/bin/atlasctl`
-- **Test:** `go-task -t tools/atlasctl/Taskfile.yml test`
-- **Vet:** `go-task -t tools/atlasctl/Taskfile.yml vet`
-- **Coverage:** `go-task -t tools/atlasctl/Taskfile.yml cover`
-- **Clean:** `go-task -t tools/atlasctl/Taskfile.yml clean`
-- **Current status:** all 9 commands implemented; all tests green
-- **Release:** `git tag vX.Y.Z && git push origin vX.Y.Z` triggers `.github/workflows/atlasctl-release.yml` — builds for linux/darwin (amd64+arm64), injects version via `-ldflags "-X github.com/aldoshkineg/atlas-idp/tools/atlasctl/cmd.Version=vX.Y.Z"`, publishes to GitHub Release
-- **Version:** `cmd/root.go` has `var Version = "dev"` — overridden by ldflags at release build
-
-### Seal Project (July 2026)
-
-- **Images on GHCR:** `ghcr.io/aldoshkineg/seal-{api,worker,ui}` — `v0.25.0` and `0.2.0-alpha`; seal-api/seal-worker also have `latest`
-- **Build:** `go-task -t apps/seal/Taskfile.yml build-all` (local `docker buildx`), `push-images` (tag `:dev` → push)
-- **CI:** `.github/workflows/seal-docker-publish.yml` — push main/push tag `v*`/PR main
-- **act issues:** parallel matrix jobs fail (Docker context canceled); use `go-task act-build`
-- **Task CLI:** `task` is a distrobox wrapper — use `go-task` directly
-- **Credentials in `.env`:** `GITHUB_TOKEN=ghp_...`
-- 3 pods running with `ghcr.io/aldoshkineg/*:v0.52.0`
-- **seal-api** exposed on 8080; needs Postgres (`production-db-rw.database.svc:5432`, user `app`/`MyzuMb6...`), Redis (`redis-master.redis.svc:6379`, pw `e5f2190c...`), MinIO (`minio.minio.svc:9000`, admin creds from Vault)
-- **seal-worker** needs Redis + MinIO
-- **seal-ui** exposed on 3000; no env vars
