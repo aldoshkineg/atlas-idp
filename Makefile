@@ -44,7 +44,7 @@ ARGS ?=
 .PHONY: help \
 	stage-sync \
 	ci-runner-up ci-runner-down ci-runner-logs \
-	ci-runner-apply ci-runner-ci ci-runner-base ci-runner-middle ci-runner-workload \
+	ci-runner-ci ci-runner-base ci-runner-middle ci-runner-workload \
 	ci-runner-destroy ci-runner-destroy-force \
 	act-build act-ci act-stage-base act-stage-middleware act-stage-workload act-destroy act-destroy-force \
 	argocd-login \
@@ -113,9 +113,6 @@ ci-runner-down: ## Stop and remove the runner container
 
 ci-runner-logs: ## Follow runner logs
 	./$(LOCAL_RUNNER_DIR)/runner.sh logs
-
-ci-runner-apply: ## Dispatch apply via runner (ci-base workflow)
-	./$(LOCAL_RUNNER_DIR)/runner.sh apply
 
 ci-runner-ci: ## Dispatch full CI via runner (ci-all workflow)
 	./$(LOCAL_RUNNER_DIR)/runner.sh ci
