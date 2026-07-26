@@ -43,16 +43,16 @@ capability end-to-end.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                        Atlasctl - Platform Management                        │
+│                     Atlasctl - Platform Management Tool                      │
 │                             Workload Lifecycle:                              │
-│    new / seed / enable / disable / delete / status / list / logs / backup    │
+│    new / enable / disable / seed / delete / status / list / logs / backup    │
 └──────────────────────────────────────────────────────────────────────────────┘
                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                            CI/CD - GitHub Actions                            │
-│   Self-hosted / Cloud runner, or local via act                               │
-│   ci-base -> ci-middleware -> ci-workload        (ci-all)                    │
-│   build: seal, atlasctl, tests                                               │
+│   Act or Cloud runner / Self-hosted                                          │
+│   ci: ci-base -> ci-middleware -> ci-workload                                │
+│   build: seal, atlasctl                                                      │
 └──────────────────────────────────────────────────────────────────────────────┘
                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
