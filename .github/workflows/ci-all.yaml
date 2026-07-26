@@ -88,7 +88,6 @@ jobs:
       (github.event_name != 'workflow_dispatch' || inputs.run_base)
     uses: ./.github/workflows/ci-base.yaml
     secrets: inherit
-    timeout-minutes: 45
 
   middleware:
     needs: [gate, base]
@@ -98,7 +97,6 @@ jobs:
       (github.event_name != 'workflow_dispatch' || inputs.run_middleware) &&
       (needs.base.result == 'success' || needs.base.result == 'skipped')
     uses: ./.github/workflows/ci-middleware.yaml
-    timeout-minutes: 30
 
   workloads:
     needs: [gate, middleware]
@@ -108,4 +106,3 @@ jobs:
       (github.event_name != 'workflow_dispatch' || inputs.run_workloads) &&
       (needs.middleware.result == 'success' || needs.middleware.result == 'skipped')
     uses: ./.github/workflows/ci-workload.yaml
-    timeout-minutes: 30
