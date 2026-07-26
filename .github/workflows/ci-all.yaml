@@ -24,10 +24,6 @@ on:
 # stage cluster. A new run waits for the in-progress one to finish; it is never
 # cancelled mid-apply (cancel-in-progress: false). The standalone `security` scan
 # and the cloud build workflows (seal, atlasctl) run independently.
-# Least-privilege: no token by default; only jobs that check out code or are
-# called reusable workflows request what they need.
-permissions: {}
-
 # Default orchestrator: on push/PR runs lint -> base -> middleware -> workloads.
 # `lint` runs on the self-hosted runner (reusing its cached toolchain, so no
 # binary/provider downloads) and gates `base`: if fmt/validate/yamllint fail,
