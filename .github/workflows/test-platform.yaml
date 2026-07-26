@@ -1,0 +1,48 @@
+name: Platform Tests (manual)
+
+# Manual, full-stack e2e against a live cluster. Intentionally NOT triggered by
+# push/pull_request: it mutates cluster state and requires the self-hosted
+# act-runner environment (Incus + Talos + secrets in ENV_FILE).
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: atlas-stage
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test-platform:
+    runs-on: [self-hosted]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: ./.github/actions/cluster-env
+
+      - uses: ./.github/actions/load-env
+        with:
+          env_file: ${{ secrets.ENV_FILE }}
+          materialise_ca: "true"
+
+      - uses: ./.github/actions/tools
+
+      - name: Run platform tests
+        run: make test
+
+      - name: Cleanup test resources
+        if: always()
+        run: make test-undeploy
+
+      - name: Cleanup secrets from workspace
+        if: always()
+        shell: bash
+        run: |
+          rm -f .env
+          rm -f security/certs/ca.crt security/certs/ca.key
+          echo "Removed workspace secrets (.env, ca.crt, ca.key)"

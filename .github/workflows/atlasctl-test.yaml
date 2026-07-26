@@ -1,0 +1,32 @@
+name: atlasctl Tests
+
+on:
+  push:
+    paths:
+      - "tools/atlasctl/**"
+  pull_request:
+    paths:
+      - "tools/atlasctl/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  atlasctl-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Install go-task
+        run: sh -c "$(curl -sSfL https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin
+
+      - name: Run unit tests
+        run: task -d tools/atlasctl test

@@ -5,8 +5,6 @@ Single source of truth for pinned CLI tooling versions and platform sizing.
 - `tools/ci/preflight.sh` parses [Local CLI Tooling](#local-cli-tooling) to verify installed binaries.
 - `tools/ci/install-tools.sh` reads the same table to install the toolchain.
 
-> Last updated: 2026-07-08
-
 ## Local CLI Tooling
 
 | Tool           | Version            |
@@ -116,13 +114,4 @@ under `gitops/platform/`.
 
 | Workload             | Image                                    | Version | Source                                                                |
 | -------------------- | ---------------------------------------- | ------- | --------------------------------------------------------------------- |
-| Seal (api/worker/ui) | ghcr.io/aldoshkineg/seal-{api,worker,ui} | v0.25.0 | `apps/seal` (in-repo demo app; images at ghcr.io/aldoshkineg/seal-\*) |
-
-## Notes
-
-- Terraform `required_version` is `>= 1.9.0` across all environments.
-- Terraform provider versions are resolved in `.terraform.lock.hcl`.
-- All GitOps `Application` manifests point at `targetRevision: main` of this repo for
-  local manifests, and at pinned tags for upstream Helm charts / CRDs.
-- `atlasctl` builds use `VERSION=dev` unless overridden by the release workflow
-  (`-ldflags "-X .../cmd.Version=<git tag>"`).
+| Seal (api/worker/ui) | ghcr.io/aldoshkineg/seal-{api,worker,ui} | v0.52.0 | `apps/seal` (in-repo demo app; images at ghcr.io/aldoshkineg/seal-\*) |
