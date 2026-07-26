@@ -99,17 +99,13 @@ atlas-idp/
 ├── infra/                      # Infrastructure as Code (Terraform/OpenTofu)
 │   ├── environments/           #   stage (Incus/Talos, active)                             │
 │   └── modules/                #   Reusable modules
-├── clusters/                   # Cluster lifecycle manifests/scripts
 ├── security/                   # CA certs, RBAC, Trivy, Cosign keys
-├── velero/                     # Backup / DR configuration
 ├── tools/                      # atlasctl (Go CLI), CI runners, tools/vault/ (Vault seed)
 ├── tests/                      # Platform smoke/integration tests (make test)
 ├── templates/                  # Golden-path workload templates (atlasctl scaffold source)
 ├── recipes/                    # Cluster snippets (standalone kubectl apply, outside GitOps)
 ├── docs/                       # Documentation
-├── ai/                         # AI-assisted design specs / cluster checks
 ├── Makefile                    # Developer + CI workflow targets
-├── TODO.md                     # Remaining roadmap
 ├── .pre-commit-config.yaml     # Pre-commit hooks
 └── .yamllint.yml               # YAML linting rules
 ```

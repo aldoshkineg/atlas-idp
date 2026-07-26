@@ -1,6 +1,15 @@
-# Test Resources
+# Tests
 
-Test manifests for platform service verification.
+Resources and runners for platform verification.
+
+## Directory convention
+
+- `tests/` (this directory) — **platform-level e2e** suites. Each `tests/<suite>/`
+  holds the deploy manifests; the matching `tests/scripts/<suite>-test.sh` deploys
+  and verifies them.
+- `apps/<app>/tests/` — **per-application** tests (unit, integration, load), e.g.
+  `apps/seal/tests/integration` and `apps/seal/tests/load` (k6). These are owned by
+  each project, not by the platform test harness.
 
 ## Run All Tests
 

@@ -669,6 +669,5 @@ apps/
 ├── tests/
 │   ├── integration/    # testcontainers-go
 │   └── load/           # k6 scripts
-├── Taskfile.yml        # Workloads: build, test, dc-up, run-api
-└── TODO.md
+└── Taskfile.yml        # Workloads: build, test, dc-up, run-api
 ```

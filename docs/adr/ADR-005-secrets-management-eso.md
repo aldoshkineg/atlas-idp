@@ -354,5 +354,5 @@ No changes required — all manifests remain valid YAML (ExternalSecret is a CRD
 
 - ADR-005-v1 (rejected): SOPS + AGE (replaced by the current solution)
 - apps/ARCHITECTURE.md — Section 3 (Vault Agent Injection, stage 2)
-- TODO.md:117 — original mention of ESO (now being implemented)
+- Original roadmap entry for ESO (now implemented)
 - External Secrets Operator docs: https://external-secrets.io/latest/provider/hashicorp-vault/
