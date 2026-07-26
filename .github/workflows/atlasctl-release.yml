@@ -87,7 +87,7 @@ jobs:
 
             ## Installation
             ```bash
-            curl -Lo atlasctl -L "https://github.com/aldoshkineg/atlas-idp/releases/latest/download/atlasctl-linux-amd64"
+            curl -Lo atlasctl -L "${{ github.server_url }}/${{ github.repository }}/releases/latest/download/atlasctl-linux-amd64"
             chmod +x atlasctl
             sudo mv atlasctl /usr/local/bin/
             ```

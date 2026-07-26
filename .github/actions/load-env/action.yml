@@ -1,0 +1,70 @@
+name: Load ENV_FILE
+description: >-
+  Replay the ENV_FILE secret into the job: write .env, export every var to
+  $GITHUB_ENV (masked), and optionally materialise the CA cert/key or derive
+  the cosign private key. Single source of truth for ENV_FILE handling,
+  shared by CI Base and the Seal build.
+
+inputs:
+  env_file:
+    description: The ENV_FILE secret value
+    required: true
+  materialise_ca:
+    description: Write security/certs/ca.{crt,key} from ATLAS_CA_*_B64
+    required: false
+    default: "false"
+  derive_cosign:
+    description: Decode COSIGN_PRIVATE_KEY_B64 into COSIGN_PRIVATE_KEY ($GITHUB_ENV)
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Load ENV_FILE
+      shell: bash
+      env:
+        ENV_FILE: ${{ inputs.env_file }}
+        MATERIALISE_CA: ${{ inputs.materialise_ca }}
+        DERIVE_COSIGN: ${{ inputs.derive_cosign }}
+      run: |
+        set -euo pipefail
+        # Persist the whole .env so local scripts (seed-vault.sh) and later
+        # steps behave like a dev machine.
+        printf '%s\n' "$ENV_FILE" > .env
+
+        # Export every var to $GITHUB_ENV (so subsequent steps see it as an
+        # env var) and into the current shell (so this step can use it). Skip
+        # GITHUB_TOKEN (provided automatically), ENV_FILE itself (multiline),
+        # and VAULT_TOKEN (re-derived by seed-vault). `::add-mask::` redacts
+        # each value from logs.
+        while IFS= read -r line; do
+          line="${line#"${line%%[![:space:]]*}"}"
+          line="${line%"${line##*[![:space:]]}"}"
+          [ -z "$line" ] && continue
+          [[ "$line" == \#* ]] && continue
+          key="${line%%=*}"
+          value="${line#*=}"
+          case "$key" in
+            GITHUB_TOKEN|ENV_FILE|VAULT_TOKEN) continue ;;
+          esac
+          echo "::add-mask::$value"
+          printf '%s\n' "$line" >> "$GITHUB_ENV"
+          export "$key=$value"
+        done < .env
+
+        if [ "${MATERIALISE_CA:-false}" = "true" ]; then
+          mkdir -p security/certs
+          echo "${ATLAS_CA_CRT_B64:-}" | base64 -d > security/certs/ca.crt
+          echo "${ATLAS_CA_KEY_B64:-}" | base64 -d > security/certs/ca.key
+        fi
+
+        if [ "${DERIVE_COSIGN:-false}" = "true" ]; then
+          COSIGN_KEY="$(echo "${COSIGN_PRIVATE_KEY_B64:-}" | base64 -d)"
+          echo "::add-mask::$COSIGN_KEY"
+          {
+            echo "COSIGN_PRIVATE_KEY<<EOF"
+            echo "$COSIGN_KEY"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+        fi

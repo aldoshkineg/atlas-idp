@@ -23,21 +23,18 @@ jobs:
       contents: read
     timeout-minutes: 30
 
-    env:
-      KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
 
+      - uses: ./.github/actions/cluster-env
+
       - uses: ./.github/actions/tools
         with:
-          tools: "argocd kubectl"
+          tools: "argocd kubectl jq"
 
       - name: Sync platform layers (middleware)
         shell: bash
-        run: |
-          chmod +x ./tools/ci/sync-layers.sh
-          ./tools/ci/sync-layers.sh middleware
+        run: bash ./tools/ci/sync-layers.sh middleware

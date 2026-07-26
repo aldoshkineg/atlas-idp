@@ -22,21 +22,18 @@ jobs:
       contents: read
     timeout-minutes: 30
 
-    env:
-      KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
 
+      - uses: ./.github/actions/cluster-env
+
       - uses: ./.github/actions/tools
         with:
-          tools: "argocd atlasctl kubectl"
+          tools: "argocd atlasctl kubectl jq"
 
       - name: Seed + sync workloads
         shell: bash
-        run: |
-          chmod +x ./tools/ci/sync-layers.sh
-          ./tools/ci/sync-layers.sh workloads
+        run: bash ./tools/ci/sync-layers.sh workloads

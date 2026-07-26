@@ -130,6 +130,12 @@ install_one() {
       sudo apt-get install -y --no-install-recommends xorriso
       ;;
 
+    jq)
+      # System package (no pinned version) — used to parse argocd JSON output.
+      sudo apt-get update
+      sudo apt-get install -y --no-install-recommends jq
+      ;;
+
     *)
       echo "Unknown tool: $TOOL"
       exit 1

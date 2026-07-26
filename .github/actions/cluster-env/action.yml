@@ -1,0 +1,14 @@
+name: Cluster env
+description: >-
+  Export the shared stage cluster locations (KUBECONFIG, TF_PLUGIN_CACHE_DIR)
+  to $GITHUB_ENV so every step in a job sees them. Single source of truth for
+  these paths, replacing the literals previously scattered across workflows.
+
+runs:
+  using: composite
+  steps:
+    - name: Export cluster env
+      shell: bash
+      run: |
+        echo "KUBECONFIG=/var/tmp/atlas/talos/kubeconfig" >> "$GITHUB_ENV"
+        echo "TF_PLUGIN_CACHE_DIR=/opt/terraform/plugin-cache" >> "$GITHUB_ENV"

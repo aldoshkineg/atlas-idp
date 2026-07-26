@@ -34,6 +34,8 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - uses: ./.github/actions/cluster-env
+
       - uses: ./.github/actions/tools
         with:
           tools: "terraform"
@@ -46,6 +48,4 @@ jobs:
       - name: Terraform Destroy
         shell: bash
         working-directory: ./infra/environments/stage
-        env:
-          TF_PLUGIN_CACHE_DIR: /opt/terraform/plugin-cache
         run: terraform destroy -auto-approve -lock-timeout=5m

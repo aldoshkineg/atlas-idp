@@ -31,51 +31,18 @@ jobs:
       contents: read
     timeout-minutes: 45
 
-    env:
-      KUBECONFIG: /var/tmp/atlas/talos/kubeconfig
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Load ENV_FILE secret
-        shell: bash
-        env:
-          ENV_FILE: ${{ secrets.ENV_FILE }}
-        run: |
-          set -euo pipefail
-          # Persist the whole .env into the repo so local scripts
-          # (seed-vault.sh) and composite actions behave like a dev machine.
-          printf '%s\n' "$ENV_FILE" > .env
+      - uses: ./.github/actions/cluster-env
 
-          # Export every var to $GITHUB_ENV so later steps see them as env vars,
-          # and into the current shell so the cert materialisation below can use
-          # them ($GITHUB_ENV only propagates to *subsequent* steps).
-          # Skip GITHUB_TOKEN (provided automatically by Actions; avoid shadowing
-          # it), ENV_FILE itself (multiline; not needed as a plain env var), and
-          # VAULT_TOKEN (re-derived by seed-vault from the cluster). `::add-mask::`
-          # registers each value for log redaction.
-          while IFS= read -r line; do
-            line="${line#"${line%%[![:space:]]*}"}"
-            line="${line%"${line##*[![:space:]]}"}"
-            [ -z "$line" ] && continue
-            [[ "$line" == \#* ]] && continue
-            key="${line%%=*}"
-            value="${line#*=}"
-            case "$key" in
-              GITHUB_TOKEN|ENV_FILE|VAULT_TOKEN) continue ;;
-            esac
-            echo "::add-mask::$value"
-            printf '%s\n' "$line" >> "$GITHUB_ENV"
-            export "$key=$value"
-          done < .env
-
-          # Materialise the CA cert + key (base64 in .env) into the expected files.
-          mkdir -p security/certs
-          echo "${ATLAS_CA_CRT_B64:-}" | base64 -d > security/certs/ca.crt
-          echo "${ATLAS_CA_KEY_B64:-}" | base64 -d > security/certs/ca.key
+      - uses: ./.github/actions/load-env
+        with:
+          env_file: ${{ secrets.ENV_FILE }}
+          materialise_ca: "true"
 
       - uses: ./.github/actions/tools
         with:

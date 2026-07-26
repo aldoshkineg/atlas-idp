@@ -50,7 +50,7 @@ log "Phase: ${PHASE}"
 # Preflight: the CLIs below are required. Without them every `argocd app sync`
 # silently fails (command not found) while the loop swallows the error, so the
 # job would report success on an empty cluster. Fail fast instead.
-for bin in argocd kubectl; do
+for bin in argocd kubectl jq; do
   if ! command -v "${bin}" >/dev/null 2>&1; then
     echo "ERROR: required tool '${bin}' not found in PATH — install it (see .github/actions/tools) before running." >&2
     exit 1
@@ -81,12 +81,12 @@ sync_layer() {
 }
 
 # Return "<sync> <health>" for a layer app, or empty if not found.
-# `argocd app list` prints the name as NAMESPACE/NAME (e.g. argocd/storage)
-# and columns: $1=NAME $2=CLUSTER $3=NAMESPACE $4=PROJECT $5=STATUS $6=HEALTH.
+# Parse argocd's JSON output (not the human table) so we never depend on
+# column positions in `argocd app list`.
 layer_state() {
-  argocd app list 2>/dev/null | awk -v app="$1" '
-    $1 == ("argocd/" app) || $1 == app { print $5, $6; exit }
-  '
+  local app="$1"
+  argocd app get "$app" -o json 2>/dev/null \
+    | jq -r '"\(.status.sync.status // "") \(.status.health.status // "")"'
 }
 
 if [[ "${PHASE}" == "all" || "${PHASE}" == "middleware" ]]; then
@@ -177,6 +177,6 @@ fi
   fi
 
   log "Final status:"
-  argocd app list | awk 'NR==1 || $4!="Synced" || $5!="Healthy"{print}'
+  argocd app list -o json | jq -r '.[] | "\(.metadata.name)  \(.status.sync.status)/\(.status.health.status)"'
 
   log "Done. Verify with: argocd app list"
