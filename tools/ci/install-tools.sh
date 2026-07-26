@@ -19,7 +19,7 @@
 
 set -eo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+REPO_ROOT="${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
 # --- Versions: read from docs/requirements.md (single source of truth) ------
 REQ_FILE="$REPO_ROOT/docs/requirements.md"
@@ -44,7 +44,7 @@ req_version() {
 # Tools this script knows how to install (the WHAT). Versions come from REQ_FILE.
 # xorriso is a system package (no pinned version) required by the incus module
 # to build the cloud-init seed ISO (`xorriso -as mkisofs ... -V cidata`).
-INSTALL_TOOLS=(vault terraform kubectl trivy yamllint incus argocd atlasctl xorriso)
+INSTALL_TOOLS=(vault terraform kubectl trivy yamllint incus argocd velero atlasctl xorriso)
 
 # Subcommand: print the pinned version for a tool WITHOUT installing it. Used by
 # workflows (e.g. security.yaml) that install a tool themselves but still want a
@@ -69,6 +69,12 @@ install_one() {
     go-task) BIN=task ;;
   esac
 
+  # Elevate only when not already root (GitHub-hosted runner). The act-runner
+  # image runs as root with $SUDO stripped, and local act containers run as root,
+  # so this stays empty there.
+  local SUDO=""
+  if [ "$(id -u)" -ne 0 ]; then SUDO="sudo"; fi
+
   if command -v "$BIN" &>/dev/null; then
     echo "$TOOL already installed ($(command -v "$BIN"))"
     return 0
@@ -81,8 +87,8 @@ install_one() {
       curl -fsSL \
         "https://releases.hashicorp.com/vault/${VERSION}/vault_${VERSION}_linux_amd64.zip" \
         -o vault.zip
-      unzip -p vault.zip vault | sudo tee /usr/local/bin/vault > /dev/null
-      sudo chmod +x /usr/local/bin/vault
+      unzip -p vault.zip vault | $SUDO tee /usr/local/bin/vault > /dev/null
+      $SUDO chmod +x /usr/local/bin/vault
       ;;
 
     terraform)
@@ -90,14 +96,14 @@ install_one() {
         "https://releases.hashicorp.com/terraform/${VERSION}/terraform_${VERSION}_linux_amd64.zip" \
         -o terraform.zip
       unzip -o terraform.zip
-      sudo mv terraform /usr/local/bin/
+      $SUDO mv terraform /usr/local/bin/
       ;;
 
     kubectl)
       curl -LO \
         "https://dl.k8s.io/release/v${VERSION}/bin/linux/amd64/kubectl"
       chmod +x kubectl
-      sudo mv kubectl /usr/local/bin/
+      $SUDO mv kubectl /usr/local/bin/
       ;;
 
     trivy)
@@ -121,14 +127,14 @@ install_one() {
       curl -fsSL -o incus \
         "https://github.com/lxc/incus/releases/download/v${VERSION}/bin.linux.incus.x86_64"
       chmod +x incus
-      sudo mv incus /usr/local/bin/
+      $SUDO mv incus /usr/local/bin/
       ;;
 
     argocd)
       curl -fsSL -o argocd \
         "https://github.com/argoproj/argo-cd/releases/download/v${VERSION}/argocd-linux-amd64"
       chmod +x argocd
-      sudo mv argocd /usr/local/bin/
+      $SUDO mv argocd /usr/local/bin/
       ;;
 
     atlasctl)
@@ -140,19 +146,19 @@ install_one() {
       curl -fsSL -o atlasctl \
         "https://github.com/aldoshkineg/atlas-idp/releases/download/v${VERSION}/atlasctl-linux-${GOARCH}"
       chmod +x atlasctl
-      sudo mv atlasctl /usr/local/bin/
+      $SUDO mv atlasctl /usr/local/bin/
       ;;
 
     xorriso)
       # System package (no pinned version).
-      sudo apt-get update
-      sudo apt-get install -y --no-install-recommends xorriso
+      $SUDO apt-get update
+      $SUDO apt-get install -y --no-install-recommends xorriso
       ;;
 
     jq)
       # System package (no pinned version) — used to parse argocd JSON output.
-      sudo apt-get update
-      sudo apt-get install -y --no-install-recommends jq
+      $SUDO apt-get update
+      $SUDO apt-get install -y --no-install-recommends jq
       ;;
 
     go-task)
@@ -160,8 +166,17 @@ install_one() {
       curl -fsSL -o task.tgz \
         "https://github.com/go-task/task/releases/download/v${VERSION}/task_linux_amd64.tar.gz"
       tar -xzf task.tgz task
-      sudo mv task /usr/local/bin/
+      $SUDO mv task /usr/local/bin/
       rm -f task.tgz
+      ;;
+
+    velero)
+      # velero CLI — pinned via docs/requirements.md (Local CLI Tooling).
+      curl -fsSL -o velero.tgz \
+        "https://github.com/vmware-tanzu/velero/releases/download/v${VERSION}/velero-v${VERSION}-linux-amd64.tar.gz"
+      tar -xzf velero.tgz
+      $SUDO mv "velero-v${VERSION}-linux-amd64/velero" /usr/local/bin/
+      rm -rf velero.tgz "velero-v${VERSION}-linux-amd64"
       ;;
 
     *)

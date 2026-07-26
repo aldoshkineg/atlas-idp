@@ -13,7 +13,7 @@ INSTALL_TOOLS="$REPO_ROOT/tools/ci/install-tools.sh"
 CACHE_DIR="/var/tmp/atlas/act_cache"
 
 cleanup() {
-  rm -f "$ACT_RUNNER_DIR/install-tools.sh"
+  rm -f "$ACT_RUNNER_DIR/install-tools.sh" "$ACT_RUNNER_DIR/requirements.md"
 }
 trap cleanup EXIT
 
@@ -29,8 +29,10 @@ build() {
 
   # The install script carries its own pinned versions (tools/ci/install-tools.sh);
   # the act-runner image installs the full toolchain via `install-tools.sh` with
-  # no arguments. Just drop the script into the build context.
+  # no arguments. Drop the script and the version table (docs/requirements.md,
+  # the single source of truth) into the build context.
   cp "$INSTALL_TOOLS" "$ACT_RUNNER_DIR/install-tools.sh"
+  cp "$REPO_ROOT/docs/requirements.md" "$ACT_RUNNER_DIR/requirements.md"
 
   docker build -t act-runner:latest "$ACT_RUNNER_DIR"
 }
@@ -38,9 +40,14 @@ build() {
 run_workflow() {
   local wf="$1"; shift
 
-  if ! docker image inspect act-runner:latest &>/dev/null; then
-    echo "act-runner:latest not found. Run 'make act-build' or 'act-runner.sh build' first." >&2
-    exit 1
+  # Only the custom act-runner image is required for workflows that run on it.
+  # Workflows on GitHub-hosted runners (e.g. ubuntu-latest) use act's default
+  # image and can run without act-runner:latest being built locally.
+  if grep -qE "runs-on:[[:space:]]*act-runner" "$wf"; then
+    if ! docker image inspect act-runner:latest &>/dev/null; then
+      echo "act-runner:latest not found. Run 'make act-build' or 'act-runner.sh build' first." >&2
+      exit 1
+    fi
   fi
 
   mkdir -p "$CACHE_DIR/tf" "$CACHE_DIR/home" /var/tmp/atlas
@@ -65,7 +72,7 @@ run_workflow() {
 
   act "$event" -W "$wf" \
     --container-options "-v $CACHE_DIR/tf:/opt/terraform/plugin-cache -v $CACHE_DIR/home:/root -v /var/tmp/atlas:/var/tmp/atlas -v /var/lib/incus/unix.socket:/var/lib/incus/unix.socket" \
-    -s ENV_FILE="$(cat "$REPO_ROOT/.env")" \
+     -s ENV_FILE="$(cat "$REPO_ROOT/.env" 2>/dev/null || true)" \
     -s GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
     "$@"
 }
@@ -119,8 +126,17 @@ case "$cmd" in
     run_workflow "$REPO_ROOT/.github/workflows/ci-destroy-force.yaml" "$@"
     ;;
 
+  # Run the unit-test workflows (test-seal, test-atlasctl) via act. They run on
+  # ubuntu-latest; locally we map that to the act-runner image (which carries
+  # curl/unzip) so the install-tools step works under act. test-platform requires
+  # a live cluster (self-hosted) and is excluded here.
+  test)
+    run_workflow "$REPO_ROOT/.github/workflows/test-seal.yaml" -P ubuntu-latest=act-runner:latest "$@"
+    run_workflow "$REPO_ROOT/.github/workflows/test-atlasctl.yaml" -P ubuntu-latest=act-runner:latest "$@"
+    ;;
+
   *)
-    echo "Usage: $0 {build|ci|base|middleware|workload|destroy|destroy-force}"
+    echo "Usage: $0 {build|ci|base|middleware|workload|destroy|destroy-force|test}"
     exit 1
     ;;
 esac
