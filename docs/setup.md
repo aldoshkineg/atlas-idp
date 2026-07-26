@@ -62,7 +62,7 @@ the `ci-base` → `seed-vault` step:
 
 The pipeline materialises a root CA from `.env` into
 `security/certs/ca.{crt,key}` and creates the `atlas-ca-secret` TLS secret in
-`cert-manager`. Generate the CA once (see `docs/CA.md` for the full PKI
+`cert-manager`. Generate the CA once (see `docs/ca.md` for the full PKI
 flow):
 
 ```bash

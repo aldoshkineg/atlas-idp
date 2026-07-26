@@ -2,6 +2,30 @@
 
 **Internal Developer Platform — GitOps-driven Kubernetes platform engineering**
 
+![License](https://img.shields.io/badge/license-MIT-green)
+![IaC](https://img.shields.io/badge/IaC-Terraform%20%2F%20OpenTofu-7B42BC)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-1.34-326CE5)
+![GitOps](https://img.shields.io/badge/GitOps-Argo%20CD-EF7B4D)
+![CNI](https://img.shields.io/badge/CNI-Cilium%20eBPF-F5A623)
+![Secrets](https://img.shields.io/badge/Secrets-HashiCorp%20Vault-000000)
+![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
+![Observability](https://img.shields.io/badge/Observability-Prometheus%20%2F%20Grafana%20%2F%20Loki-FF6C37)
+
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Repository Structure](#repository-structure)
+- [Quick Start](#quick-start)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [Golden Path — Workload Onboarding](#golden-path--workload-onboarding)
+- [Security & Policy](#security--policy)
+- [Observability](#observability)
+- [Testing](#testing)
+- [Environments](#environments)
+- [Roadmap](#roadmap)
+- [License](#license)
+
 Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP)
 monorepo built as a DevOps/platform-engineering portfolio project. It demonstrates
 an end-to-end platform: Infrastructure as Code, GitOps delivery, progressive
@@ -17,7 +41,34 @@ capability end-to-end.
 
 ## Architecture
 
+```mermaid
+flowchart TB
+  subgraph CI["CI/CD — GitHub Actions (self-hosted / act)"]
+    A[ci-base] --> B[ci-middleware] --> C[ci-workload]
+  end
+  subgraph GO["GitOps — Argo CD (App-of-Apps)"]
+    R[root-app] --> L[platform layers] --> W[workloads]
+    L --> LB[base] & LS[storage] & LSEC[security] & LD[delivery] & LO[observability]
+  end
+  subgraph K8S["Kubernetes — Talos Linux"]
+    direction LR
+    C1[Cilium: CNI + Gateway] & C2[Argo Rollouts] & C3[Kyverno] & C4[Vault + ESO] & C5[KEDA + metrics-server]
+    D1[LINSTOR / DRBD] & D2[CNPG · Redis] & D3[MinIO] & D4[Velero] & D5[Trivy]
+    OBS[Prometheus · Grafana · Loki · Tempo · Alloy]
+    SEAL[seal: api · ui · worker]
+  end
+  subgraph INF["Infrastructure — Terraform / OpenTofu"]
+    I[Incus / Talos VMs]
+  end
+  CI --> GO --> K8S --> INF
 ```
+
+<details>
+<summary>Legacy ASCII architecture diagram</summary>
+
+```text
+
+
 ┌──────────────────────────────────────────────────────────────────┐
 │                     CI/CD — GitHub Actions                         │
 │   run locally on a self-hosted runner or via `act` (nektos)        │
@@ -51,7 +102,12 @@ capability end-to-end.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+</details>
+
 ---
+
+> More diagrams — secrets, network, CI/CD and observability flows:
+> [`docs/cv/diagrams.md`](docs/cv/diagrams.md).
 
 ## Tech Stack
 
@@ -110,7 +166,7 @@ atlas-idp/
 └── .yamllint.yml               # YAML linting rules
 ```
 
-See `docs/README.md` for the full documentation index.
+See [`docs/cv/system-prompt.md`](docs/cv/system-prompt.md) for the engineering narrative, or [`docs/setup.md`](docs/setup.md) for the full getting-started guide. Operational runbooks live under [`docs/runbooks/`](docs/runbooks/).
 
 ---
 
@@ -303,6 +359,18 @@ by Kyverno.
 - **Image cache:** Zot
 - **GitOps:** Argo CD (bootstrapped via Terraform)
 - **CI/CD:** GitHub Actions (self-hosted runner / `act`)
+
+---
+
+## Roadmap
+
+- **Multi-cluster / ClusterMesh** — stretch the platform across Talos clusters via Cilium ClusterMesh.
+- **SSO** — OIDC (Dex/Keycloak) for Argo CD and Grafana.
+- **Supply-chain attestations** — Sigstore/SLSA provenance verified in Kyverno.
+- **Capacity & cost** — Kepler-based energy/cost reporting.
+- **Multi-tenancy** — hierarchical namespaces + per-team quotas.
+- **Docs site** — publish `docs/` as MkDocs Material / GitHub Pages.
+- **CI e2e** — run `make test` on an ephemeral cluster in PRs.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > Operational notes and gotchas for the Talos + Incus platform.
 > Infrastructure provisioning lives in `infra/modules/`; storage in `docs/linstor.md`;
-> Incus VM/host management in `docs/incus-management.md`.
+> Incus VM/host management in `docs/incus.md`.
 
 ## Terminology: DRBD, not RBD
 

@@ -54,7 +54,7 @@ The platform runs locally on a Talos Linux Kubernetes cluster provisioned on Inc
 | `.github/`                | GitHub Actions workflows and composite actions                                     |
 | `tools/atlasctl/`         | Go CLI for workload lifecycle management                                           |
 
-See `docs/README.md` for the full documentation index.
+See `docs/cv/system-prompt.md` for the engineering narrative and `docs/setup.md` for the getting-started guide.
 
 **Key Files:**
 
