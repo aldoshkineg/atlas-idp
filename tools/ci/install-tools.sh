@@ -5,10 +5,10 @@
 #   Both CI (the GitHub Actions `tools` composite action and the local act-runner
 #   image) and local development need an identical, pinned set of CLIs
 #   (vault, terraform, kubectl, trivy, yamllint, incus, argocd, atlasctl, xorriso).
-#   This script is the single source of truth: the pinned versions live in
-#   VERSION_MAP below, and one invocation installs the requested subset — or
-#   everything when called with no arguments. Idempotent: a tool already on PATH
-#   is skipped.
+#   Pinned versions are NOT defined here — they are read from
+#   `docs/requirements.md` (the `## Local CLI Tooling` table), the single source
+#   of truth shared with `preflight.sh`. This script only decides WHAT to
+#   install and HOW. Idempotent: a tool already on PATH is skipped.
 #
 # Usage:
 #   ./install-tools.sh                 # install all pinned tools
@@ -19,36 +19,51 @@
 
 set -eo pipefail
 
-# --- Pinned versions (single source of truth) -------------------------------
-declare -A VERSION_MAP=(
-  [vault]="1.18.0"
-  [terraform]="1.15.3"
-  [kubectl]="1.34.0"
-  [trivy]="0.70.0"
-  [yamllint]="1.35.1"
-  [incus]="7.2.0"
-  [argocd]="3.4.2"
-  [atlasctl]="0.60.0"
-)
-# xorriso is a system package (no pinned version) — required by the incus module
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# --- Versions: read from docs/requirements.md (single source of truth) ------
+REQ_FILE="$REPO_ROOT/docs/requirements.md"
+if [ ! -f "$REQ_FILE" ]; then
+  echo "install-tools.sh: $REQ_FILE not found" >&2
+  exit 1
+fi
+
+# Resolve the pinned version for a tool from the `## Local CLI Tooling` table.
+# Mirrors the parser in tools/ci/preflight.sh. Prints the version and returns 0;
+# prints nothing and returns 1 if the tool is absent (e.g. system packages).
+req_version() {
+  local tool="$1" row ver
+  row="$(awk '/^## Local CLI Tooling/{f=1;next} /^## /{if(f)exit} f' "$REQ_FILE" \
+          | grep '^|' \
+          | awk -F'|' -v t="$tool" 'NR>2 { gsub(/^[ \t]+|[ \t]+$/,"",$2); if($2==t){gsub(/^[ \t]+|[ \t]+$/,"",$3); print $3; exit} }')"
+  ver="$(printf '%s' "$row" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  if [ -n "$ver" ]; then printf '%s\n' "$ver"; return 0; fi
+  return 1
+}
+
+# Tools this script knows how to install (the WHAT). Versions come from REQ_FILE.
+# xorriso is a system package (no pinned version) required by the incus module
 # to build the cloud-init seed ISO (`xorriso -as mkisofs ... -V cidata`).
+INSTALL_TOOLS=(vault terraform kubectl trivy yamllint incus argocd atlasctl xorriso)
 
 # Subcommand: print the pinned version for a tool WITHOUT installing it. Used by
 # workflows (e.g. security.yaml) that install a tool themselves but still want a
 # single source of truth for the version. `install-tools.sh --version trivy` → 0.70.0
 if [ "$1" = "--version" ]; then
   _tool="${2:-}"
-  if [ -z "${VERSION_MAP[$_tool]:-}" ]; then
-    echo "install-tools.sh: no pinned version for '$_tool'" >&2
+  if _ver="$(req_version "$_tool")"; then
+    printf '%s\n' "$_ver"
+  else
+    echo "install-tools.sh: no pinned version for '$_tool' in $REQ_FILE" >&2
     exit 1
   fi
-  printf '%s\n' "${VERSION_MAP[$_tool]}"
   exit 0
 fi
 
 install_one() {
   local TOOL="$1"
-  local VERSION="${VERSION_MAP[$TOOL]:-}"
+  local VERSION=""
+  VERSION="$(req_version "$TOOL" || true)"
 
   if command -v "$TOOL" &>/dev/null; then
     echo "$TOOL already installed ($(command -v "$TOOL"))"
@@ -144,7 +159,7 @@ install_one() {
 }
 
 if [ "$#" -eq 0 ]; then
-  set -- "${!VERSION_MAP[@]}" xorriso
+  set -- "${INSTALL_TOOLS[@]}"
 fi
 
 for tool in "$@"; do

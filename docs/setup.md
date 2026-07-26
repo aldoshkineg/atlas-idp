@@ -20,7 +20,7 @@ commit them.
 - **Docker** (with the `compose` and `buildx` plugins) — `act` executes the
   CI workflows inside a local `act-runner` container that mounts the Incus
   socket.
-- The CLI toolchain pinned in `REQUIREMENTS.md` (pre-commit, terraform,
+- The CLI toolchain pinned in `docs/requirements.md` (pre-commit, terraform,
   kubectl, helm, argocd, age, yq, trivy, docker, docker compose, docker
   buildx, go-task, gh, act, jq, velero, mc, yamllint, shellcheck, gitleaks,
   golangci-lint).
@@ -152,7 +152,7 @@ make preflight
 
 It verifies, and must report **0 failures, 0 warnings**:
 
-- **Binaries** — every tool in `REQUIREMENTS.md` (Local CLI Tooling) is present.
+- **Binaries** — every tool in `docs/requirements.md` (Local CLI Tooling) is present.
 - **Daemons** — Docker and Incus are reachable.
 - **Images** — the `zot-cache` Incus alias is created automatically by
   Terraform during `apply` (no manual step needed).

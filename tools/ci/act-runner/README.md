@@ -27,8 +27,9 @@ If `make act-ci` fails with "image not found", run `make act-build` first.
   workflow, volume mounts, and selected secrets. Extra flags can be appended:
   `act-runner.sh ci --list`
 
-All pinned versions live in `tools/ci/install-tools.sh` (VERSION_MAP) — a single
-source of truth shared by CI and the act-runner image.
+All pinned versions live in `docs/requirements.md` (the `## Local CLI Tooling`
+table) — a single source of truth shared by `install-tools.sh`, `preflight.sh`,
+CI, and the act-runner image.
 Installation logic comes from `tools/ci/install-tools.sh`.
 No version duplication — the Dockerfile and `act-runner.sh` contain zero hardcoded
 versions.
@@ -78,6 +79,6 @@ so cache is shared between `make` and `act` runs.
 
 ## Adding a New Tool
 
-1. Add the pinned version to the `VERSION_MAP` in `tools/ci/install-tools.sh`
+1. Add the pinned version to the `## Local CLI Tooling` table in `docs/requirements.md`
 2. Add an install case to `tools/ci/install-tools.sh`
 3. Rebuild: `make act-build`

@@ -24,7 +24,7 @@ them locally / via a self-hosted runner.
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.github/actions/load-env`    | Replays the `ENV_FILE` secret into `.env` + exports to `$GITHUB_ENV` (with masking). Optionally materialises CA (`materialise_ca`) and derives cosign key (`derive_cosign`). |
 | `.github/actions/cluster-env` | Sets `KUBECONFIG` and `TF_PLUGIN_CACHE_DIR` in `$GITHUB_ENV`.                                                                                                                |
-| `.github/actions/tools`       | Installs selected CLIs via `tools/ci/install-tools.sh` (`VERSION_MAP`).                                                                                                      |
+| `.github/actions/tools`       | Installs selected CLIs via `tools/ci/install-tools.sh` (versions read from `docs/requirements.md`).                                                                          |
 | `.github/actions/terraform`   | `init` → `plan` → `apply` + node check + CA secret for cert-manager.                                                                                                         |
 | `.github/actions/lint`        | `terraform fmt -check`, `terraform validate`, `yamllint`.                                                                                                                    |
 | `.github/actions/scan`        | `trivy fs` (vuln/secret/misconfig).                                                                                                                                          |
@@ -32,7 +32,7 @@ them locally / via a self-hosted runner.
 
 ### Scripts (`tools/ci/`)
 
-- `install-tools.sh` — single source of truth for toolchain versions (`VERSION_MAP`), including `jq`.
+- `install-tools.sh` — reads toolchain versions from `docs/requirements.md` (single source of truth), including `jq`.
 - `terraform-init.sh` — `terraform init` with retry.
 - `sync-layers.sh` — sync ArgoCD layers; parses `argocd app get -o json | jq`; includes a **health-gate** (fails if layer is not `Synced/Healthy`).
 - `seed-gh.sh` — uploads `.env` into the `ENV_FILE` secret.

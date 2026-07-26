@@ -15,15 +15,15 @@ Index of the `docs/` tree. Start with `setup.md` for a fresh cluster, then
 
 ## Reference
 
-| Doc                      | Purpose                                  |
-| ------------------------ | ---------------------------------------- |
-| `CA.md`                  | Root CA bootstrap and trust distribution |
-| `cosign.md`              | Image signing + Kyverno verification     |
-| `netpol.md`              | NetworkPolicy model                      |
-| `linstor.md`             | LINSTOR storage                          |
-| `incus-management.md`    | Incus VM lifecycle                       |
-| `talos.md`               | Talos cluster ops                        |
-| `system-requirements.md` | Host/tooling prerequisites               |
+| Doc                   | Purpose                                  |
+| --------------------- | ---------------------------------------- |
+| `CA.md`               | Root CA bootstrap and trust distribution |
+| `cosign.md`           | Image signing + Kyverno verification     |
+| `netpol.md`           | NetworkPolicy model                      |
+| `linstor.md`          | LINSTOR storage                          |
+| `incus-management.md` | Incus VM lifecycle                       |
+| `talos.md`            | Talos cluster ops                        |
+| `requirements.md`     | Pinned CLI versions + platform sizing    |
 
 ## Architecture Decision Records
 

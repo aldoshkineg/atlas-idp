@@ -32,8 +32,8 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      # Single source of truth for the trivy version is VERSION_MAP in
-      # tools/ci/install-tools.sh — resolve it instead of hardcoding here.
+      # Single source of truth for the trivy version is the `## Local CLI Tooling`
+      # table in docs/requirements.md, resolved via `install-tools.sh --version trivy`.
       - name: Resolve Trivy version
         id: trivy
         shell: bash

@@ -2,7 +2,7 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-REQ_FILE="$REPO_ROOT/REQUIREMENTS.md"
+REQ_FILE="$REPO_ROOT/docs/requirements.md"
 
 FAIL=0
 WARN=0
@@ -33,7 +33,7 @@ bin_version() {
 
 echo "==> Binaries (from $REQ_FILE: Local CLI Tooling)"
 if [ ! -f "$REQ_FILE" ]; then
-  warn "REQUIREMENTS.md not found -- skipping binary checks"
+  warn "docs/requirements.md not found -- skipping binary checks"
 else
   while IFS='|' read -r _ tool ver _; do
     tool="$(trim "$tool")"; ver="$(trim "$ver")"
