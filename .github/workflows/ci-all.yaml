@@ -27,15 +27,45 @@ on:
 # (seal, atlasctl) run independently.
 #
 # Triggers:
-#   - push to main         -> full pipeline: lint -> base -> middleware -> workloads
+#   - push to main         -> full pipeline by default; a commit containing
+#                             [base] / [middleware] / [workloads] runs ONLY
+#                             those layer(s) (positive phase selector)
 #   - pull_request to main -> lint only (validation, NO cluster mutation)
-#   - workflow_dispatch    -> full pipeline; phases controlled by the run_base /
-#                             run_middleware / run_workloads toggles (all default true)
-#
-# No commit-message parsing: behaviour is driven solely by the event type and
-# the dispatch toggles above.
+#   - workflow_dispatch    -> phases controlled by the run_base / run_middleware
+#                             / run_workloads toggles (all default true)
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sel_base: ${{ steps.eval.outputs.sel_base }}
+      sel_middleware: ${{ steps.eval.outputs.sel_middleware }}
+      sel_workloads: ${{ steps.eval.outputs.sel_workloads }}
+    steps:
+      - id: eval
+        shell: bash
+        env:
+          MSG: "${{ github.event.head_commit.message }}"
+        run: |
+          # Positive phase selector from the commit message. If the commit
+          # contains [base] / [middleware] / [workloads], ONLY those layers
+          # run on push to main (e.g. "[middleware] resync platform layers").
+          # If none are present, the full pipeline runs (all selected).
+          text="${MSG:-}"
+          has_base="false"; has_middleware="false"; has_workloads="false"
+          echo "$text" | grep -qiE '\[base\]' && has_base="true"
+          echo "$text" | grep -qiE '\[middleware\]' && has_middleware="true"
+          echo "$text" | grep -qiE '\[workloads?\]' && has_workloads="true"
+          if [ "$has_base" = "true" ] || [ "$has_middleware" = "true" ] || [ "$has_workloads" = "true" ]; then
+            sel_base="$has_base"; sel_middleware="$has_middleware"; sel_workloads="$has_workloads"
+          else
+            sel_base="true"; sel_middleware="true"; sel_workloads="true"
+          fi
+          echo "sel_base=$sel_base" >> "$GITHUB_OUTPUT"
+          echo "sel_middleware=$sel_middleware" >> "$GITHUB_OUTPUT"
+          echo "sel_workloads=$sel_workloads" >> "$GITHUB_OUTPUT"
+
   lint:
     runs-on: [self-hosted]
     permissions:
@@ -54,26 +84,30 @@ jobs:
       - uses: ./.github/actions/lint
 
   base:
-    needs: [lint]
+    needs: [gate, lint]
     if: >-
-      github.event_name != 'pull_request' &&
-      (github.event_name != 'workflow_dispatch' || inputs.run_base)
+      github.event_name != 'pull_request' && (
+        (github.event_name == 'workflow_dispatch' && inputs.run_base) ||
+        (github.event_name != 'workflow_dispatch' && needs.gate.outputs.sel_base == 'true')
+      )
     uses: ./.github/workflows/ci-base.yaml
     secrets:
       ENV_FILE: ${{ secrets.ENV_FILE }}
 
   middleware:
-    needs: [base]
+    needs: [gate, base]
     if: >-
-      github.event_name != 'pull_request' &&
-      (github.event_name != 'workflow_dispatch' || inputs.run_middleware) &&
-      (needs.base.result == 'success' || needs.base.result == 'skipped')
+      github.event_name != 'pull_request' && (
+        (github.event_name == 'workflow_dispatch' && inputs.run_middleware) ||
+        (github.event_name != 'workflow_dispatch' && needs.gate.outputs.sel_middleware == 'true')
+      ) && (needs.base.result == 'success' || needs.base.result == 'skipped')
     uses: ./.github/workflows/ci-middleware.yaml
 
   workloads:
-    needs: [middleware]
+    needs: [gate, middleware]
     if: >-
-      github.event_name != 'pull_request' &&
-      (github.event_name != 'workflow_dispatch' || inputs.run_workloads) &&
-      (needs.middleware.result == 'success' || needs.middleware.result == 'skipped')
+      github.event_name != 'pull_request' && (
+        (github.event_name == 'workflow_dispatch' && inputs.run_workloads) ||
+        (github.event_name != 'workflow_dispatch' && needs.gate.outputs.sel_workloads == 'true')
+      ) && (needs.middleware.result == 'success' || needs.middleware.result == 'skipped')
     uses: ./.github/workflows/ci-workload.yaml
