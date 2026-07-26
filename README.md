@@ -1,6 +1,6 @@
 # Atlas IDP
 
-**Internal Developer Platform — GitOps-driven Kubernetes platform engineering**
+**Internal Developer Platform — GitOps-driven Kubernetes platform engineering on self-hosted infrastructure**
 
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![IaC](https://img.shields.io/badge/IaC-Terraform%20%2F%20OpenTofu-7B42BC)
@@ -11,12 +11,15 @@
 ![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
 ![Observability](https://img.shields.io/badge/Observability-Prometheus%20%2F%20Grafana%20%2F%20Loki-FF6C37)
 
+**Atlas IDP** is an end-to-end Internal Developer Platform that codifies production-grade platform-engineering patterns — Infrastructure as Code, GitOps delivery, progressive delivery, L2/L3 load balancing, policy-as-code, supply-chain security, secrets management, backups and disaster recovery, observability — on a self-hosted **Talos Linux** Kubernetes cluster (Incus VMs). The platform is managed and applications from development teams are launched with **atlasctl**, a Go CLI. A reference example is **seal**, a Helm-packaged microservice (API + UI + worker) with structured logging and OpenTelemetry tracing.
+
 ## Table of Contents
 
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
 - [Quick Start](#quick-start)
+- [Workflow (Makefile Targets)](#workflow-makefile-targets)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Golden Path — Workload Onboarding](#golden-path--workload-onboarding)
 - [Security & Policy](#security--policy)
@@ -25,17 +28,6 @@
 - [Environments](#environments)
 - [Roadmap](#roadmap)
 - [License](#license)
-
-Atlas IDP is a production-grade, cloud-native Internal Developer Platform (IDP)
-monorepo built as a DevOps/platform-engineering portfolio project. It demonstrates
-an end-to-end platform: Infrastructure as Code, GitOps delivery, progressive
-delivery, policy-as-code, supply-chain security, secrets management, observability
-and disaster recovery — running locally on a **Talos Linux** Kubernetes cluster
-provisioned on **Incus** VMs, following production patterns.
-
-A sample tenant workload, **seal** (a PDF signing service: API + UI + worker),
-is onboarded through the platform's golden path (`atlasctl`) to exercise every
-capability end-to-end.
 
 ---
 
@@ -52,7 +44,7 @@ capability end-to-end.
 │                          CI/CD - GitHub Actions                              │
 │                    Act or Cloud runner / Self-hosted                         │
 │               ci: ci-base -> ci-middleware -> ci-workload                    │
-│                          build: seal, atlasctl                               │
+│                          build: atlasctl, seal                               │
 └──────────────────────────────────────────────────────────────────────────────┘
                                        │
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -62,7 +54,7 @@ capability end-to-end.
                                        │
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                                  Workloads                                   │
-│                              Seal (Example App)                              │
+│                        Seal (Example Microservice App)                       │
 │              seal-api / seal-ui / seal-worker / dlq CronJob                  │
 └──────────────────────────────────────────────────────────────────────────────┘
                                        │
@@ -93,8 +85,8 @@ capability end-to-end.
 │                       └────────────┘                                         │
 │                          │  to CP nodes                                      │
 │      ┌──────────────────────┐ ┌──────────────────────┐ ┌────────────┐        │
-│      │    Control planes    │ │    Workers           │ │ Zot-cache  │        │
-│      │┌────────┐ ┌────────┐ │ │┌────────┐ ┌────────┐ │ │pull-through│        │
+│      │    Control planes    │ │    Workers           │ │ Zot cache  │        │
+│      │┌────────┐ ┌────────┐ │ │┌────────┐ ┌────────┐ │ │   images   │        │
 │      ││cp-1    │ │cp-n    │ │ ││worker-1│ │worker-n│ │ └────────────┘        │
 │      └──────────────────────┘ └──────────────────────┘                       │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -159,7 +151,7 @@ atlas-idp/
 ├── workloads/                  # Per-tenant workload definitions (atlasctl registry)
 │   └── atlasteam/seal/         #   app.yaml, infra, vault policy, monitoring
 ├── infra/                      # Infrastructure as Code (Terraform/OpenTofu)
-│   ├── environments/           #   stage (Incus/Talos, active)                             │
+│   ├── environments/           #   stage (Incus/Talos, active)
 │   └── modules/                #   Reusable modules
 ├── security/                   # CA certs, RBAC, Trivy, Cosign keys
 ├── tools/                      # atlasctl (Go CLI), CI runners, tools/vault/ (Vault seed)
@@ -203,10 +195,9 @@ See `docs/setup.md` for the full getting-started guide (`.env`, CA, cosign, memo
 
 Argo CD pulls manifests from Git. Point the platform at your fork before deploying:
 
-```bash
-# gitops/bootstrap/root-app.yaml and workloads/*/app.yaml
-#   repoURL: https://github.com/<your-org>/<your-repo>.git
-```
+> Point Argo CD at your fork by editing `repoURL` in
+> `gitops/bootstrap/root-app.yaml` and `workloads/*/app.yaml`:
+> `https://github.com/<your-org>/<your-repo>.git`
 
 ### 2. Deploy the whole platform (recommended)
 
@@ -237,7 +228,7 @@ gateway LoadBalancer IP to the `*.atlas` hostnames in `/etc/hosts`, then:
 | Vault         | `https://vault.atlas`      |
 | MinIO (S3)    | `https://s3.atlas`         |
 | MinIO console | `https://console.s3.atlas` |
-| seal          | `https://seal.atlas`       |
+| Seal          | `https://seal.atlas`       |
 
 ```bash
 # Argo CD admin password
@@ -358,7 +349,7 @@ by Kyverno.
 
 ## Environments
 
-### `stage` (active)
+### `stage`
 
 - **Cluster:** Talos Linux on Incus VMs (1 control-plane + 2 workers)
 - **State:** local filesystem
