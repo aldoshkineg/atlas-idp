@@ -34,6 +34,14 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s\n' "$ENV_FILE" > .env
+          # Make every var from the secret visible in this step's shell.
+          set -a; source ./.env; set +a
+          if grep -q '^COSIGN_PRIVATE_KEY_B64=' ./.env; then
+            echo "OK: COSIGN_PRIVATE_KEY_B64 present in ENV_FILE secret"
+          else
+            echo "MISSING: COSIGN_PRIVATE_KEY_B64 not in ENV_FILE secret" >&2
+            exit 1
+          fi
           # Materialise the cosign private key (base64 in .env) for the sign step.
           # Use a heredoc so the multiline PEM is preserved verbatim in $GITHUB_ENV.
           COSIGN_KEY="$(echo "$COSIGN_PRIVATE_KEY_B64" | base64 -d)"
