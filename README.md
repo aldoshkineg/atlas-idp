@@ -43,40 +43,58 @@ capability end-to-end.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  atlasctl — workload lifecycle: new · enable · disable                       │
+│                        Atlasctl - Platform Management                        │
+│                             Workload Lifecycle:                              │
+│    new / seed / enable / disable / delete / status / list / logs / backup    │
 └──────────────────────────────────────────────────────────────────────────────┘
                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                       CI/CD — GitHub Actions                                 │
-│   self-hosted / cloud runner, or local via `act`                             │
-│   ci-base ──▶ ci-middleware ──▶ ci-workload        (ci-all)                  │
+│                            CI/CD - GitHub Actions                            │
+│   Self-hosted / Cloud runner, or local via act                               │
+│   ci-base -> ci-middleware -> ci-workload        (ci-all)                    │
+│   build: seal, atlasctl, tests                                               │
 └──────────────────────────────────────────────────────────────────────────────┘
                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                         GitOps — Argo CD                                     │
-│   Layers: base · storage · security · delivery · observability               │
+│                               GitOps - Argo CD                               │
+│   Layers: base / security / storage / delivery / observability               │
 └──────────────────────────────────────────────────────────────────────────────┘
                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                        WORKLOADS — seal                                      │
-│   seal-api · seal-ui · seal-worker · dlq CronJob                             │
+│                               Workloads - Seal                               │
+│   seal-api / seal-ui / seal-worker / dlq CronJob                             │
 └──────────────────────────────────────────────────────────────────────────────┘
                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                 Kubernetes runtime — Talos Linux                             │
+│                       Kubernetes Runtime - Talos Linux                       │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
-│  │ CNI + GW    │ │ Rollouts    │ │ (policy)    │ │ ESO         │ │ metrics   │
+│  │Cilium      │ │LB (Cilium) │ │Gateway     │ │Argo        │ │Kyverno     │  │
+│  │CNI         │ │IPPool      │ │Envoy       │ │Rollouts    │ │(Policy)    │  │
 │  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
-│  │ storage     │ │ PG / Redis  │ │ (S3)        │ │ (DR)        │ │ Operator  │
+│  │Vault +     │ │KEDA +      │ │LINSTOR     │ │CNPG        │ │MinIO       │  │
+│  │ESO         │ │Metrics     │ │Storage     │ │PG+Redis    │ │(S3)        │  │
 │  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
-│   Observability: Prometheus · Grafana · Alertmanager ·                       │
-│                    Loki · Tempo · Grafana Alloy                              │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
+│  │Velero      │ │Trivy       │ │Cosign      │ │Snapshot    │ │cert-manager│  │
+│  │(DR)        │ │Operator    │ │Sign        │ │(Ctrl)      │ │(TLS)       │  │
+│  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
+│   Observability:  Prometheus / Grafana / Alertmanager                        │
+│                   Loki / Tempo / Grafana Alloy / Hubble                      │
 └──────────────────────────────────────────────────────────────────────────────┘
                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│               Infrastructure — Terraform / OpenTofu                          │
-│   Incus / Talos VMs (stage, active)                                          │
+│                    Infrastructure - Terraform / OpenTofu                     │
+│   Incus / Talos VMs                                                          │
+│  ┌────────────┐                                                              │
+│  │VIP (HA)    │                                                              │
+│  │10.200.10.10│                                                              │
+│  └────────────┘                                                              │
+│        │  to CP nodes                                                        │
+│  ┌────────────┐ ┌────────────┐ ┌────────────┐                                │
+│  │cp          │ │worker      │ │zot-cache   │                                │
+│  │CP nodes    │ │worker nodes│ │pull-through│                                │
+│  └────────────┘ └────────────┘ └────────────┘                                │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -87,25 +105,35 @@ capability end-to-end.
 
 ## Tech Stack
 
-| Category                 | Tools                                                          |
-| ------------------------ | -------------------------------------------------------------- |
-| **Infrastructure**       | Terraform / OpenTofu, Incus (local VMs)                        |
-| **OS / Kubernetes**      | Talos Linux, Kubernetes v1.34                                  |
-| **CNI + Ingress**        | Cilium (kube-proxy-less) + Gateway API                         |
-| **GitOps**               | Argo CD (App-of-Apps)                                          |
-| **Progressive delivery** | Argo Rollouts (canary)                                         |
-| **Autoscaling**          | KEDA + metrics-server (HPA)                                    |
-| **CI/CD**                | GitHub Actions (self-hosted runner / `act`)                    |
-| **Observability**        | Prometheus · Grafana · Alertmanager · Loki · Tempo · Alloy     |
-| **Secrets**              | HashiCorp Vault + External Secrets Operator                    |
-| **Storage**              | Piraeus / LINSTOR (replicated block), snapshot-controller      |
-| **Databases**            | CloudNativePG (PostgreSQL), Redis                              |
-| **Object storage**       | MinIO (S3-compatible)                                          |
-| **Policy-as-code**       | Kyverno                                                        |
-| **Supply chain**         | Cosign image signatures (enforced via Kyverno), Trivy Operator |
-| **Backup / DR**          | Velero                                                         |
-| **Platform tooling**     | `atlasctl` (Go CLI — golden-path workload onboarding)          |
-| **Languages**            | Go · HCL · YAML · Shell                                        |
+```text
+┌──────────────────────────┬────────────────────────────────────────────────────────────────┐
+│        Capability        │                        Tools we provide                        │
+├──────────────────────────┼────────────────────────────────────────────────────────────────┤
+│Infrastructure as Code    │Terraform, OpenTofu                                             │
+│Virtualization / Host     │Incus (local VMs)                                               │
+│OS / Kubernetes           │Talos Linux, Kubernetes v1.34                                   │
+│CNI + Networking (eBPF)   │Cilium - CNI, kube-proxy-less, Gateway API, L2/L3 LB, network   │
+│                          │policies, Hubble                                                │
+│GitOps                    │Argo CD (App-of-Apps), Argo Rollouts (canary / progressive      │
+│                          │delivery)                                                       │
+│CI/CD                     │GitHub Actions (self-hosted runner), act                        │
+│Secrets Management        │HashiCorp Vault, External Secrets Operator (ESO)                │
+│Policy-as-Code            │Kyverno (admission / policy), Cosign image verification         │
+│Supply-Chain Security     │Cosign (image signing), Trivy / Trivy Operator (scanning)       │
+│TLS / PKI                 │cert-manager (issuing / rotating TLS)                           │
+│Observability             │Prometheus, Grafana, Alertmanager, Loki, Tempo, Grafana Alloy,  │
+│                          │Hubble                                                          │
+│Storage / CSI             │LINSTOR / Piraeus (replicated block, DRBD), snapshot-controller │
+│Databases                 │CloudNativePG (PostgreSQL), Redis (HA)                          │
+│Object Storage            │MinIO (S3-compatible)                                           │
+│Autoscaling               │KEDA (event-driven), metrics-server (HPA)                       │
+│Backup / DR               │Velero                                                          │
+│Platform Tooling          │atlasctl (Go CLI - golden-path workload onboarding)             │
+│Sample Workload           │seal - api / ui / worker / dlq CronJob (Helm-packaged)          │
+│Registry Cache            │Zot (OCI registry cache / pull-through mirror)                  │
+│Languages                 │Go, HCL, YAML, Shell                                            │
+└──────────────────────────┴────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -119,7 +147,7 @@ atlas-idp/
 │   ├── bootstrap/
 │   │   └── root-app.yaml       #   App-of-Apps root Application
 │   ├── platform/
-│   │   ├── layers/             #   Layer Applications (base/storage/security/…)
+│   │   ├── layers/             #   Layer Applications (base/security/storage/…)
 │   │   ├── base/               #   Cilium Gateway, routes, network policies, cert issuers
 │   │   ├── storage/            #   Piraeus/LINSTOR, snapshot controller, CNPG, MinIO, Redis
 │   │   ├── security/           #   Kyverno (+ policies), Vault operator, ESO, Trivy
