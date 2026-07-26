@@ -1,141 +1,142 @@
-# CI процесс Atlas IDP
+# Atlas IDP CI Process
 
-Описание того, как устроена непрерывная интеграция в репозитории: какие
-workflow'ы существуют, как они триггерятся, из чего собираются и как их
-запускать локально / через self-hosted раннер.
+Description of how continuous integration is organized in this repository: which
+workflows exist, how they are triggered, what they consist of, and how to run
+them locally / via a self-hosted runner.
 
-## Обзор компонентов
+## Component Overview
 
-| Файл                                        | Назначение                                                                               |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `.github/workflows/ci-all.yaml`             | Оркестратор. Собирает фазы в одну цепочку.                                               |
-| `.github/workflows/ci-base.yaml`            | Фаза **base**: `terraform apply` (Incus/Talos) + seed Vault.                             |
-| `.github/workflows/ci-middleware.yaml`      | Фаза **middleware**: синк платформенных слоёв (storage/security/delivery/observability). |
-| `.github/workflows/ci-workload.yaml`        | Фаза **workload**: seed + синк workload-слоя (seal).                                     |
-| `.github/workflows/ci-destroy.yaml`         | Уничтожение инфры (требует `confirm: "destroy"`).                                        |
-| `.github/workflows/ci-destroy-force.yaml`   | Полный teardown (Incus/Talos + TF state).                                                |
-| `.github/workflows/security.yaml`           | Trivy-скан всего репо (IaC/CVE/секреты).                                                 |
-| `.github/workflows/seal-docker-publish.yml` | Сборка/пуш/подпись seal-образов (по тегу `v*`).                                          |
-| `.github/workflows/atlasctl-release.yml`    | Релиз `atlasctl` (по тегу `v*`).                                                         |
+| File                                        | Purpose                                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `.github/workflows/ci-all.yaml`             | Orchestrator. Chains phases into one pipeline.                                        |
+| `.github/workflows/ci-base.yaml`            | **base** phase: `terraform apply` (Incus/Talos) + seed Vault.                         |
+| `.github/workflows/ci-middleware.yaml`      | **middleware** phase: sync platform layers (storage/security/delivery/observability). |
+| `.github/workflows/ci-workload.yaml`        | **workload** phase: seed + sync workload layer (seal).                                |
+| `.github/workflows/ci-destroy.yaml`         | Destroy infrastructure (requires `confirm: "destroy"`).                               |
+| `.github/workflows/ci-destroy-force.yaml`   | Full teardown (Incus/Talos + TF state).                                               |
+| `.github/workflows/security.yaml`           | Trivy scan of the whole repo (IaC/CVE/secrets).                                       |
+| `.github/workflows/seal-docker-publish.yml` | Build/push/sign seal images (on tag `v*`).                                            |
+| `.github/workflows/atlasctl-release.yml`    | Release `atlasctl` (on tag `v*`).                                                     |
 
-### Composite-actions (переиспользуемые шаги)
+### Composite Actions (reusable steps)
 
-| Action                        | Что делает                                                                                                                                               |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.github/actions/load-env`    | Реплей секрета `ENV_FILE` в `.env` + экспорт в `$GITHUB_ENV` (с маской). Опц. materialise CA (`materialise_ca`) и derive cosign-ключа (`derive_cosign`). |
-| `.github/actions/cluster-env` | Прописывает `KUBECONFIG` и `TF_PLUGIN_CACHE_DIR` в `$GITHUB_ENV`.                                                                                        |
-| `.github/actions/tools`       | Устанавливает выбранные CLI через `tools/ci/install-tools.sh` (`VERSION_MAP`).                                                                           |
-| `.github/actions/terraform`   | `init` → `plan` → `apply` + проверка нод + CA-секрет для cert-manager.                                                                                   |
-| `.github/actions/lint`        | `terraform fmt -check`, `terraform validate`, `yamllint`.                                                                                                |
-| `.github/actions/scan`        | `trivy fs` (vuln/secret/misconfig).                                                                                                                      |
-| `.github/actions/seed-vault`  | Порт-форвард Vault + `seed-vault.sh`.                                                                                                                    |
+| Action                        | What it does                                                                                                                                                                 |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/actions/load-env`    | Replays the `ENV_FILE` secret into `.env` + exports to `$GITHUB_ENV` (with masking). Optionally materialises CA (`materialise_ca`) and derives cosign key (`derive_cosign`). |
+| `.github/actions/cluster-env` | Sets `KUBECONFIG` and `TF_PLUGIN_CACHE_DIR` in `$GITHUB_ENV`.                                                                                                                |
+| `.github/actions/tools`       | Installs selected CLIs via `tools/ci/install-tools.sh` (`VERSION_MAP`).                                                                                                      |
+| `.github/actions/terraform`   | `init` → `plan` → `apply` + node check + CA secret for cert-manager.                                                                                                         |
+| `.github/actions/lint`        | `terraform fmt -check`, `terraform validate`, `yamllint`.                                                                                                                    |
+| `.github/actions/scan`        | `trivy fs` (vuln/secret/misconfig).                                                                                                                                          |
+| `.github/actions/seed-vault`  | Port-forward Vault + `seed-vault.sh`.                                                                                                                                        |
 
-### Скрипты (`tools/ci/`)
+### Scripts (`tools/ci/`)
 
-- `install-tools.sh` — единый источник версий тулчейна (`VERSION_MAP`), включая `jq`.
-- `terraform-init.sh` — `terraform init` с retry.
-- `sync-layers.sh` — синк ArgoCD-слоёв; парсит `argocd app get -o json | jq`; содержит **health-gate** (падет, если слой не `Synced/Healthy`).
-- `seed-gh.sh` — выгружает `.env` в секрет `ENV_FILE`.
+- `install-tools.sh` — single source of truth for toolchain versions (`VERSION_MAP`), including `jq`.
+- `terraform-init.sh` — `terraform init` with retry.
+- `sync-layers.sh` — sync ArgoCD layers; parses `argocd app get -o json | jq`; includes a **health-gate** (fails if layer is not `Synced/Healthy`).
+- `seed-gh.sh` — uploads `.env` into the `ENV_FILE` secret.
 - `stage-terraform-destroy.sh` — force-teardown.
 
-## Триггеры
+## Triggers
 
-| Событие                         | Что запускается                                                                                                                                         |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `push` в `main`                 | `ci-all` → полный пайплайн (lint → base → middleware → workload). Если коммит содержит `[base]` / `[middleware]` / `[workloads]` — **только** эти фазы. |
-| `pull_request` в `main`         | `ci-all` → **только lint** (без мутации кластера).                                                                                                      |
-| `workflow_dispatch`             | `ci-all` → фазы управляются тумблерами `run_base` / `run_middleware` / `run_workloads` (все `true` по умолчанию).                                       |
-| тег `v*`                        | `seal-docker-publish` + `atlasctl-release` (сборка/публикация/подпись).                                                                                 |
-| `push`/`PR` в `main` (security) | `security` — Trivy-скан.                                                                                                                                |
+| Event                            | What gets triggered                                                                                                                                       |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `push` to `main`                 | `ci-all` → full pipeline (lint → base → middleware → workload). If the commit contains `[base]` / `[middleware]` / `[workloads]` — **only** those phases. |
+| `pull_request` to `main`         | `ci-all` → **lint only** (no cluster mutation).                                                                                                           |
+| `workflow_dispatch`              | `ci-all` → phases controlled by `run_base` / `run_middleware` / `run_workloads` toggles (all `true` by default).                                          |
+| tag `v*`                         | `seal-docker-publish` + `atlasctl-release` (build/publish/sign).                                                                                          |
+| `push`/`PR` to `main` (security) | `security` — Trivy scan.                                                                                                                                  |
 
-Destroy-воркфлоу (`ci-destroy`, `ci-destroy-force`) **не** триггерятся автоматически — только вручную (`workflow_dispatch`), причём `ci-destroy` требует `confirm: "destroy"`.
+Destroy workflows (`ci-destroy`, `ci-destroy-force`) are **not** triggered automatically — manual only (`workflow_dispatch`), and `ci-destroy` requires `confirm: "destroy"`.
 
-## Оркестратор `ci-all`
+## Orchestrator `ci-all`
 
 ```
 gate ──▶ lint ──▶ base ──▶ middleware ──▶ workloads
 ```
 
-- **`gate`** (ubuntu-latest) — дешёвый шаг. Парсит сообщение коммита и
-  выставляет `sel_base` / `sel_middleware` / `sel_workloads`:
-  - нет токенов `[base]`/`[middleware]`/`[workloads]` → все `true` (полный пайплайн);
-  - есть токен(ы) → `true` только для совпавших фаз.
-- **`lint`** крутится на self-hosted раннере (переиспользует кэш тулчейна) и
-  является воротами: если fmt/validate/yamllint падают, дальше apply не идёт.
-- **Фазы** — вызовы reusable-воркфлоу (`uses:`). Каждая наследует
-  `concurrency: atlas-stage`, поэтому две мутирующие фазы никогда не идут
-  одновременно (destroy не пересекается с apply).
-- **`workflow_dispatch`** для фаз игнорирует селектор из коммита и смотрит на
-  тумблеры `run_*`.
+- **`gate`** (ubuntu-latest) — cheap step. Parses the commit message and
+  sets `sel_base` / `sel_middleware` / `sel_workloads`:
+  - no `[base]`/`[middleware]`/`[workloads]` tokens → all `true` (full pipeline);
+  - token(s) present → `true` only for matching phases.
+- **`lint`** runs on a self-hosted runner (reuses toolchain cache) and
+  acts as a gate: if fmt/validate/yamllint fail, apply does not proceed.
+- **Phases** — calls to reusable workflows (`uses:`). Each inherits
+  `concurrency: atlas-stage`, so two mutating phases never run
+  simultaneously (destroy does not overlap with apply).
+- **`workflow_dispatch`** for phases ignores the commit selector and uses
+  `run_*` toggles instead.
 
-> ⚠️ Селектор срабатывает на **любое** вхождение токена в текст коммита. Если в
-> сообщении случайно окажется `[base]` (напр. «refactor [base] module»), запустится
-> только base-фаза.
+> ⚠️ The selector triggers on **any** occurrence of a token in the commit text. If a
+> message incidentally contains `[base]` (e.g., "refactor [base] module"), only the
+> base phase will run.
 
-### Почему `pull_request` только lint
+### Why `pull_request` is lint-only
 
-Применять `terraform apply` на общий stage-кластер из PR опасно и бессмысленно.
-PR служит для валидации (fmt/validate/yamllint) до merge, без мутации инфраструктуры.
+Applying `terraform apply` on the shared stage cluster from a PR is dangerous and
+pointless. PRs serve to validate (fmt/validate/yamllint) before merge, without
+mutating infrastructure.
 
-## Секреты
+## Secrets
 
-Единственный репо-секрет, нужный мутирующим воркфлоу — **`ENV_FILE`**. Это
-целиком содержимое локального `.env` (Vault-сиды, CA cert/key, cosign-ключ,
-токены). Он выгружается одной командой и реплеится внутри раннера:
-
-```bash
-make seed-gh   # -> ./security/vault/seed-gh.sh (читает .env, грузит в ENV_FILE)
-```
-
-Внутри CI `load-env` пишет `.env`, экспортирует каждую переменную в
-`$GITHUB_ENV` с `::add-mask::` (маскировка в логах) и опционально материализует
-CA. После `ci-base` рабочая копия очищается (`rm -f .env security/certs/*`) при
-`if: always()`, чтобы секреты не оставались на persistent self-hosted раннере.
-
-> cosign-ключ в `ENV_FILE` имеет пустой пароль (`COSIGN_PASSWORD: ""` в
-> `seal-docker-publish.yml`) — подпись фактически не защищена паролем. План:
-> перейти на keyless (Fulcio/OIDC) или задать реальный пароль.
-
-## Локальный запуск vs cloud self-hosted раннер
-
-GitHub-воркфлоу используют **reusable-вызовы** (`uses:`), которые `act`
-(локальный эмулятор) не умеет исполнять. Поэтому локально фазы гоняются
-напрямую через `tools/ci/act-runner/act-runner.sh`, а не через `ci-all`:
+The only repo secret needed by mutating workflows is **`ENV_FILE`**. It contains
+the entire local `.env` (Vault seeds, CA cert/key, cosign key, tokens). It is
+uploaded with one command and replayed inside the runner:
 
 ```bash
-make act-ci            # base -> middleware -> workload (последовательно, через act)
-make act-stage-base    # только base
-make act-destroy       # ci-destroy через act
+make seed-gh   # -> ./security/vault/seed-gh.sh (reads .env, uploads to ENV_FILE)
 ```
 
-Для реального прогона в GitHub используется **self-hosted раннер**
-(`myoung34/github-runner`, метка `self-hosted`), поднятый через
+Inside CI, `load-env` writes `.env`, exports each variable to `$GITHUB_ENV` with
+`::add-mask::` (log masking), and optionally materialises the CA. After `ci-base`,
+the working copy is cleaned up (`rm -f .env security/certs/*`) at
+`if: always()`, so secrets do not persist on the persistent self-hosted runner.
+
+> The cosign key in `ENV_FILE` has an empty password (`COSIGN_PASSWORD: ""` in
+> `seal-docker-publish.yml`) — signing is effectively unprotected. Plan: migrate to
+> keyless (Fulcio/OIDC) or set a real password.
+
+## Local Run vs Cloud Self-Hosted Runner
+
+GitHub workflows use **reusable calls** (`uses:`), which `act`
+(the local emulator) cannot execute. Therefore, phases are run locally
+directly via `tools/ci/act-runner/act-runner.sh`, not through `ci-all`:
+
+```bash
+make act-ci            # base -> middleware -> workload (sequentially, via act)
+make act-stage-base    # base only
+make act-destroy       # ci-destroy via act
+```
+
+For actual runs in GitHub, a **self-hosted runner**
+(`myoung34/github-runner`, label `self-hosted`) is used, brought up via
 `tools/ci/local-runner`:
 
 ```bash
-make ci-runner-up      # поднять раннер (Docker + Incus + /var/tmp/atlas)
-make ci-runner-ci      # dispatch ci-all в GitHub (через раннер)
-make ci-runner-down    # остановить
+make ci-runner-up      # bring up runner (Docker + Incus + /var/tmp/atlas)
+make ci-runner-ci      # dispatch ci-all in GitHub (via runner)
+make ci-runner-down    # stop
 ```
 
-Раннер должен иметь доступ к Docker-сокету, Incus-сокету и `/var/tmp/atlas`
-(там kubeconfig/талос-артефакты и кэш).
+The runner must have access to the Docker socket, Incus socket, and `/var/tmp/atlas`
+(where kubeconfig/talos artifacts and cache reside).
 
-## Полезные Make-цели
+## Useful Make Targets
 
-| Цель                                                          | Действие                                           |
-| ------------------------------------------------------------- | -------------------------------------------------- |
-| `make act-ci`                                                 | Полный пайплайн локально (act).                    |
-| `make ci-runner-ci`                                           | Полный пайплайн в GitHub через self-hosted раннер. |
-| `make seed-gh`                                                | Загрузить `.env` в секрет `ENV_FILE`.              |
-| `make validate`                                               | terraform fmt/validate + yamllint + trivy.         |
-| `make pre-commit`                                             | Pre-commit хуки.                                   |
-| `make ci-runner-{base,middle,workload,destroy,destroy-force}` | Отдельные фазы через раннер.                       |
+| Target                                                        | Action                                          |
+| ------------------------------------------------------------- | ----------------------------------------------- |
+| `make act-ci`                                                 | Full pipeline locally (act).                    |
+| `make ci-runner-ci`                                           | Full pipeline in GitHub via self-hosted runner. |
+| `make seed-gh`                                                | Upload `.env` to `ENV_FILE` secret.             |
+| `make validate`                                               | terraform fmt/validate + yamllint + trivy.      |
+| `make pre-commit`                                             | Pre-commit hooks.                               |
+| `make ci-runner-{base,middle,workload,destroy,destroy-force}` | Individual phases via runner.                   |
 
-## Заметки по безопасности / best practices
+## Security Notes / Best Practices
 
-- Least-privilege `permissions` (в мутирующих воркфлоу `{}` + per-job `contents: read`).
-- `security` имеет собственную `concurrency` (`security-<ref>`) и не блокирует прогон инфры.
-- `actions/checkout` везде с `persist-credentials: false`; во всех шагах `set -euo pipefail`.
-- Все third-party экшены запинены по тегу (`@v4`, `@v3` …) — кандидат на SHA-пининг + Dependabot.
-- `sync-layers.sh` имеет health-gate: зелёный CI теперь означает, что слои реально `Synced/Healthy`.
+- Least-privilege `permissions` (mutating workflows use `{}` + per-job `contents: read`).
+- `security` has its own `concurrency` (`security-<ref>`) and does not block infra runs.
+- `actions/checkout` everywhere uses `persist-credentials: false`; all steps use `set -euo pipefail`.
+- All third-party actions are pinned by tag (`@v4`, `@v3` …) — candidates for SHA-pinning + Dependabot.
+- `sync-layers.sh` has a health-gate: green CI now means layers are actually `Synced/Healthy`.
