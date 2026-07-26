@@ -83,7 +83,8 @@ jobs:
       needs.gate.outputs.skip != 'true' &&
       (github.event_name != 'workflow_dispatch' || inputs.run_base)
     uses: ./.github/workflows/ci-base.yaml
-    secrets: inherit
+    secrets:
+      ENV_FILE: ${{ secrets.ENV_FILE }}
 
   middleware:
     needs: [gate, base]
