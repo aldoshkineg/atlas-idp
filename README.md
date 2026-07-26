@@ -110,6 +110,8 @@ atlas-idp/
 └── .yamllint.yml               # YAML linting rules
 ```
 
+See `docs/README.md` for the full documentation index.
+
 ---
 
 ## Quick Start
