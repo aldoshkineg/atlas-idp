@@ -150,10 +150,10 @@ base security storage delivery observability workloads all:
 
 ##@ Vault & Secrets
 seed-vault: ## Read .env + seed-mapping.conf, seed into Vault via port-forward
-	@unset VAULT_ADDR; ./security/vault/seed-vault.sh
+	@unset VAULT_ADDR; ./tools/vault/seed-vault.sh
 
 seed-gh: ## Upload the whole .env as one GitHub Secret (ENV_FILE)
-	./security/vault/seed-gh.sh
+	./tools/vault/seed-gh.sh
 
 ##@ Workloads (atlasctl)
 atlasctl-build: ## Build the atlasctl Go binary

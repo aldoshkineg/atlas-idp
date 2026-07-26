@@ -30,7 +30,7 @@ run_terraform() {
 run_yaml() {
   echo "==> Running YAML lint..."
   if command -v yamllint >/dev/null 2>&1; then
-    yamllint -c "${ROOT_DIR}/.yamllint.yml" gitops/ observability/ security/ tests/
+    yamllint -c "${ROOT_DIR}/.yamllint.yml" gitops/ security/ tests/
   else
     echo "yamllint not installed, skip"
   fi

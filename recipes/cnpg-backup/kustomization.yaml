@@ -1,5 +1,5 @@
 # Apply backup config to cluster:
-#   kubectl apply -k examples/cnpg-backup/
+#   kubectl apply -k recipes/cnpg-backup/
 #
 # Then add spec.plugins to your CNPG Cluster:
 #   plugins:

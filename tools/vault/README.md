@@ -55,19 +55,19 @@ secret/platform/myapp dbPassword=dbpass123
 EOF
 
 # Seed into Vault
-./security/vault/seed-platform.sh seed /tmp/secrets.txt
+./seed-platform.sh seed /tmp/secrets.txt
 ```
 
 ### Verify that Vault values match a file
 
 ```bash
-./security/vault/seed-platform.sh verify /tmp/secrets.txt
+./seed-platform.sh verify /tmp/secrets.txt
 ```
 
 ### Manual seed without port-forward (use external Vault addr)
 
 ```bash
-VAULT_ADDR=https://vault.example.com VAULT_TOKEN=s.tok ./security/vault/seed-platform.sh seed /tmp/secrets.txt
+VAULT_ADDR=https://vault.example.com VAULT_TOKEN=s.tok ./seed-platform.sh seed /tmp/secrets.txt
 ```
 
 ### Upload local env to a single GitHub Secret (ENV_FILE)
@@ -84,7 +84,7 @@ Keep `.env` current first: base64-embed the CA cert/key and cosign key manually
 To upload to a different repo without `make`:
 
 ```bash
-ENV_FILE=.env GH_REPO=owner/repo ./security/vault/seed-gh.sh
+ENV_FILE=.env GH_REPO=owner/repo ./seed-gh.sh
 ```
 
 ## CI pipeline flow

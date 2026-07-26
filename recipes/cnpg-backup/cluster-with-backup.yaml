@@ -1,5 +1,5 @@
 # CNPG Cluster with barman-cloud plugin for S3 backup.
-# Apply with: kubectl apply -f examples/cnpg-backup/cluster-with-backup.yaml
+# Apply with: kubectl apply -f recipes/cnpg-backup/cluster-with-backup.yaml
 # Requires ObjectStore and Secret from this directory to be present.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster

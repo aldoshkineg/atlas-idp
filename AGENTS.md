@@ -42,11 +42,13 @@ The platform runs locally on a Talos Linux Kubernetes cluster provisioned on Inc
 | Directory                 | Purpose                                                                                                                             |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `infra/`                  | Terraform IaC - environments (stage) and reusable modules (argocd-bootstrap, incus, talos-config, talos-cluster, cilium, zot-cache) |
-| `gitops/`                 | Argo CD manifests - bootstrap (root app), platform (platform services), workloads (planned)                                         |
+| `gitops/`                 | Argo CD manifests - bootstrap (root app), platform (platform services), workloads (tenant apps)                                     |
 | `gitops/platform/layers/` | Platform layer configurations with values overrides                                                                                 |
+| `workloads/`              | User workload projects managed by atlasctl — single source of truth; `atlasctl enable` promotes to gitops/workloads                 |
+| `templates/gold/`         | Golden-path templates (`.tmpl`) used by atlasctl to scaffold new workloads                                                          |
+| `recipes/`                | Standalone cluster snippets applied manually with kubectl (outside GitOps)                                                          |
 | `clusters/`               | (removed — cluster lifecycle now handled by Terraform/Incus)                                                                        |
-| `observability/`          | Prometheus alert rules, Grafana dashboards (planned)                                                                                |
-| `vault/`                  | Vault policies, Kubernetes auth roles, bootstrap scripts                                                                            |
+| `tools/vault/`            | Vault policies, Kubernetes auth roles, bootstrap scripts                                                                            |
 | `security/`               | Trivy config, RBAC policies (planned)                                                                                               |
 | `.github/`                | GitHub Actions workflows and composite actions                                                                                      |
 | `apps/`                   | Seal project                                                                                                                        |
@@ -106,7 +108,7 @@ make act-destroy   # Destroy the stage (Incus/Talos) infrastructure
 ### Testing
 
 - Terraform: `terraform fmt -check -recursive infra/`, `terraform validate`
-- YAML: `yamllint -c .yamllint.yml gitops/ observability/ security/`
+- YAML: `yamllint -c .yamllint.yml gitops/ security/`
 - Security: `trivy config --severity HIGH,CRITICAL infra/ gitops/`
 
 ## Code Standards
@@ -153,7 +155,7 @@ Pre-commit runs on every commit:
 
 - **Cluster:** `production-db` in `database` namespace, 1 instance, PG 17.6, csi-hostpath-sc
 - **Operator:** cloudnative-pg 0.28.3 (app 1.29.1) in `cnpg-system`, `INCLUDE_PLUGINS: barman-cloud.cloudnative-pg.io`
-- **Backup config moved to** `examples/cnpg-backup/` (ObjectStore + Secret + ScheduledBackup)
+- **Backup config moved to** `recipes/cnpg-backup/` (ObjectStore + Secret + ScheduledBackup)
 - **MinIO:** bucket `cnpg-backups`, endpoint `http://minio.minio.svc.cluster.local:9000`, creds `minioadmin`/`minioadminpassword`
 - **Next commit removes** all backup CRs from gitops; infra cluster will run as plain PostgreSQL without plugins.
 

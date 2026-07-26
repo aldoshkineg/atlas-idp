@@ -23,4 +23,4 @@ runs:
     - name: YAML Lint
       shell: bash
       run: |
-        yamllint -c .yamllint.yml gitops/ observability/ security/ .github/
+        yamllint -c .yamllint.yml gitops/ security/ .github/

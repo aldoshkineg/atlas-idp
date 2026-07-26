@@ -85,7 +85,7 @@ the entire local `.env` (Vault seeds, CA cert/key, cosign key, tokens). It is
 uploaded with one command and replayed inside the runner:
 
 ```bash
-make seed-gh   # -> ./security/vault/seed-gh.sh (reads .env, uploads to ENV_FILE)
+make seed-gh   # -> ./tools/vault/seed-gh.sh (reads .env, uploads to ENV_FILE)
 ```
 
 Inside CI, `load-env` writes `.env`, exports each variable to `$GITHUB_ENV` with

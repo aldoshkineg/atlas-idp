@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Seed platform secrets into Vault from security/vault/seed-mapping.conf.
+# Seed platform secrets into Vault from tools/vault/seed-mapping.conf.
 # Usage: make seed-vault                 (reads .env + platform mapping)
 #   or:  unset VAULT_ADDR; ./seed-vault.sh (relies on env vars already set)
-# For each entry in security/vault/seed-mapping.conf, resolves the ENV_VAR
+# For each entry in tools/vault/seed-mapping.conf, resolves the ENV_VAR
 # and writes it into a seed file, then delegates to seed-platform.sh (which auto
 # port-forwards to vault-0 and auto-resolves the root token when VAULT_ADDR is unset).
 # Workload secrets are seeded separately via atlasctl (make atlas-seal / atlasctl seed),

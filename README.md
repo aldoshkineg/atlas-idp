@@ -101,12 +101,11 @@ atlas-idp/
 │   └── modules/                #   Reusable modules
 ├── clusters/                   # Cluster lifecycle manifests/scripts
 ├── security/                   # CA certs, RBAC, Trivy, Cosign keys
-├── vault/                      # Vault bootstrap, policies, k8s auth roles
 ├── velero/                     # Backup / DR configuration
-├── observability/              # Extra dashboards / alert rules
-├── tools/                      # atlasctl (Go CLI) + CI runners (act/self-hosted)
+├── tools/                      # atlasctl (Go CLI), CI runners, tools/vault/ (Vault seed)
 ├── tests/                      # Platform smoke/integration tests (make test)
-├── templates/                  # Golden-path workload templates
+├── templates/                  # Golden-path workload templates (atlasctl scaffold source)
+├── recipes/                    # Cluster snippets (standalone kubectl apply, outside GitOps)
 ├── docs/                       # Documentation
 ├── ai/                         # AI-assisted design specs / cluster checks
 ├── Makefile                    # Developer + CI workflow targets

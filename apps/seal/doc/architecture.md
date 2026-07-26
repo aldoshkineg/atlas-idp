@@ -159,7 +159,7 @@ gitops/
 │       ├── security/     # cert-manager, Vault (wave 0-2)
 │       ├── storage/      # CSI, MinIO, Velero (wave 1-4)
 │       ├── data/         # CNPG, Redis (wave 1-6)
-│       └── observability/# Prometheus, Loki, Alloy (wave 5-7)
+│       └── gitops/platform/observability/ # Prometheus, Loki, Alloy (wave 5-7)
 └── workloads/
     └── layers/
         ├── seal/         # AppProject + Application

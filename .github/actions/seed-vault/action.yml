@@ -22,7 +22,7 @@ runs:
         trap cleanup EXIT
 
         echo "===> Waiting for Vault availability..."
-        ./security/vault/wait-vault.sh
+        ./tools/vault/wait-vault.sh
 
         export VAULT_ADDR="http://127.0.0.1:8200"
         export VAULT_TOKEN="$(kubectl -n vault get secret vault-unseal-keys -o jsonpath='{.data.vault-root}' | base64 -d)"
@@ -39,4 +39,4 @@ runs:
         done
 
         echo "===> Seeding platform secrets..."
-        ./security/vault/seed-vault.sh
+        ./tools/vault/seed-vault.sh

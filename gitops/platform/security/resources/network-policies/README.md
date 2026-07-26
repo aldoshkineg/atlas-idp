@@ -102,5 +102,5 @@ seal-api (seal NS, deployed separately)
 
 - `cert-manager`: skipped — PodMonitor and ServiceMonitor are disabled; no inbound traffic expected
 - `piraeus-datastore`: LINSTOR satellite pods communicate via host-network; no pod-to-pod inbound
-- `seal`: deployed separately in `examples/`; namespace may not exist during platform bootstrap
+- `seal`: deployed separately in `recipes/`; namespace may not exist during platform bootstrap
 - `default`: no platform workloads

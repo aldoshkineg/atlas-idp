@@ -54,7 +54,7 @@ the `ci-base` → `seed-vault` step:
 - `VL_REDIS_PASSWORD`
 - `VL_GRAFANA_PASSWORD`
 
-> These are consumed by `security/vault/seed-vault.sh` via the `VL_*` vars and
+> These are consumed by `tools/vault/seed-vault.sh` via the `VL_*` vars and
 > written to Vault; the cluster services read them back through External
 > Secrets.
 

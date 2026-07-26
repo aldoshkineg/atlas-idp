@@ -33,7 +33,7 @@ prometheus:
           resources:
             requests:
               storage: 1Gi
-    # Custom alert rules (mounted from observability/alerts/)
+    # Custom alert rules (defined inline in values/alert-rules.yaml)
     additionalScrapeConfigs: []
 # Grafana configuration
 grafana:
