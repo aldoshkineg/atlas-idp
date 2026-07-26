@@ -43,28 +43,29 @@ capability end-to-end.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                     Atlasctl - Platform Management Tool                      │
+│                        Atlasctl - Platform Management Tool                   │
 │                             Workload Lifecycle:                              │
 │    new / enable / disable / seed / delete / status / list / logs / backup    │
 └──────────────────────────────────────────────────────────────────────────────┘
-                                      │
+                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                            CI/CD - GitHub Actions                            │
-│   Act or Cloud runner / Self-hosted                                          │
-│   ci: ci-base -> ci-middleware -> ci-workload                                │
-│   build: seal, atlasctl                                                      │
+│                          CI/CD - GitHub Actions                              │
+│                    Act or Cloud runner / Self-hosted                         │
+│               ci: ci-base -> ci-middleware -> ci-workload                    │
+│                          build: seal, atlasctl                               │
 └──────────────────────────────────────────────────────────────────────────────┘
-                                      │
+                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                               GitOps - Argo CD                               │
-│   Layers: base / security / storage / delivery / observability               │
+│           Layers: base / security / storage / delivery / observability       │
 └──────────────────────────────────────────────────────────────────────────────┘
-                                      │
+                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                               Workloads - Seal                               │
-│   seal-api / seal-ui / seal-worker / dlq CronJob                             │
+│                                  Workloads                                   │
+│                              Seal (Example App)                              │
+│              seal-api / seal-ui / seal-worker / dlq CronJob                  │
 └──────────────────────────────────────────────────────────────────────────────┘
-                                      │
+                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                       Kubernetes Runtime - Talos Linux                       │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
@@ -79,22 +80,23 @@ capability end-to-end.
 │  │Velero      │ │Trivy       │ │Cosign      │ │Snapshot    │ │cert-manager│  │
 │  │(DR)        │ │Operator    │ │Sign        │ │(Ctrl)      │ │(TLS)       │  │
 │  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
-│   Observability:  Prometheus / Grafana / Alertmanager                        │
+│               Observability:  Prometheus / Grafana / Alertmanager            │
 │                   Loki / Tempo / Grafana Alloy / Hubble                      │
 └──────────────────────────────────────────────────────────────────────────────┘
-                                      │
+                                       │
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                    Infrastructure - Terraform / OpenTofu                     │
-│   Incus / Talos VMs                                                          │
-│  ┌────────────┐                                                              │
-│  │VIP (HA)    │                                                              │
-│  │10.200.10.10│                                                              │
-│  └────────────┘                                                              │
-│        │  to CP nodes                                                        │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐                                │
-│  │cp          │ │worker      │ │zot-cache   │                                │
-│  │CP nodes    │ │worker nodes│ │pull-through│                                │
-│  └────────────┘ └────────────┘ └────────────┘                                │
+│                             Incus / Talos VMs                                │
+│                       ┌────────────┐                                         │
+│                       │VIP (HA)    │                                         │
+│                       │10.200.10.10│                                         │
+│                       └────────────┘                                         │
+│                          │  to CP nodes                                      │
+│      ┌──────────────────────┐ ┌──────────────────────┐ ┌────────────┐        │
+│      │    Control planes    │ │    Workers           │ │ Zot-cache  │        │
+│      │┌────────┐ ┌────────┐ │ │┌────────┐ ┌────────┐ │ │pull-through│        │
+│      ││cp-1    │ │cp-n    │ │ ││worker-1│ │worker-n│ │ └────────────┘        │
+│      └──────────────────────┘ └──────────────────────┘                       │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
