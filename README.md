@@ -19,6 +19,8 @@
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
 - [Quick Start](#quick-start)
+- [Access the platform](#access-the-platform)
+- [Validate & test](#validate--test)
 - [Workflow (Makefile Targets)](#workflow-makefile-targets)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Atlasctl](#atlasctl)
@@ -187,7 +189,6 @@ To confirm the required tools are installed and variables/secrets are in place, 
 make preflight    # verify binaries, daemons, .env
 ```
 
-
 See `docs/setup.md` for the full getting-started guide (tools, `.env`, CA, memory).
 
 ### 2. Minimal setup
@@ -203,11 +204,20 @@ make act-stage-base         # Incus/Talos cluster + Argo CD + Vault seeds
 For a full, production-like deployment, run:
 
 ```bash
-make act-build          # build the local CI runner image (once)
+make act-build          # build the local CI runner image (once) with pre-baked tooling
 make act-ci             # ci-all: base ▶ middleware ▶ workloads
 ```
 
-### 4. Access the platform
+### 4. Tear down
+
+```bash
+make act-destroy    # destroy the stage infrastructure
+make act-destroy-force  # hard teardown: kill all VMs and remove Terraform state files
+```
+
+---
+
+## Access the platform
 
 Services are exposed through the Cilium Gateway (TLS via cert-manager). Map the
 gateway LoadBalancer IP to the `*.atlas` hostnames in `/etc/hosts`, then:
@@ -227,21 +237,15 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d
 ```
 
-### 5. Validate & test
+---
+
+## Validate & test
 
 ```bash
 make validate       # Terraform fmt/validate, Trivy, yamllint
 make pre-commit     # Pre-commit hooks on all files
 make test           # Platform smoke/integration tests (see below)
 ```
-
-### 6. Tear down
-
-```bash
-make act-destroy    # destroy the stage infrastructure
-make act-destroy-force  # hard teardown: kill all VMs and remove Terraform state files
-```
-
 ---
 
 ## Workflow (Makefile Targets)
