@@ -13,8 +13,6 @@
 
 **Atlas IDP** is an end-to-end Internal Developer Platform that codifies production-grade platform-engineering patterns — Infrastructure as Code, GitOps delivery, progressive delivery, L2/L3 load balancing, policy-as-code, supply-chain security, secrets management, backups and disaster recovery, observability — on a self-hosted **Talos Linux** Kubernetes cluster (Incus VMs). The platform is managed and applications from development teams are launched with **atlasctl**, a Go CLI. A reference example is **seal**, a Helm-packaged microservice (API + UI + worker) with structured logging and OpenTelemetry tracing.
 
-**Images (GHCR, public):** [seal-api](https://ghcr.io/aldoshkineg/seal-api) · [seal-ui](https://ghcr.io/aldoshkineg/seal-ui) · [seal-worker](https://ghcr.io/aldoshkineg/seal-worker) — all in [Packages](https://github.com/aldoshkineg/atlas-idp/packages).
-
 ## Table of Contents
 
 - [Architecture](#architecture)
@@ -24,6 +22,7 @@
 - [Workflow (Makefile Targets)](#workflow-makefile-targets)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Golden Path — Workload Onboarding](#golden-path--workload-onboarding)
+- [Example Workload](#example-workload)
 - [Security & Policy](#security--policy)
 - [Observability](#observability)
 - [Testing](#testing)
@@ -299,6 +298,20 @@ reference implementation: PostgreSQL (CloudNativePG) + Redis + MinIO, Argo
 Rollouts canary, KEDA autoscaling, ExternalSecrets from Vault, a DLQ CronJob,
 ServiceMonitors/alerts, OTel traces to Tempo, and a Cosign-signed image enforced
 by Kyverno.
+
+---
+
+## Example Workload
+
+**seal** is the platform's reference tenant workload — a Helm-packaged microservice whose images are published to GHCR (public):
+
+- [`seal-api`](https://ghcr.io/aldoshkineg/seal-api) — REST API (CloudNativePG, Redis, MinIO, OTel → Tempo)
+- [`seal-ui`](https://ghcr.io/aldoshkineg/seal-ui) — web UI
+- [`seal-worker`](https://ghcr.io/aldoshkineg/seal-worker) — worker + DLQ CronJob
+
+All images are Cosign-signed and verified by Kyverno at admission. Source & chart: [`apps/seal`](apps/seal); all tags in [Packages](https://github.com/aldoshkineg/atlas-idp/packages).
+
+![seal UI](apps/seal/img/ui.png)
 
 ---
 
