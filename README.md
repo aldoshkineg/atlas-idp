@@ -62,7 +62,7 @@
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                       Kubernetes Runtime - Talos Linux                       │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
-│  │Cilium      │ │LB (Cilium) │ │Gateway     │ │Argo        │ │Kyverno     │  │
+│  │Cilium      │ │LB (Cilium) │ │Gateway API │ │Argo        │ │Kyverno     │  │
 │  │CNI         │ │IPPool      │ │Envoy       │ │Rollouts    │ │(Policy)    │  │
 │  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
@@ -70,7 +70,7 @@
 │  │ESO         │ │Metrics     │ │Storage     │ │PG+Redis    │ │(S3)        │  │
 │  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
 │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
-│  │Velero      │ │Trivy       │ │Cosign      │ │Snapshot    │ │cert-manager│  │
+│  │Velero      │ │Trivy       │ │Cosign      │ │Snapshot    │ │Cert-manager│  │
 │  │(DR)        │ │Operator    │ │Sign        │ │(Ctrl)      │ │(TLS)       │  │
 │  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
 │               Observability:  Prometheus / Grafana / Alertmanager            │
@@ -82,9 +82,8 @@
 │                             Incus / Talos VMs                                │
 │                       ┌────────────┐                                         │
 │                       │VIP (HA)    │                                         │
-│                       │10.200.10.10│                                         │
 │                       └────────────┘                                         │
-│                          │  to CP nodes                                      │
+│                         │                                                    │
 │      ┌──────────────────────┐ ┌──────────────────────┐ ┌────────────┐        │
 │      │    Control planes    │ │    Workers           │ │ Zot cache  │        │
 │      │┌────────┐ ┌────────┐ │ │┌────────┐ ┌────────┐ │ │   images   │        │
@@ -105,26 +104,26 @@
 │        Capability        │                        Tools we provide                        │
 ├──────────────────────────┼────────────────────────────────────────────────────────────────┤
 │Infrastructure as Code    │Terraform, OpenTofu                                             │
-│Virtualization / Host     │Incus (local VMs)                                               │
+│Virtualization / Host     │Incus VMs                                                       │
 │OS / Kubernetes           │Talos Linux, Kubernetes v1.34                                   │
-│CSI / Storage             │LINSTOR / Piraeus (replicated block, DRBD), snapshot-controller │
 │CNI + Networking (eBPF)   │Cilium - CNI, kube-proxy-less, Gateway API, L2/L3 LB, network   │
 │                          │policies, Hubble                                                │
+│CSI / Storage             │LINSTOR / Piraeus (replicated block, DRBD), snapshot-controller │
 │GitOps                    │Argo CD (App-of-Apps), Argo Rollouts (canary / progressive      │
 │                          │delivery)                                                       │
 │CI/CD                     │GitHub Actions (self-hosted runner), act                        │
 │Secrets Management        │HashiCorp Vault, External Secrets Operator (ESO)                │
 │Policy-as-Code            │Kyverno (admission / policy), Cosign image verification         │
 │Supply-Chain Security     │Cosign (image signing), Trivy / Trivy Operator (scanning)       │
-│TLS / PKI                 │cert-manager (issuing / rotating TLS)                           │
+│TLS / PKI                 │Cert-manager (issuing / rotating TLS)                           │
 │Observability             │Prometheus, Grafana, Alertmanager, Loki, Tempo, Grafana Alloy,  │
 │                          │Hubble                                                          │
 │Databases                 │CloudNativePG (PostgreSQL), Redis (HA)                          │
 │Object Storage            │MinIO (S3-compatible)                                           │
 │Autoscaling               │KEDA (event-driven), metrics-server (HPA)                       │
 │Backup / DR               │Velero, CloudNativePG (Barman → MinIO/S3)                       │
-│Platform Tooling          │atlasctl (Go CLI - golden-path workload onboarding)             │
-│Sample Workload           │seal - api / ui / worker / dlq CronJob (Helm-packaged)          │
+│Platform Tooling          │Atlasctl (Go CLI - golden-path workload onboarding)             │
+│Sample Workload           │Seal - api / ui / worker / dlq CronJob (Helm-packaged)          │
 │Registry Cache            │Zot (OCI registry cache / pull-through mirror)                  │
 │Languages                 │Go, HCL, YAML, Shell                                            │
 └──────────────────────────┴────────────────────────────────────────────────────────────────┘
@@ -136,8 +135,9 @@
 
 ```
 atlas-idp/
-├── apps/                       # Application source + Helm charts
-│   └── seal/                   #   Sample tenant workload (API/UI/worker) + chart
+├── infra/                      # Infrastructure as Code (Terraform/OpenTofu)
+│   ├── environments/           #   stage (Incus/Talos, active)
+│   └── modules/                #   Reusable modules
 ├── gitops/                     # GitOps manifests (Argo CD)
 │   ├── platform/
 │   │   ├── layers/             #   Layer Applications (base/security/storage/…)
@@ -149,12 +149,11 @@ atlas-idp/
 │   └── workloads/              #   Tenant workload Applications (atlasteam/seal)
 ├── workloads/                  # Per-tenant workload definitions (atlasctl registry)
 │   └── atlasteam/seal/         #   app.yaml, infra, vault policy, monitoring
-├── infra/                      # Infrastructure as Code (Terraform/OpenTofu)
-│   ├── environments/           #   stage (Incus/Talos, active)
-│   └── modules/                #   Reusable modules
-├── security/                   # CA certs, RBAC, Trivy, Cosign keys
+├── apps/                       # Application source + Helm charts
+│   └── seal/                   #   Sample tenant workload (API/UI/worker) + chart
 ├── tools/                      # Utils and tools
 │   └── atlasctl/               #   atlasctl (Go CLI)
+├── security/                   # CA certs, RBAC, Trivy, Cosign keys
 ├── tests/                      # Platform smoke/integration tests (make test)
 ├── templates/                  # Golden-path workload templates (atlasctl scaffold source)
 ├── recipes/                    # Cluster snippets (standalone kubectl apply, outside GitOps)
@@ -282,9 +281,9 @@ chmod +x atlasctl
 sudo mv atlasctl /usr/local/bin/
 ```
 
-New workloads are onboarded with the `atlasctl` CLI: it scaffolds the workload
-from templates, wires up a Gateway route, provisions Vault secrets and generates
-the Argo CD Application:
+`atlasctl` is the platform management CLI for the workload lifecycle: it scaffolds a
+workload from templates, wires up its Gateway route, provisions Vault secrets and
+generates the Argo CD Application — then enables, syncs, seeds and operates it.
 
 ```bash
 atlasctl new   <team>/<name> --group <group> --repo <url> [--helm]  # scaffold
@@ -299,13 +298,15 @@ atlasctl list                                                      # list worklo
 
 ## Example Workload
 
-**seal** is the platform's reference tenant workload — a Helm-packaged microservice whose images are published to GHCR (public):
+**Seal** is the platform's reference tenant workload — a Helm-packaged microservice
+(API + UI + worker) published to GHCR that signs text into PDF files with a key and
+verifies them later.
 
 - [![seal-api](https://img.shields.io/badge/seal--api-ghcr.io-blue)](https://ghcr.io/aldoshkineg/seal-api) — REST API (CloudNativePG, Redis, MinIO, OTel → Tempo)
 - [![seal-ui](https://img.shields.io/badge/seal--ui-ghcr.io-blue)](https://ghcr.io/aldoshkineg/seal-ui) — web UI
 - [![seal-worker](https://img.shields.io/badge/seal--worker-ghcr.io-blue)](https://ghcr.io/aldoshkineg/seal-worker) — worker + DLQ CronJob
 
-All images are Cosign-signed and verified by Kyverno at admission. Source & chart: [`apps/seal`](apps/seal); all tags in [Packages](https://github.com/aldoshkineg/atlas-idp/packages).
+Source & chart: [`apps/seal`](apps/seal); image tags in [Packages](https://github.com/aldoshkineg/atlas-idp/packages).
 
 The bundled **seal** workload (`apps/seal`, `workloads/atlasteam/seal`) is the
 reference implementation: PostgreSQL (CloudNativePG) + Redis + MinIO, Argo
