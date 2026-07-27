@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="Logo" width="150">
+  <img src="docs/assets/atlas-idp.png" alt="Atlas IDP" width="600">
 </p>
 
 # Atlas IDP
