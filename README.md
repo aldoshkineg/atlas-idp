@@ -1,4 +1,6 @@
-![Atlas IDP](docs/assets/logo.png)
+<p align="center">
+  <img src="docs/assets/logo.png" alt="Logo" width="150">
+</p>
 
 # Atlas IDP
 
