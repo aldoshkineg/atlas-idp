@@ -20,14 +20,13 @@
 - [Repository Structure](#repository-structure)
 - [Quick Start](#quick-start)
 - [Access the platform](#access-the-platform)
-- [Validate & test](#validate--test)
+- [Testing](#testing)
 - [Workflow (Makefile Targets)](#workflow-makefile-targets)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Atlasctl](#atlasctl)
 - [Example Workload](#example-workload)
 - [Security & Policy](#security--policy)
 - [Observability](#observability)
-- [Testing](#testing)
 - [Roadmap](#roadmap)
 - [License](#license)
 
@@ -108,6 +107,7 @@
 │Infrastructure as Code    │Terraform, OpenTofu                                             │
 │Virtualization / Host     │Incus (local VMs)                                               │
 │OS / Kubernetes           │Talos Linux, Kubernetes v1.34                                   │
+│CSI / Storage             │LINSTOR / Piraeus (replicated block, DRBD), snapshot-controller │
 │CNI + Networking (eBPF)   │Cilium - CNI, kube-proxy-less, Gateway API, L2/L3 LB, network   │
 │                          │policies, Hubble                                                │
 │GitOps                    │Argo CD (App-of-Apps), Argo Rollouts (canary / progressive      │
@@ -119,11 +119,10 @@
 │TLS / PKI                 │cert-manager (issuing / rotating TLS)                           │
 │Observability             │Prometheus, Grafana, Alertmanager, Loki, Tempo, Grafana Alloy,  │
 │                          │Hubble                                                          │
-│Storage / CSI             │LINSTOR / Piraeus (replicated block, DRBD), snapshot-controller │
 │Databases                 │CloudNativePG (PostgreSQL), Redis (HA)                          │
 │Object Storage            │MinIO (S3-compatible)                                           │
 │Autoscaling               │KEDA (event-driven), metrics-server (HPA)                       │
-│Backup / DR               │Velero                                                          │
+│Backup / DR               │Velero, CloudNativePG (Barman → MinIO/S3)                       │
 │Platform Tooling          │atlasctl (Go CLI - golden-path workload onboarding)             │
 │Sample Workload           │seal - api / ui / worker / dlq CronJob (Helm-packaged)          │
 │Registry Cache            │Zot (OCI registry cache / pull-through mirror)                  │
@@ -140,8 +139,6 @@ atlas-idp/
 ├── apps/                       # Application source + Helm charts
 │   └── seal/                   #   Sample tenant workload (API/UI/worker) + chart
 ├── gitops/                     # GitOps manifests (Argo CD)
-│   ├── bootstrap/
-│   │   └── root-app.yaml       #   App-of-Apps root Application
 │   ├── platform/
 │   │   ├── layers/             #   Layer Applications (base/security/storage/…)
 │   │   ├── base/               #   Cilium Gateway, routes, network policies, cert issuers
@@ -201,7 +198,7 @@ make act-stage-base         # Incus/Talos cluster + Argo CD + Vault seeds
 
 ### 3. Full deployment
 
-For a full, production-like deployment, run:
+For a full, production-like deployment with sample app, run:
 
 ```bash
 make act-build          # build the local CI runner image (once) with pre-baked tooling
@@ -231,21 +228,24 @@ gateway LoadBalancer IP to the `*.atlas` hostnames in `/etc/hosts`, then:
 | MinIO console | `https://console.s3.atlas` |
 | Seal          | `https://seal.atlas`       |
 
-```bash
-# Argo CD admin password
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath='{.data.password}' | base64 -d
-```
-
 ---
 
-## Validate & test
+## Testing
 
-```bash
-make validate       # Terraform fmt/validate, Trivy, yamllint
-make pre-commit     # Pre-commit hooks on all files
-make test           # Platform smoke/integration tests (see below)
-```
+`make test` runs the platform smoke/integration suite (`tests/scripts/`); the same set is executed by the `test-platform.yaml` workflow:
+
+| Test                  | Verifies                                        |
+| --------------------- | ----------------------------------------------- |
+| `test-ca-gateway`     | Gateway API TLS termination end-to-end          |
+| `test-vault`          | Vault seeding + secret injection                |
+| `test-network-policy` | NetworkPolicy isolation                         |
+| `test-velero`         | Velero backup/restore to S3                     |
+| `test-keda`           | KEDA autoscaling                                |
+| `test-redis`          | Redis connectivity/auth                         |
+| `test-db-backup`      | CloudNativePG backup/restore to MinIO           |
+| `test-argocd-rollout` | Argo Rollouts canary progression                |
+| `test-seal`           | seal end-to-end (pods, API, documents, gateway) |
+
 ---
 
 ## Workflow (Makefile Targets)
@@ -260,13 +260,14 @@ full, grouped target list with descriptions and required arguments.
 
 ## CI/CD Pipeline
 
-Automation is delivered as manual GitHub Actions workflows (`.github/workflows/`,
-triggered via `workflow_dispatch`) that run on a self-hosted runner or locally
-through `act` (`make act-*`). The cluster persists after a run (no auto-destroy).
-Key workflows: `ci-base` (infra + Argo CD + Vault seeds), `ci-middleware` (sync
-platform layers), `ci-workload` (seed + sync workloads), `ci-destroy` /
-`ci-destroy-force`. Locally, the equivalent is `make act-ci` (full run) or the
-staged `make act-stage-*` targets.
+CI runs as GitHub Actions workflows (`.github/workflows/`): `ci-all` and the
+security, unit-test and release workflows trigger automatically on push,
+pull_request and tags, while the stage pipelines (`ci-base` / `ci-middleware` /
+`ci-workload` / `ci-destroy` / `ci-destroy-force`) and `test-platform` can also
+be launched manually via `workflow_dispatch`. The stage workflows are reusable
+building blocks called by `ci-all` through `workflow_call`. The cluster persists
+after a run (no auto-destroy). Locally, the equivalent is `make act-ci` (full
+run) or the staged `make act-stage-*` targets.
 
 ---
 
@@ -340,24 +341,6 @@ by Kyverno.
 - **Logs:** Loki + Grafana Alloy.
 - **Traces:** Tempo (OpenTelemetry from workloads).
 - **Dashboards:** Grafana (auto-provisioned).
-
----
-
-## Testing
-
-`make test` runs the platform smoke/integration suite (`tests/scripts/`); the same set is executed by the `test-platform.yaml` workflow:
-
-| Test                  | Verifies                                        |
-| --------------------- | ----------------------------------------------- |
-| `test-ca-gateway`     | Gateway API TLS termination end-to-end          |
-| `test-vault`          | Vault seeding + secret injection                |
-| `test-network-policy` | NetworkPolicy isolation                         |
-| `test-velero`         | Velero backup/restore to S3                     |
-| `test-keda`           | KEDA autoscaling                                |
-| `test-redis`          | Redis connectivity/auth                         |
-| `test-db-backup`      | CloudNativePG backup/restore to MinIO           |
-| `test-argocd-rollout` | Argo Rollouts canary progression                |
-| `test-seal`           | seal end-to-end (pods, API, documents, gateway) |
 
 ---
 
