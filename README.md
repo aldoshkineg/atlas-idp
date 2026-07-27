@@ -7,6 +7,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![IaC](https://img.shields.io/badge/IaC-Terraform%20%2F%20OpenTofu-7B42BC)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-1.34-326CE5)
+![Talos](https://img.shields.io/badge/Talos%20Linux-1.34-2D2A26)
 ![GitOps](https://img.shields.io/badge/GitOps-Argo%20CD-EF7B4D)
 ![CNI](https://img.shields.io/badge/CNI-Cilium%20eBPF-F5A623)
 ![Secrets](https://img.shields.io/badge/Secrets-HashiCorp%20Vault-000000)
@@ -35,6 +36,8 @@
 ---
 
 ## Architecture
+
+![Atlas IDP platform overview](docs/assets/atlas-idp.png)
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
