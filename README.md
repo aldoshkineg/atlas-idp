@@ -1,3 +1,5 @@
+![Atlas IDP](docs/assets/logo.png)
+
 # Atlas IDP
 
 **Internal Developer Platform — GitOps-driven Kubernetes platform engineering on self-hosted infrastructure**
