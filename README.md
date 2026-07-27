@@ -43,7 +43,7 @@
                                        │
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                          CI/CD - GitHub Actions                              │
-│                    Act or Cloud runner / Self-hosted                         │
+│                  act or cloud / self-hosted runner                           │
 │               ci: ci-base -> ci-middleware -> ci-workload                    │
 │                          build: atlasctl, seal                               │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -259,9 +259,10 @@ full, grouped target list with descriptions and required arguments.
 
 ## CI/CD Pipeline
 
-CI runs as GitHub Actions workflows (`.github/workflows/`): `ci-all` and the
-security, unit-test and release workflows trigger automatically on push,
-pull_request and tags, while the stage pipelines (`ci-base` / `ci-middleware` /
+CI runs as GitHub Actions workflows (`.github/workflows/`): `ci-all`, `security`
+and the unit-test workflows trigger on push and pull_request (unit tests are
+path-filtered), release workflows trigger on tags, while the stage pipelines
+(`ci-base` / `ci-middleware` /
 `ci-workload` / `ci-destroy` / `ci-destroy-force`) and `test-platform` can also
 be launched manually via `workflow_dispatch`. The stage workflows are reusable
 building blocks called by `ci-all` through `workflow_call`. The cluster persists
@@ -286,7 +287,7 @@ workload from templates, wires up its Gateway route, provisions Vault secrets an
 generates the Argo CD Application — then enables, syncs, seeds and operates it.
 
 ```bash
-atlasctl new   <team>/<name> --group <group> --repo <url> [--helm]  # scaffold
+atlasctl new   <app> --group <team> --repo <url> [--helm]           # scaffold
 atlasctl enable <team>/<name> --force --sync                        # register + sync
 atlasctl seed  <team>/<name>                                        # seed Vault secrets
 atlasctl list                                                      # list workloads
@@ -299,8 +300,8 @@ atlasctl list                                                      # list worklo
 ## Example Workload
 
 **Seal** is the platform's reference tenant workload — a Helm-packaged microservice
-(API + UI + worker) published to GHCR that signs text into PDF files with a key and
-verifies them later.
+(API + UI + worker) published to GHCR that signs PDFs with CMS/PAdES and verifies
+them later.
 
 - [![seal-api](https://img.shields.io/badge/seal--api-ghcr.io-blue)](https://ghcr.io/aldoshkineg/seal-api) — REST API (CloudNativePG, Redis, MinIO, OTel → Tempo)
 - [![seal-ui](https://img.shields.io/badge/seal--ui-ghcr.io-blue)](https://ghcr.io/aldoshkineg/seal-ui) — web UI
