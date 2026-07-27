@@ -13,6 +13,8 @@
 
 **Atlas IDP** is an end-to-end Internal Developer Platform that codifies production-grade platform-engineering patterns — Infrastructure as Code, GitOps delivery, progressive delivery, L2/L3 load balancing, policy-as-code, supply-chain security, secrets management, backups and disaster recovery, observability — on a self-hosted **Talos Linux** Kubernetes cluster (Incus VMs). The platform is managed and applications from development teams are launched with **atlasctl**, a Go CLI. A reference example is **seal**, a Helm-packaged microservice (API + UI + worker) with structured logging and OpenTelemetry tracing.
 
+**Images (GHCR, public):** [seal-api](https://ghcr.io/aldoshkineg/seal-api) · [seal-ui](https://ghcr.io/aldoshkineg/seal-ui) · [seal-worker](https://ghcr.io/aldoshkineg/seal-worker) — all in [Packages](https://github.com/aldoshkineg/atlas-idp/packages).
+
 ## Table of Contents
 
 - [Architecture](#architecture)
