@@ -21,12 +21,11 @@
 - [Quick Start](#quick-start)
 - [Workflow (Makefile Targets)](#workflow-makefile-targets)
 - [CI/CD Pipeline](#cicd-pipeline)
-- [Golden Path — Workload Onboarding](#golden-path--workload-onboarding)
+- [Atlasctl](#atlasctl)
 - [Example Workload](#example-workload)
 - [Security & Policy](#security--policy)
 - [Observability](#observability)
 - [Testing](#testing)
-- [Environments](#environments)
 - [Roadmap](#roadmap)
 - [License](#license)
 
@@ -155,7 +154,8 @@ atlas-idp/
 │   ├── environments/           #   stage (Incus/Talos, active)
 │   └── modules/                #   Reusable modules
 ├── security/                   # CA certs, RBAC, Trivy, Cosign keys
-├── tools/                      # atlasctl (Go CLI), CI runners, tools/vault/ (Vault seed)
+├── tools/                      # Utils and tools
+│   └── atlasctl/               #   atlasctl (Go CLI)
 ├── tests/                      # Platform smoke/integration tests (make test)
 ├── templates/                  # Golden-path workload templates (atlasctl scaffold source)
 ├── recipes/                    # Cluster snippets (standalone kubectl apply, outside GitOps)
@@ -179,45 +179,35 @@ See [`docs/cv/system-prompt.md`](docs/cv/system-prompt.md) for the engineering n
 - [Docker](https://www.docker.com/) (for the CI runner / `act`)
 - [Helm](https://helm.sh/), [Argo CD CLI](https://argo-cd.readthedocs.io/), [pre-commit](https://pre-commit.com/)
 
-### 0. One-time Getting Started
+### 1. One-time Getting Started
 
-Before any pipeline, verify the host:
+To confirm the required tools are installed and variables/secrets are in place, run:
 
 ```bash
 make preflight    # verify binaries, daemons, .env
 ```
 
-The Zot image is pulled and imported into Incus automatically by `terraform apply`
-during `make act-stage-base` (no separate manual step required).
 
-See `docs/setup.md` for the full getting-started guide (`.env`, CA, cosign, memory).
+See `docs/setup.md` for the full getting-started guide (tools, `.env`, CA, memory).
 
-### 1. Configure the Git repository URL
+### 2. Minimal setup
 
-Argo CD pulls manifests from Git. Point the platform at your fork before deploying:
+Deployment runs through `act` (a local CI invocation). For the minimal set, run:
 
-> Point Argo CD at your fork by editing `repoURL` in
-> `gitops/bootstrap/root-app.yaml` and `workloads/*/app.yaml`:
-> `https://github.com/<your-org>/<your-repo>.git`
+```bash
+make act-stage-base         # Incus/Talos cluster + Argo CD + Vault seeds
+```
 
-### 2. Deploy the whole platform (recommended)
+### 3. Full deployment
 
-The CI pipeline provisions the cluster and syncs every layer in the correct order:
+For a full, production-like deployment, run:
 
 ```bash
 make act-build          # build the local CI runner image (once)
 make act-ci             # ci-all: base ▶ middleware ▶ workloads
 ```
 
-Or run the stages individually:
-
-```bash
-make act-stage-base         # Incus/Talos cluster + Argo CD + Vault seeds
-make act-stage-middleware   # storage/security/delivery/observability layers
-make act-stage-workload     # seed + sync workloads (seal)
-```
-
-### 3. Access the platform
+### 4. Access the platform
 
 Services are exposed through the Cilium Gateway (TLS via cert-manager). Map the
 gateway LoadBalancer IP to the `*.atlas` hostnames in `/etc/hosts`, then:
@@ -237,7 +227,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d
 ```
 
-### 4. Validate & test
+### 5. Validate & test
 
 ```bash
 make validate       # Terraform fmt/validate, Trivy, yamllint
@@ -245,10 +235,11 @@ make pre-commit     # Pre-commit hooks on all files
 make test           # Platform smoke/integration tests (see below)
 ```
 
-### 5. Tear down
+### 6. Tear down
 
 ```bash
 make act-destroy    # destroy the stage infrastructure
+make act-destroy-force  # hard teardown: kill all VMs and remove Terraform state files
 ```
 
 ---
@@ -265,39 +256,39 @@ full, grouped target list with descriptions and required arguments.
 
 ## CI/CD Pipeline
 
-GitHub Actions workflows (`.github/workflows/`) run on a **self-hosted runner**
-(or locally via [`act`](https://github.com/nektos/act)):
-
-| Workflow             | Purpose                                                    |
-| -------------------- | ---------------------------------------------------------- |
-| `ci-all.yaml`        | Orchestrator: base → middleware → workloads (fail-fast)    |
-| `ci-base.yaml`       | Tools → checks → Terraform (Incus/Talos + Argo CD) → Vault |
-| `ci-middleware.yaml` | Sync platform layers (DB/MinIO/Vault/monitoring)           |
-| `ci-workload.yaml`   | Seed + sync workloads (seal)                               |
-| `ci-destroy.yaml`    | Destroy stage infrastructure                               |
-| `cleanup-local.yaml` | Manual local cleanup                                       |
-
-The cluster persists after the pipeline completes (no auto-destroy).
+Automation is delivered as manual GitHub Actions workflows (`.github/workflows/`,
+triggered via `workflow_dispatch`) that run on a self-hosted runner or locally
+through `act` (`make act-*`). The cluster persists after a run (no auto-destroy).
+Key workflows: `ci-base` (infra + Argo CD + Vault seeds), `ci-middleware` (sync
+platform layers), `ci-workload` (seed + sync workloads), `ci-destroy` /
+`ci-destroy-force`. Locally, the equivalent is `make act-ci` (full run) or the
+staged `make act-stage-*` targets.
 
 ---
 
-## Golden Path — Workload Onboarding
+## Atlasctl
 
-New tenant workloads are onboarded with the `atlasctl` Go CLI, which scaffolds
-the workload from templates, wires up a Gateway listener/route, provisions Vault
-secrets and generates the Argo CD Application:
+The `atlasctl` binary is published in the project's GitHub Releases:
+<https://github.com/aldoshkineg/atlas-idp/releases>.
 
-```bash
-make atlasctl-new  <team>/<name>   # scaffold workload from templates/gold
-make atlas-seal ARGS=<name>     # seed its secrets into Vault
-make atlasctl-list                 # list registered workloads
+```sh
+curl -Lo atlasctl -L "https://github.com/aldoshkineg/atlas-idp/releases/latest/download/atlasctl-linux-amd64"
+chmod +x atlasctl
+sudo mv atlasctl /usr/local/bin/
 ```
 
-The bundled **seal** workload (`apps/seal`, `workloads/atlasteam/seal`) is the
-reference implementation: PostgreSQL (CloudNativePG) + Redis + MinIO, Argo
-Rollouts canary, KEDA autoscaling, ExternalSecrets from Vault, a DLQ CronJob,
-ServiceMonitors/alerts, OTel traces to Tempo, and a Cosign-signed image enforced
-by Kyverno.
+New workloads are onboarded with the `atlasctl` CLI: it scaffolds the workload
+from templates, wires up a Gateway route, provisions Vault secrets and generates
+the Argo CD Application:
+
+```bash
+atlasctl new   <team>/<name> --group <group> --repo <url> [--helm]  # scaffold
+atlasctl enable <team>/<name> --force --sync                        # register + sync
+atlasctl seed  <team>/<name>                                        # seed Vault secrets
+atlasctl list                                                      # list workloads
+```
+
+> Locally the binary is built via `make atlasctl-build`; `make atlas-seal ARGS=<team>/<name>` is the same as `atlasctl seed`.
 
 ---
 
@@ -310,6 +301,12 @@ by Kyverno.
 - [![seal-worker](https://img.shields.io/badge/seal--worker-ghcr.io-blue)](https://ghcr.io/aldoshkineg/seal-worker) — worker + DLQ CronJob
 
 All images are Cosign-signed and verified by Kyverno at admission. Source & chart: [`apps/seal`](apps/seal); all tags in [Packages](https://github.com/aldoshkineg/atlas-idp/packages).
+
+The bundled **seal** workload (`apps/seal`, `workloads/atlasteam/seal`) is the
+reference implementation: PostgreSQL (CloudNativePG) + Redis + MinIO, Argo
+Rollouts canary, KEDA autoscaling, ExternalSecrets from Vault, a DLQ CronJob,
+ServiceMonitors/alerts, OTel traces to Tempo, and a Cosign-signed image enforced
+by Kyverno.
 
 ---
 
@@ -344,7 +341,7 @@ All images are Cosign-signed and verified by Kyverno at admission. Source & char
 
 ## Testing
 
-`make test` runs the platform smoke/integration suite (`tests/scripts/`):
+`make test` runs the platform smoke/integration suite (`tests/scripts/`); the same set is executed by the `test-platform.yaml` workflow:
 
 | Test                  | Verifies                                        |
 | --------------------- | ----------------------------------------------- |
@@ -357,18 +354,6 @@ All images are Cosign-signed and verified by Kyverno at admission. Source & char
 | `test-db-backup`      | CloudNativePG backup/restore to MinIO           |
 | `test-argocd-rollout` | Argo Rollouts canary progression                |
 | `test-seal`           | seal end-to-end (pods, API, documents, gateway) |
-
----
-
-## Environments
-
-### `stage`
-
-- **Cluster:** Talos Linux on Incus VMs (1 control-plane + 2 workers)
-- **State:** local filesystem
-- **Image cache:** Zot
-- **GitOps:** Argo CD (bootstrapped via Terraform)
-- **CI/CD:** GitHub Actions (self-hosted runner / `act`)
 
 ---
 
