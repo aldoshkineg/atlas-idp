@@ -12,6 +12,7 @@
 ![Talos](https://img.shields.io/badge/Talos%20Linux-1.34-2D2A26)
 ![GitOps](https://img.shields.io/badge/GitOps-Argo%20CD-EF7B4D)
 ![CNI](https://img.shields.io/badge/CNI-Cilium%20eBPF-F5A623)
+![CSI](https://img.shields.io/badge/CSI-LINSTOR%20%2F%20DRBD-1B6EC2)
 ![Secrets](https://img.shields.io/badge/Secrets-HashiCorp%20Vault-000000)
 ![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
 ![Observability](https://img.shields.io/badge/Observability-Prometheus%20%2F%20Grafana%20%2F%20Loki-FF6C37)
