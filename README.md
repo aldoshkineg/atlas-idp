@@ -305,13 +305,11 @@ by Kyverno.
 
 **seal** is the platform's reference tenant workload — a Helm-packaged microservice whose images are published to GHCR (public):
 
-- [`seal-api`](https://ghcr.io/aldoshkineg/seal-api) — REST API (CloudNativePG, Redis, MinIO, OTel → Tempo)
-- [`seal-ui`](https://ghcr.io/aldoshkineg/seal-ui) — web UI
-- [`seal-worker`](https://ghcr.io/aldoshkineg/seal-worker) — worker + DLQ CronJob
+- [![seal-api](https://img.shields.io/badge/seal--api-ghcr.io-blue)](https://ghcr.io/aldoshkineg/seal-api) — REST API (CloudNativePG, Redis, MinIO, OTel → Tempo)
+- [![seal-ui](https://img.shields.io/badge/seal--ui-ghcr.io-blue)](https://ghcr.io/aldoshkineg/seal-ui) — web UI
+- [![seal-worker](https://img.shields.io/badge/seal--worker-ghcr.io-blue)](https://ghcr.io/aldoshkineg/seal-worker) — worker + DLQ CronJob
 
 All images are Cosign-signed and verified by Kyverno at admission. Source & chart: [`apps/seal`](apps/seal); all tags in [Packages](https://github.com/aldoshkineg/atlas-idp/packages).
-
-![seal UI](apps/seal/img/ui.png)
 
 ---
 
