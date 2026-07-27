@@ -37,8 +37,6 @@
 
 ## Architecture
 
-![Atlas IDP platform overview](docs/assets/atlas-idp.png)
-
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                        Atlasctl - Platform Management Tool                   │
