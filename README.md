@@ -40,63 +40,7 @@
 
 ## Architecture
 
-```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                        Atlasctl - Platform Management Tool                   │
-│                             Workload Lifecycle:                              │
-│    new / enable / disable / seed / delete / status / list / logs / backup    │
-└──────────────────────────────────────────────────────────────────────────────┘
-                                       │
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                          CI/CD - GitHub Actions                              │
-│                  act or cloud / self-hosted runner                           │
-│               ci: ci-base -> ci-middleware -> ci-workload                    │
-│                          build: atlasctl, seal                               │
-└──────────────────────────────────────────────────────────────────────────────┘
-                                       │
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                               GitOps - Argo CD                               │
-│           Layers: base / security / storage / delivery / observability       │
-└──────────────────────────────────────────────────────────────────────────────┘
-                                       │
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                                  Workloads                                   │
-│                        Seal (Example Microservice App)                       │
-│              seal-api / seal-ui / seal-worker / dlq CronJob                  │
-└──────────────────────────────────────────────────────────────────────────────┘
-                                       │
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                       Kubernetes Runtime - Talos Linux                       │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
-│  │Cilium      │ │LB (Cilium) │ │Gateway API │ │Argo        │ │Kyverno     │  │
-│  │CNI         │ │IPPool      │ │Envoy       │ │Rollouts    │ │(Policy)    │  │
-│  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
-│  │Vault +     │ │KEDA +      │ │LINSTOR     │ │CNPG        │ │MinIO       │  │
-│  │ESO         │ │Metrics     │ │Storage     │ │PG+Redis    │ │(S3)        │  │
-│  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
-│  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐  │
-│  │Velero      │ │Trivy       │ │Cosign      │ │Snapshot    │ │Cert-manager│  │
-│  │(DR)        │ │Operator    │ │Sign        │ │(Ctrl)      │ │(TLS)       │  │
-│  └────────────┘ └────────────┘ └────────────┘ └────────────┘ └────────────┘  │
-│               Observability:  Prometheus / Grafana / Alertmanager            │
-│                   Loki / Tempo / Grafana Alloy / Hubble                      │
-└──────────────────────────────────────────────────────────────────────────────┘
-                                       │
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                    Infrastructure - Terraform / OpenTofu                     │
-│                             Incus / Talos VMs                                │
-│                       ┌────────────┐                                         │
-│                       │VIP (HA)    │                                         │
-│                       └────────────┘                                         │
-│                         │                                                    │
-│      ┌──────────────────────┐ ┌──────────────────────┐ ┌────────────┐        │
-│      │    Control planes    │ │    Workers           │ │ Zot cache  │        │
-│      │┌────────┐ ┌────────┐ │ │┌────────┐ ┌────────┐ │ │   images   │        │
-│      ││cp-1    │ │cp-n    │ │ ││worker-1│ │worker-n│ │ └────────────┘        │
-│      └──────────────────────┘ └──────────────────────┘                       │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+![Atlas IDP architecture](docs/assets/main.svg)
 
 ---
 
@@ -231,7 +175,7 @@ gateway LoadBalancer IP to the `*.atlas` hostnames in `/etc/hosts`, then:
 | Vault         | `https://vault.atlas`      |
 | MinIO (S3)    | `https://s3.atlas`         |
 | MinIO console | `https://console.s3.atlas` |
-| Seal          | `https://seal.atlas`       |
+| Seal (Sample) | `https://seal.atlas`       |
 
 ---
 
@@ -354,13 +298,11 @@ by Kyverno.
 
 ## Roadmap
 
-- **Multi-cluster / ClusterMesh** — stretch the platform across Talos clusters via Cilium ClusterMesh.
 - **SSO** — OIDC (Dex/Keycloak) for Argo CD and Grafana.
 - **Supply-chain attestations** — Sigstore/SLSA provenance verified in Kyverno.
 - **Capacity & cost** — Kepler-based energy/cost reporting.
 - **Multi-tenancy** — hierarchical namespaces + per-team quotas.
 - **Docs site** — publish `docs/` as MkDocs Material / GitHub Pages.
-- **CI e2e** — run `make test` on an ephemeral cluster in PRs.
 
 ---
 
