@@ -29,7 +29,7 @@ flowchart TD
     UI --> API
     API --> PG
     API --> RD
-    RD -->|BLMOVE (KEDA)| WK
+    RD -->|BLMOVE via KEDA| WK
     VAULT -->|cert| WK
     WK -->|upload| MIN
     MIN -->|303 redirect| GW
