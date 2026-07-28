@@ -17,7 +17,20 @@
 ![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
 ![Observability](https://img.shields.io/badge/Observability-Prometheus%20%2F%20Grafana%20%2F%20Loki-FF6C37)
 
-**Atlas IDP** is an end-to-end Internal Developer Platform that codifies production-grade platform-engineering patterns — Infrastructure as Code, GitOps delivery, progressive delivery, L2/L3 load balancing, policy-as-code, supply-chain security, secrets management, backups and disaster recovery, observability — on a self-hosted **Talos Linux** Kubernetes cluster (Incus VMs). The platform is managed and applications from development teams are launched with **atlasctl**, a Go CLI. A reference example is **seal**, a Helm-packaged microservice (API + UI + worker) with structured logging and OpenTelemetry tracing.
+**Atlas IDP** is a production-grade Internal Developer Platform demonstrating modern platform-engineering practices on self-hosted Kubernetes — **Talos Linux** on Incus VMs.
+
+It combines Infrastructure as Code, GitOps delivery, developer self-service, a secure software supply chain, observability and disaster recovery into a single reproducible platform. Applications are onboarded through **atlasctl** (a Go CLI), while Argo CD continuously reconciles platform and workload state; **seal** — a Helm-packaged microservice (API + UI + worker) — serves as the reference workload.
+
+## Why Atlas?
+
+Key engineering goals:
+
+- GitOps-driven platform delivery — App-of-Apps, sync waves, progressive delivery
+- Infrastructure as Code end to end — Terraform/OpenTofu → Incus → Talos
+- Developer self-service via `atlasctl` golden paths
+- Secure software supply chain — image signing, admission policies, scanning
+- High availability & disaster recovery — replicated storage, cluster and DB backups
+- Full observability stack (metrics, logs, traces) verified by e2e platform tests in CI
 
 ## Table of Contents
 
@@ -25,16 +38,11 @@
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
 - [Quick Start](#quick-start)
-- [Access the platform](#access-the-platform)
 - [Testing](#testing)
-- [Workflow (Makefile Targets)](#workflow-makefile-targets)
-- [CI/CD Pipeline](#cicd-pipeline)
 - [Atlasctl](#atlasctl)
 - [Example Workload](#example-workload)
 - [Security & Policy](#security--policy)
-- [Observability](#observability)
 - [Roadmap](#roadmap)
-- [License](#license)
 
 ---
 
@@ -49,35 +57,25 @@
 
 ## Tech Stack
 
-```text
-┌──────────────────────────┬────────────────────────────────────────────────────────────────┐
-│        Capability        │                        Tools we provide                        │
-├──────────────────────────┼────────────────────────────────────────────────────────────────┤
-│Infrastructure as Code    │Terraform, OpenTofu                                             │
-│Virtualization / Host     │Incus VMs                                                       │
-│OS / Kubernetes           │Talos Linux, Kubernetes v1.34                                   │
-│CNI + Networking (eBPF)   │Cilium - CNI, kube-proxy-less, Gateway API, L2/L3 LB, network   │
-│                          │policies, Hubble                                                │
-│CSI / Storage             │LINSTOR / Piraeus (replicated block, DRBD), snapshot-controller │
-│GitOps                    │Argo CD (App-of-Apps), Argo Rollouts (canary / progressive      │
-│                          │delivery)                                                       │
-│CI/CD                     │GitHub Actions (self-hosted runner), act                        │
-│Secrets Management        │HashiCorp Vault, External Secrets Operator (ESO)                │
-│Policy-as-Code            │Kyverno (admission / policy), Cosign image verification         │
-│Supply-Chain Security     │Cosign (image signing), Trivy / Trivy Operator (scanning)       │
-│TLS / PKI                 │Cert-manager (issuing / rotating TLS)                           │
-│Observability             │Prometheus, Grafana, Alertmanager, Loki, Tempo, Grafana Alloy,  │
-│                          │Hubble                                                          │
-│Databases                 │CloudNativePG (PostgreSQL), Redis (HA)                          │
-│Object Storage            │MinIO (S3-compatible)                                           │
-│Autoscaling               │KEDA (event-driven), metrics-server (HPA)                       │
-│Backup / DR               │Velero, CloudNativePG (Barman → MinIO/S3)                       │
-│Platform Tooling          │Atlasctl (Go CLI - golden-path workload onboarding)             │
-│Sample Workload           │Seal - api / ui / worker / dlq CronJob (Helm-packaged)          │
-│Registry Cache            │Zot (OCI registry cache / pull-through mirror)                  │
-│Languages                 │Go, HCL, YAML, Shell                                            │
-└──────────────────────────┴────────────────────────────────────────────────────────────────┘
-```
+| Capability              | Tools we provide                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------- |
+| Infrastructure as Code  | Terraform, OpenTofu                                                                         |
+| Virtualization / Host   | Incus VMs                                                                                   |
+| OS / Kubernetes         | Talos Linux, Kubernetes v1.34                                                               |
+| CNI + Networking (eBPF) | Cilium — CNI, kube-proxy-less, Gateway API, L2/L3 LB, network policies, Hubble              |
+| CSI / Storage           | LINSTOR / Piraeus (replicated block, DRBD), snapshot-controller                             |
+| GitOps                  | Argo CD (App-of-Apps), Argo Rollouts (canary / progressive delivery)                        |
+| CI/CD                   | GitHub Actions (self-hosted runner), act                                                    |
+| Secrets Management      | HashiCorp Vault, External Secrets Operator (ESO)                                            |
+| Policy & Supply Chain   | Kyverno (admission / policy), Cosign (image signing & verification), Trivy / Trivy Operator |
+| TLS / PKI               | Cert-manager (issuing / rotating TLS)                                                       |
+| Observability           | Prometheus, Grafana, Alertmanager, Loki, Tempo, Grafana Alloy, Hubble                       |
+| Databases & Storage     | CloudNativePG (PostgreSQL), Redis (HA), MinIO (S3-compatible)                               |
+| Autoscaling             | KEDA (event-driven), metrics-server (HPA)                                                   |
+| Backup / DR             | Velero, CloudNativePG (Barman → MinIO/S3)                                                   |
+| Platform Tooling        | Atlasctl (Go CLI — golden-path workload onboarding), Zot (registry pull-through cache)      |
+| Sample Workload         | Seal — api / ui / worker / DLQ CronJob (Helm-packaged)                                      |
+| Languages               | Go, HCL, YAML, Shell                                                                        |
 
 ---
 
@@ -85,32 +83,17 @@
 
 ```
 atlas-idp/
-├── infra/                      # Infrastructure as Code (Terraform/OpenTofu)
-│   ├── environments/           #   stage (Incus/Talos, active)
-│   └── modules/                #   Reusable modules
-├── gitops/                     # GitOps manifests (Argo CD)
-│   ├── platform/
-│   │   ├── layers/             #   Layer Applications (base/security/storage/…)
-│   │   ├── base/               #   Cilium Gateway, routes, network policies, cert issuers
-│   │   ├── storage/            #   Piraeus/LINSTOR, snapshot controller, CNPG, MinIO, Redis
-│   │   ├── security/           #   Kyverno (+ policies), Vault operator, ESO, Trivy
-│   │   ├── delivery/           #   Argo Rollouts, KEDA, metrics-server
-│   │   └── observability/      #   kube-prometheus-stack, Loki, Tempo, Alloy
-│   └── workloads/              #   Tenant workload Applications (atlasteam/seal)
-├── workloads/                  # Per-tenant workload definitions (atlasctl registry)
-│   └── atlasteam/seal/         #   app.yaml, infra, vault policy, monitoring
-├── apps/                       # Application source + Helm charts
-│   └── seal/                   #   Sample tenant workload (API/UI/worker) + chart
-├── tools/                      # Utils and tools
-│   └── atlasctl/               #   atlasctl (Go CLI)
-├── security/                   # CA certs, RBAC, Trivy, Cosign keys
-├── tests/                      # Platform smoke/integration tests (make test)
-├── templates/                  # Golden-path workload templates (atlasctl scaffold source)
-├── recipes/                    # Cluster snippets (standalone kubectl apply, outside GitOps)
-├── docs/                       # Documentation
-├── Makefile                    # Developer + CI workflow targets
-├── .pre-commit-config.yaml     # Pre-commit hooks
-└── .yamllint.yml               # YAML linting rules
+├── infra/          # Infrastructure as Code — Terraform/OpenTofu (environments, modules)
+├── gitops/         # Argo CD manifests: platform layers (base/storage/security/…) + workloads
+├── workloads/      # Per-tenant workload definitions (atlasctl registry)
+├── apps/           # Application source + Helm charts (seal)
+├── tools/          # atlasctl (Go CLI) and workflow scripts
+├── security/       # CA certs, RBAC, Trivy, Cosign keys
+├── tests/          # Platform smoke/integration tests (make test)
+├── templates/      # Golden-path workload templates (atlasctl scaffold source)
+├── recipes/        # Cluster snippets (standalone kubectl apply, outside GitOps)
+├── docs/           # Documentation
+└── Makefile        # Developer + CI workflow targets
 ```
 
 All documentation is indexed in [`docs/README.md`](docs/README.md). Key entry points: [`docs/tech-stack.md`](docs/tech-stack.md) (technology inventory), [`docs/setup.md`](docs/setup.md) (getting started), [`docs/adr/`](docs/adr/README.md) (architecture decisions), [`docs/runbooks/`](docs/runbooks/) (operations).
@@ -288,20 +271,10 @@ by Kyverno.
 
 ## Security & Policy
 
-- **Policy-as-code ([Kyverno](docs/security.md)):** disallow `:latest`, disallow privileged/hostPath,
-  require non-root, require standard labels, and **enforce Cosign image
-  signatures** on tenant images.
-- **Secrets:** [HashiCorp Vault](docs/vault.md) as the source of truth;
-  [External Secrets Operator](docs/adr/ADR-004-vault-eso.md)
-  syncs secrets into namespaces via a `vault` ClusterSecretStore.
-- **Runtime scanning:** Trivy Operator scans workloads for vulnerabilities.
-- **Supply chain:** container images are signed with [Cosign](docs/cosign.md) and verified at
-  admission.
-- **TLS:** cert-manager issues certificates from an internal CA for all Gateway
-  listeners.
-- **Pre-commit:** trailing whitespace / EOF / YAML checks, merge-conflict &
-  private-key detection, `terraform fmt/validate`, yamllint, kubeconform, Trivy,
-  secret detection.
+- **Policy-as-code:** [Kyverno](docs/security.md) admission policies (no `:latest`, no privileged/hostPath, non-root, standard labels).
+- **Secrets:** [HashiCorp Vault](docs/vault.md) as the source of truth, synced by the [External Secrets Operator](docs/adr/ADR-004-vault-eso.md).
+- **Supply chain:** images signed with [Cosign](docs/cosign.md) and verified at admission; Trivy Operator scans at runtime.
+- **TLS:** cert-manager issues certificates from an internal CA for all Gateway listeners.
 
 > Sealed Vault — [`runbooks/vault-troubleshooting.md`](docs/runbooks/vault-troubleshooting.md).
 
@@ -324,6 +297,7 @@ by Kyverno.
 - **Supply-chain attestations** — Sigstore/SLSA provenance verified in Kyverno.
 - **Capacity & cost** — Kepler-based energy/cost reporting.
 - **Multi-tenancy** — hierarchical namespaces + per-team quotas.
+- **Multi-cluster** — Cilium ClusterMesh for cross-cluster service connectivity.
 - **Docs site** — publish `docs/` as MkDocs Material / GitHub Pages.
 
 ---
