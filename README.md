@@ -121,10 +121,10 @@ All documentation is indexed in [`docs/README.md`](docs/README.md). Key entry po
 
 ### Prerequisites
 
-- [Incus](https://linuxcontainers.org/incus/) (local VM host for Talos nodes)
+- [Incus](https://linuxcontainers.org/incus/) (local VM host for Talos nodes) v7.2
 - [Terraform](https://www.terraform.io/) / [OpenTofu](https://opentofu.org/) v1.9+
 - [talosctl](https://www.talos.dev/) and [kubectl](https://kubernetes.io/docs/tasks/tools/) v1.31+
-- [Docker](https://www.docker.com/) (for the CI runner / `act`)
+- [Docker](https://www.docker.com/) (for the CI runner / `act`) v29.5.2
 - [Helm](https://helm.sh/), [Argo CD CLI](https://argo-cd.readthedocs.io/), [pre-commit](https://pre-commit.com/)
 
 ### 1. One-time Getting Started
@@ -135,7 +135,7 @@ To confirm the required tools are installed and variables/secrets are in place, 
 make preflight    # verify binaries, daemons, .env
 ```
 
-See `docs/setup.md` for the full getting-started guide (tools, `.env`, CA, memory).
+See [`docs/setup.md`](docs/setup.md) for the full getting-started guide (tools, `.env`, CA, memory).
 
 ### 2. Minimal setup
 
@@ -161,11 +161,16 @@ make act-destroy    # destroy the stage infrastructure
 make act-destroy-force  # hard teardown: kill all VMs and remove Terraform state files
 ```
 
+> Pinned versions & host sizing: [`docs/requirements.md`](docs/requirements.md);
+> replicated storage (LINSTOR/DRBD): [`docs/linstor.md`](docs/linstor.md); why Talos
+> on Incus — [`ADR-001`](docs/adr/ADR-001-talos-incus.md).
+
 ---
 
 ## Access the platform
 
-Services are exposed through the Cilium Gateway (TLS via cert-manager). Map the
+Services are exposed through the [Cilium Gateway](docs/cilium.md) (TLS via
+[cert-manager](docs/ca.md)). Map the
 gateway LoadBalancer IP to the `*.atlas` hostnames in `/etc/hosts`, then:
 
 | Service       | URL                        |
@@ -177,23 +182,29 @@ gateway LoadBalancer IP to the `*.atlas` hostnames in `/etc/hosts`, then:
 | MinIO console | `https://console.s3.atlas` |
 | Seal (Sample) | `https://seal.atlas`       |
 
+> Dataplane choice: [`ADR-002`](docs/adr/ADR-002-cilium-dataplane.md). Trouble logging in?
+> [`runbooks/argocd-grpc-login.md`](docs/runbooks/argocd-grpc-login.md),
+> [`runbooks/cert-verification.md`](docs/runbooks/cert-verification.md).
+
 ---
 
 ## Testing
 
 `make test` runs the platform smoke/integration suite (`tests/scripts/`); the same set is executed by the `test-platform.yaml` workflow:
 
-| Test                  | Verifies                                        |
-| --------------------- | ----------------------------------------------- |
-| `test-ca-gateway`     | Gateway API TLS termination end-to-end          |
-| `test-vault`          | Vault seeding + secret injection                |
-| `test-network-policy` | NetworkPolicy isolation                         |
-| `test-velero`         | Velero backup/restore to S3                     |
-| `test-keda`           | KEDA autoscaling                                |
-| `test-redis`          | Redis connectivity/auth                         |
-| `test-db-backup`      | CloudNativePG backup/restore to MinIO           |
-| `test-argocd-rollout` | Argo Rollouts canary progression                |
-| `test-seal`           | seal end-to-end (pods, API, documents, gateway) |
+| Test                  | Verifies                                              |
+| --------------------- | ----------------------------------------------------- |
+| `test-ca-gateway`     | Gateway API TLS termination end-to-end                |
+| `test-vault`          | Vault seeding + secret injection                      |
+| `test-network-policy` | NetworkPolicy isolation                               |
+| `test-velero`         | [Velero](docs/velero.md) backup/restore to S3         |
+| `test-keda`           | [KEDA](docs/scaling.md) autoscaling                   |
+| `test-redis`          | Redis connectivity/auth                               |
+| `test-db-backup`      | [CloudNativePG](docs/cnpg.md) backup/restore to MinIO |
+| `test-argocd-rollout` | Argo Rollouts canary progression                      |
+| `test-seal`           | seal end-to-end (pods, API, documents, gateway)       |
+
+> Quick cluster triage — [`runbooks/cluster-health.md`](docs/runbooks/cluster-health.md).
 
 ---
 
@@ -203,13 +214,13 @@ The Makefile is a thin task dispatcher: every target delegates to a script under
 `tools/` and is **self-documenting**. Run `make` (or `make help`) to print the
 full, grouped target list with descriptions and required arguments.
 
-> The active workflow is Incus/Talos via the `act-*` and `ci-runner-*` targets.
+> The active workflow is [Incus](docs/incus.md)/[Talos](docs/talos.md) via the `act-*` and `ci-runner-*` targets.
 
 ---
 
 ## CI/CD Pipeline
 
-CI runs as GitHub Actions workflows (`.github/workflows/`): `ci-all`, `security`
+CI runs as [GitHub Actions workflows](docs/ci.md) (`.github/workflows/`): `ci-all`, `security`
 and the unit-test workflows trigger on push and pull_request (unit tests are
 path-filtered), release workflows trigger on tags, while the stage pipelines
 (`ci-base` / `ci-middleware` /
@@ -218,6 +229,9 @@ be launched manually via `workflow_dispatch`. The stage workflows are reusable
 building blocks called by `ci-all` through `workflow_call`. The cluster persists
 after a run (no auto-destroy). Locally, the equivalent is `make act-ci` (full
 run) or the staged `make act-stage-*` targets.
+
+> Registry pull-through cache: [`docs/zot.md`](docs/zot.md); failures —
+> [`runbooks/ci-debugging.md`](docs/runbooks/ci-debugging.md).
 
 ---
 
@@ -232,7 +246,8 @@ chmod +x atlasctl
 sudo mv atlasctl /usr/local/bin/
 ```
 
-`atlasctl` is the platform management CLI for the workload lifecycle: it scaffolds a
+[`atlasctl`](docs/atlasctl.md) is the platform management CLI for the
+[workload lifecycle](docs/workloads.md): it scaffolds a
 workload from templates, wires up its Gateway route, provisions Vault secrets and
 generates the Argo CD Application — then enables, syncs, seeds and operates it.
 
@@ -249,7 +264,7 @@ atlasctl list                                                      # list worklo
 
 ## Example Workload
 
-**Seal** is the platform's reference tenant workload — a Helm-packaged microservice
+[**Seal**](docs/seal.md) is the platform's reference tenant workload — a Helm-packaged microservice
 (API + UI + worker) published to GHCR that signs PDFs with CMS/PAdES and verifies
 them later.
 
@@ -260,22 +275,27 @@ them later.
 Source & chart: [`apps/seal`](apps/seal); image tags in [Packages](https://github.com/aldoshkineg/atlas-idp/packages).
 
 The bundled **seal** workload (`apps/seal`, `workloads/atlasteam/seal`) is the
-reference implementation: PostgreSQL (CloudNativePG) + Redis + MinIO, Argo
-Rollouts canary, KEDA autoscaling, ExternalSecrets from Vault, a DLQ CronJob,
+reference implementation, delivered via [GitOps](docs/gitops.md): PostgreSQL
+(CloudNativePG) + Redis + MinIO,
+[Argo Rollouts canary](docs/adr/ADR-003-argo-rollouts-managed-routes.md),
+KEDA autoscaling, ExternalSecrets from Vault, a DLQ CronJob,
 ServiceMonitors/alerts, OTel traces to Tempo, and a Cosign-signed image enforced
 by Kyverno.
+
+> Sync issues — [`runbooks/argocd-debugging.md`](docs/runbooks/argocd-debugging.md).
 
 ---
 
 ## Security & Policy
 
-- **Policy-as-code (Kyverno):** disallow `:latest`, disallow privileged/hostPath,
+- **Policy-as-code ([Kyverno](docs/security.md)):** disallow `:latest`, disallow privileged/hostPath,
   require non-root, require standard labels, and **enforce Cosign image
   signatures** on tenant images.
-- **Secrets:** HashiCorp Vault as the source of truth; External Secrets Operator
+- **Secrets:** [HashiCorp Vault](docs/vault.md) as the source of truth;
+  [External Secrets Operator](docs/adr/ADR-004-vault-eso.md)
   syncs secrets into namespaces via a `vault` ClusterSecretStore.
 - **Runtime scanning:** Trivy Operator scans workloads for vulnerabilities.
-- **Supply chain:** container images are signed with Cosign and verified at
+- **Supply chain:** container images are signed with [Cosign](docs/cosign.md) and verified at
   admission.
 - **TLS:** cert-manager issues certificates from an internal CA for all Gateway
   listeners.
@@ -283,11 +303,13 @@ by Kyverno.
   private-key detection, `terraform fmt/validate`, yamllint, kubeconform, Trivy,
   secret detection.
 
+> Sealed Vault — [`runbooks/vault-troubleshooting.md`](docs/runbooks/vault-troubleshooting.md).
+
 ---
 
 ## Observability
 
-- **Metrics:** kube-prometheus-stack (Prometheus + Alertmanager) with recording
+- **Metrics:** [kube-prometheus-stack](docs/observability.md) (Prometheus + Alertmanager) with recording
   and alerting rules, including platform availability/capacity rules and
   per-workload alerts (e.g. `seal-alerts`).
 - **Logs:** Loki + Grafana Alloy.
