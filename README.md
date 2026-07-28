@@ -9,7 +9,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![IaC](https://img.shields.io/badge/IaC-Terraform%20%2F%20OpenTofu-7B42BC)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-1.34-326CE5)
-![Talos](https://img.shields.io/badge/Talos%20Linux-1.34-2D2A26)
+![Talos](https://img.shields.io/badge/Talos%20Linux-1.11-2D2A26)
 ![GitOps](https://img.shields.io/badge/GitOps-Argo%20CD-EF7B4D)
 ![CNI](https://img.shields.io/badge/CNI-Cilium%20eBPF-F5A623)
 ![CSI](https://img.shields.io/badge/CSI-LINSTOR%20%2F%20DRBD-1B6EC2)
@@ -105,7 +105,7 @@ All documentation is indexed in [`docs/README.md`](docs/README.md). Key entry po
 ### Prerequisites
 
 - [Incus](https://linuxcontainers.org/incus/) (local VM host for Talos nodes) v7.2
-- [Terraform](https://www.terraform.io/) / [OpenTofu](https://opentofu.org/) v1.9+
+- [Terraform](https://www.terraform.io/) / [OpenTofu](https://opentofu.org/) v1.15+
 - [talosctl](https://www.talos.dev/) and [kubectl](https://kubernetes.io/docs/tasks/tools/) v1.31+
 - [Docker](https://www.docker.com/) (for the CI runner / `act`) v29.5.2
 - [Helm](https://helm.sh/), [Argo CD CLI](https://argo-cd.readthedocs.io/), [pre-commit](https://pre-commit.com/)
