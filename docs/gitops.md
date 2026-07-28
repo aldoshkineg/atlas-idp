@@ -71,7 +71,7 @@ gitops/
     │   └── workloads.yaml           # wrapper, Manual,     wave 50,  project: workloads
     ├── base/          # leaf apps + resources/ + values/   (foundation)
     ├── storage/       # cnpg, redis, minio, velero, snapshot-controller + values/
-    ├── security/      # cert-manager, vault, trivy, netpol + resources/
+    ├── security/      # kyverno-crds, kyverno, kyverno-policies, trivy-operator, netpol + resources/
     ├── observability/ # prom-stack, loki, tempo, alloy, metrics-server
     │   └── resources/monitor/        # ServiceMonitor/PodMonitor for OTHER layers
     │       ├── redis-service-monitor.yaml
@@ -143,7 +143,7 @@ lives in). Useful when deciding where a new service belongs.
 | --------------- | ------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `base`          | AUTO   | -100 | gateway-\*, loadbalancer, restart-cilium (networking); cert-manager, cert-manager-issuers, external-secrets, platform-secrets, vault-operator, vault-secrets-webhook (security) |
 | `storage`       | Manual | -50  | cnpg-\*, postgres-cluster, redis (data); linstor-\*, minio, snapshot-\*, velero (storage)                                                                                       |
-| `security`      | Manual | 0    | netpol (networking); trivy-operator (kyverno — later)                                                                                                                           |
+| `security`      | Manual | 0    | kyverno-crds, kyverno, kyverno-policies (admission); trivy-operator (scanning); netpol (networking)                                                                             |
 | `observability` | Manual | 10   | metrics-server, alloy, loki, prom-stack, tempo                                                                                                                                  |
 | `delivery`      | Manual | 20   | keda, argo-rollouts-\*                                                                                                                                                          |
 | `workloads`     | Manual | 50   | gitops/workloads (seal, external repo)                                                                                                                                          |

@@ -31,15 +31,48 @@ gitops/workloads/<group>/<app>/resources/    (GENERATED from infra/, monitoring/
 cluster (namespace <group>-<app>)
 ```
 
-## Commands
+## atlasctl — the developer CLI
+
+`atlasctl` (Go, Cobra) is the self-service interface of the platform. Full command
+reference, flags and architecture: [`tools/atlasctl/README.md`](../tools/atlasctl/README.md).
 
 ```bash
 atlasctl new <group>/<app>     # scaffold from templates/gold into workloads/<group>/<app>
-atlasctl seed <group>/<app>    # seed Vault secrets / ExternalSecrets mapping
-atlasctl enable <group>/<app>  # generate the ArgoCD Application in gitops/workloads + sync
+atlasctl seed <group>/<app>    # provision Postgres db/user + MinIO bucket, write creds to Vault
+atlasctl enable <group>/<app>  # generate the ArgoCD Application in gitops/workloads,
+                               # sync resources/, add the gateway listener + route
 atlasctl disable <group>/<app> # remove from GitOps (keeps the workload dir)
-atlasctl status <group>/<app>  # show sync/health
+atlasctl status <group>/<app>  # features / enabled / ArgoCD sync (--json)
+atlasctl list                  # all workloads
+atlasctl logs | backup         # day-2 helpers
 ```
+
+What `new` scaffolds (all from `templates/gold/`, no per-feature flags): the ArgoCD
+`app.yaml`, `secrets.yaml` (ExternalSecrets), `vault/` (policy, k8s-auth role, seed
+mapping), `monitoring/` (PodMonitor, PrometheusRule) and `infra/` (gateway route,
+NetworkPolicy + CCNP, KEDA ScaledObject, ResourceQuota, LimitRange).
+
+`seed` reads the git-ignored `.secret-seed` + `vault/seed-mapping.conf` and writes
+credentials to Vault under `secret/workloads/<group>/<app>/` — the same ESO flow as
+platform secrets ([`vault.md`](vault.md)).
+
+Build & dev loop: `make atlasctl-build`, `make atlasctl-test`, `make atlasctl-vet`;
+binary at `tools/atlasctl/bin/atlasctl`.
+
+## Reference workload: seal
+
+`seal` is the multi-service reference app that exercises every platform capability:
+REST API + Redis-driven worker (PDF signing) + HTMX UI, Postgres (CNPG), MinIO output
+bucket, KEDA scaling, Argo Rollouts canary, Vault-backed secrets, full
+metrics/logs/traces wiring.
+
+- App code, local dev (`docker compose`, Taskfile), architecture:
+  [`apps/seal/README.md`](../apps/seal/README.md) and `apps/seal/doc/`.
+- Deployed instance: `gitops/workloads/atlasteam/seal.yaml` (Helm chart
+  `apps/seal/charts/seal` + generated `resources/`), namespace `atlasteam-seal`,
+  exposed at `https://seal.atlas`.
+- Make targets: `seal-build`, `seal-push`, `seal-unit`, `seal-verify` (cosign),
+  `seal-dc-up|down|logs`, e2e `make test-seal`.
 
 ## Best practices
 
@@ -55,5 +88,7 @@ atlasctl status <group>/<app>  # show sync/health
 
 ## See also
 
+- [`tools/atlasctl/README.md`](../tools/atlasctl/README.md) — full CLI reference
+- [`apps/seal/README.md`](../apps/seal/README.md) — reference workload internals
 - `templates/README.md`, `workloads/README.md`, `gitops/workloads/README.md`, `recipes/README.md`
 - `docs/gitops.md` for the platform (non-workload) GitOps layers.

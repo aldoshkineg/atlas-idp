@@ -157,7 +157,7 @@ rather than a managed volume service. Backs the platform's stateful tier
 
 ---
 
-## Summary for interviews
+## Summary
 
 - **Control-plane VIP**: Talos-native floating VIP `10.200.10.10` (no kube-vip),
   wired into `cp_endpoint` + `talosctl` endpoints; auto-disabled for single-CP,

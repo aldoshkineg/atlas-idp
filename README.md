@@ -44,8 +44,8 @@
 
 ---
 
-> More diagrams — secrets, network, CI/CD and observability flows:
-> [`docs/cv/diagrams.md`](docs/cv/diagrams.md).
+> How the LB/VIP and replicated storage actually work (verified live):
+> [`docs/cluster-internals.md`](docs/cluster-internals.md).
 
 ## Tech Stack
 
@@ -113,7 +113,7 @@ atlas-idp/
 └── .yamllint.yml               # YAML linting rules
 ```
 
-See [`docs/cv/system-prompt.md`](docs/cv/system-prompt.md) for the engineering narrative, or [`docs/setup.md`](docs/setup.md) for the full getting-started guide. Operational runbooks live under [`docs/runbooks/`](docs/runbooks/).
+All documentation is indexed in [`docs/README.md`](docs/README.md). Key entry points: [`docs/tech-stack.md`](docs/tech-stack.md) (technology inventory), [`docs/setup.md`](docs/setup.md) (getting started), [`docs/adr/`](docs/adr/README.md) (architecture decisions), [`docs/runbooks/`](docs/runbooks/) (operations).
 
 ---
 

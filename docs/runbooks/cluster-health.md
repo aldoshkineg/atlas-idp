@@ -4,12 +4,12 @@
 # 1. ArgoCD apps - all must be Synced + Healthy
 kubectl get applications -n argocd
 
-# 2. Gateway - must be Programmed
-kubectl get gateway -n nginx-gateway-fabric
+# 2. Gateway (Cilium, platform-gateway) - must be Programmed
+kubectl get gateway -n kube-system
 
-# 3. TLS certs - both must be True
+# 3. TLS certs - all must be True
 kubectl get clusterissuer
-kubectl get certificate -n nginx-gateway-fabric
+kubectl get certificate -n kube-system
 
 # 4. Test app via gateway (expect 200)
 curl -sk --resolve "test-ca.atlas:443:127.0.0.1" \

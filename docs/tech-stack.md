@@ -1,15 +1,14 @@
 # Atlas IDP — Technology & Tooling Inventory
 
 > Inventory of every technology and program used in the project, with notes on
-> what each one proves at a senior Platform Engineer level. Items marked
-> **[key]** carry the most portfolio value — they differentiate this project
-> from a tutorial and should be emphasized in interviews.
+> why each choice matters. Items marked **[key]** are the architecturally
+> significant decisions — they differentiate this platform from a tutorial setup.
 
 ---
 
 ## Infrastructure as Code & Provisioning
 
-| Technology           | Role                                                      | Senior value                                                                                                                                                                                                         |
+| Technology           | Role                                                      | Why it matters                                                                                                                                                                                                       |
 | -------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | OpenTofu / Terraform | Modular IaC; cluster + Argo CD bootstrap                  | Environment-scoped, reusable modules, `versions.tf` discipline                                                                                                                                                       |
 | Talos Linux          | Immutable Kubernetes OS on bare metal                     | **[key]** real HA control plane (floating VIP `10.200.10.10`, Talos-native) — [how the CP VIP works](cluster-internals.md#0-control-plane-vip-talos--the-cluster-api-endpoint), disk/OS/bootstrap ops vs managed k8s |
@@ -22,7 +21,7 @@ CLIs: `tofu`/`terraform`, `talosctl`, `incus`.
 
 ## Kubernetes Runtime & Networking
 
-| Technology         | Role                                                 | Senior value                                                                                                                                                                                          |
+| Technology         | Role                                                 | Why it matters                                                                                                                                                                                        |
 | ------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Kubernetes (Talos) | Cluster runtime                                      | CKA-level operating model                                                                                                                                                                             |
 | Cilium (eBPF)      | CNI, LoadBalancer IPAM, Gateway API, netpols, Hubble | **[key]** single eBPF dataplane collapses CNI+LB+Ingress+network policy (+ Hubble network observability) — [how LB/VIP works](cluster-internals.md#1-load-balancing--vip-cilium-no-cloud--no-metallb) |
@@ -35,7 +34,7 @@ CLIs: `kubectl`, `cilium`.
 
 ## GitOps & Delivery
 
-| Technology    | Role                                            | Senior value                                                                |
+| Technology    | Role                                            | Why it matters                                                              |
 | ------------- | ----------------------------------------------- | --------------------------------------------------------------------------- |
 | Argo CD       | App-of-apps, declarative single source of truth | **[key]** dependency-ordered bootstrap (`depends-on`), multi-layer platform |
 | Argo Rollouts | Canary / progressive delivery                   | **[key]** delivery modeled as a platform primitive, not per-service         |
@@ -46,10 +45,11 @@ CLIs: `argocd`.
 
 ## Secrets Management
 
-| Technology                | Role                           | Senior value                                |
-| ------------------------- | ------------------------------ | ------------------------------------------- |
-| HashiCorp Vault           | Central secret store, K8s auth | **[key]** enterprise secret-operating model |
-| External Secrets Operator | Syncs Vault → K8s secrets      | References, never commits, secrets          |
+| Technology                | Role                                            | Why it matters                                                                               |
+| ------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| HashiCorp Vault           | Central secret store, K8s auth                  | **[key]** enterprise secret-operating model                                                  |
+| Bank-Vaults operator      | Vault CR: auto-unseal, `externalConfig` as code | Declarative Vault lifecycle, no post-install scripting ([ADR-004](adr/ADR-004-vault-eso.md)) |
+| External Secrets Operator | Syncs Vault → K8s secrets                       | References, never commits, secrets                                                           |
 
 CLIs: `vault`.
 
@@ -57,7 +57,7 @@ CLIs: `vault`.
 
 ## Storage, Data & Backup
 
-| Technology     | Role                                        | Senior value                                                                                                                                   |
+| Technology     | Role                                        | Why it matters                                                                                                                                 |
 | -------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Linstor (DRBD) | Replicated block storage CSI                | **[key]** real pod HA on bare metal, no cloud volumes — [how CSI works](cluster-internals.md#2-csi--replicated-storage-linstor--piraeus--drbd) |
 | CloudNativePG  | Postgres operator + backups                 | **[key]** production DB ops, PITR/backup lifecycle                                                                                             |
@@ -69,7 +69,7 @@ CLIs: `vault`.
 
 ## Autoscaling
 
-| Technology | Role                                         | Senior value                                    |
+| Technology | Role                                         | Why it matters                                  |
 | ---------- | -------------------------------------------- | ----------------------------------------------- |
 | KEDA       | Event-driven autoscaling (Redis list scaler) | **[key]** scaling on real signals, not just CPU |
 | HPA        | CPU/memory autoscaling                       | Baseline elasticity                             |
@@ -78,7 +78,7 @@ CLIs: `vault`.
 
 ## Observability
 
-| Technology            | Role                                | Senior value                                    |
+| Technology            | Role                                | Why it matters                                  |
 | --------------------- | ----------------------------------- | ----------------------------------------------- |
 | kube-prometheus-stack | Prometheus + Grafana + Alertmanager | **[key]** alert rules, dashboards, SLO thinking |
 | Loki                  | Log aggregation                     | Unified logging layer                           |
@@ -91,7 +91,7 @@ CLIs: `promtool` (implicit), Grafana UI.
 
 ## Security Baseline
 
-| Technology                 | Role                                           | Senior value                                                                                                                                |
+| Technology                 | Role                                           | Why it matters                                                                                                                              |
 | -------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | cert-manager               | Issuing/rotating TLS certs                     | Automated PKI                                                                                                                               |
 | Trivy                      | Image & IaC scanning (HIGH/CRITICAL gate)      | Shift-left security in CI                                                                                                                   |
@@ -104,18 +104,20 @@ CLIs: `promtool` (implicit), Grafana UI.
 
 ## CI/CD & Quality Gates
 
-| Technology     | Role                                            | Senior value                                |
-| -------------- | ----------------------------------------------- | ------------------------------------------- |
-| GitHub Actions | Terraform validate, yamllint, Trivy, pre-commit | Pipeline-as-code, multi-stage quality gates |
-| act            | Run GH Actions locally (env apply/sync)         | Reproducible local CI                       |
-| pre-commit     | Hooks: fmt, yaml, trivy, terraform docs         | Enforced quality before commit              |
-| yamllint       | YAML lint (140-col, document-start off)         | Lint discipline                             |
+| Technology     | Role                                            | Why it matters                                                                      |
+| -------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------- |
+| GitHub Actions | Terraform validate, yamllint, Trivy, pre-commit | Pipeline-as-code, multi-stage quality gates                                         |
+| act            | Run GH Actions locally (env apply/sync)         | Reproducible local CI                                                               |
+| pre-commit     | Hooks: fmt, yaml, trivy, terraform docs         | Enforced quality before commit                                                      |
+| yamllint       | YAML lint (140-col, document-start off)         | Lint discipline                                                                     |
+| go-task        | Task runner (`atlasctl`, `seal` Taskfiles)      | Reproducible build/test entry points                                                |
+| e2e test suite | `tests/` — 9 suites via `make test`             | **[key]** every platform claim (DR, scaling, netpol, canary, secrets) is executable |
 
 ---
 
 ## Developer Experience (the IDP surface)
 
-| Technology                               | Role                                     | Senior value                                            |
+| Technology                               | Role                                     | Why it matters                                          |
 | ---------------------------------------- | ---------------------------------------- | ------------------------------------------------------- |
 | `atlasctl` (Go)                          | CLI for workload lifecycle management    | **[key]** self-service platform product, not just infra |
 | Golden-path templates (`templates/gold`) | Scaffold workloads                       | **[key]** paved roads / golden paths for tenants        |
@@ -125,7 +127,7 @@ CLIs: `promtool` (implicit), Grafana UI.
 
 ## Sample Workload
 
-| Technology  | Role                                            | Senior value                                                                                                                        |
+| Technology  | Role                                            | Why it matters                                                                                                                      |
 | ----------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `seal` (Go) | Reference app: api + worker + ui, Helm-packaged | **[key]** multi-service app with probes, limits, KEDA worker, Rollouts, plus logging/metrics/tracing wired to Loki/Prometheus/Tempo |
 | Redis       | Broker for `seal` worker scaling                | End-to-end event-driven demo                                                                                                        |
@@ -142,7 +144,7 @@ CLIs: `promtool` (implicit), Grafana UI.
 
 ---
 
-## Highest-Value Highlights (interview cheat-sheet)
+## Highest-Value Highlights
 
 1. **Cilium eBPF** — one dataplane for networking, LB, Gateway, netpols.
 2. **Linstor (DRBD)** — replicated HA storage on bare metal, no cloud volumes.

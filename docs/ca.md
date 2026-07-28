@@ -140,8 +140,8 @@ service-to-service TLS.
 
 ## Verification
 
-See `ai/certificate-verification-prompt.md` for a full verification checklist
-(CA fingerprint, SAN/validity, trust-store checks).
+See [`runbooks/cert-verification.md`](runbooks/cert-verification.md) for a full
+verification checklist (CA fingerprint, SAN/validity, trust-store checks).
 
 Quick checks:
 
