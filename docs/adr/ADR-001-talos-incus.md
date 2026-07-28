@@ -16,16 +16,18 @@ balancing, node networking.
 Run Kubernetes on **Talos Linux** VMs provisioned by **Incus** on a Linux host,
 fully driven by Terraform/OpenTofu (`infra/modules/{incus,talos-config,talos-cluster}`).
 
+  - **Incus**: lightweight VM/container platform with a modern REST API,
+  native clustering and unified management of VMs and system containers.
+  Chosen over libvirt, Proxmox and similar platforms because it provides
+  excellent automation support, significantly lower operational overhead,
+  and production-grade virtualization without requiring a heavyweight
+  virtualization stack.
 - **Talos**: immutable, API-only OS (no SSH, no shell). Machine config as code;
   DRBD kernel modules via `machine.kernel.modules` + the `siderolabs/drbd`
   extension baked into the image.
 - **Control-plane HA**: Talos-native floating VIP `10.200.10.10`
   (`machine.network.interfaces[].vip.ip`) — no kube-vip/keepalived; auto-disabled
   for single-CP topologies (`use_vip` in `talos-config`).
-- **Incus**: VM hypervisor with a managed bridge (`incusbr0`), giving bare-metal-class
-  behavior (real disks, real L2 network for ARP) without cloud costs. A **Zot**
-  pull-through registry cache (Terraform-managed Incus container) keeps image
-  pulls local and air-gap-friendly.
 
 ## Alternatives considered
 
@@ -37,6 +39,15 @@ fully driven by Terraform/OpenTofu (`infra/modules/{incus,talos-config,talos-clu
   no-cloud operations.
 - **kubeadm on generic VMs** — rejected: mutable OS, imperative lifecycle,
   no declarative machine config.
+- **libvirt** — rejected: provides a low-level virtualization API but leaves
+  clustering, automation and operational workflows to external tooling. Incus
+  offers a higher-level management model with a modern REST API, native
+  clustering and simpler Terraform integration.
+- **Proxmox VE / XCP-ng** — rejected: full virtualization platforms with rich
+  management capabilities, but they introduce additional infrastructure
+  services and operational overhead that are unnecessary for this project.
+  Incus provides the required virtualization features while remaining lighter,
+  easier to automate and better suited for infrastructure-as-code workflows.
 
 ## Consequences
 
