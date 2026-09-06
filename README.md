@@ -6,6 +6,8 @@
 
 **Internal Developer Platform — GitOps-driven Kubernetes platform engineering on self-hosted infrastructure**
 
+[![CI All](https://github.com/aldoshkineg/atlas-idp/actions/workflows/ci-all.yaml/badge.svg?branch=main)](https://github.com/aldoshkineg/atlas-idp/actions/workflows/ci-all.yaml)
+[![Security Scan](https://github.com/aldoshkineg/atlas-idp/actions/workflows/security.yaml/badge.svg?branch=main)](https://github.com/aldoshkineg/atlas-idp/actions/workflows/security.yaml)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![IaC](https://img.shields.io/badge/IaC-Terraform%20%2F%20OpenTofu-7B42BC)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-1.34-326CE5)
@@ -14,7 +16,6 @@
 ![CNI](https://img.shields.io/badge/CNI-Cilium%20eBPF-F5A623)
 ![CSI](https://img.shields.io/badge/CSI-LINSTOR%20%2F%20DRBD-1B6EC2)
 ![Secrets](https://img.shields.io/badge/Secrets-HashiCorp%20Vault-000000)
-![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)
 ![Observability](https://img.shields.io/badge/Observability-Prometheus%20%2F%20Grafana%20%2F%20Loki-FF6C37)
 
 **Atlas IDP** is a production-grade Internal Developer Platform demonstrating modern platform-engineering practices on self-hosted Kubernetes — **Talos Linux** on Incus VMs.
