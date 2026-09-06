@@ -25,7 +25,7 @@ The root CA cert + key are **not** stored as separate GitHub secrets. They live 
 
 1. `.github/workflows/ci-base.yaml` "Load ENV_FILE" step writes `.env`, exports every
    var to `$GITHUB_ENV`, and materialises `security/certs/ca.{crt,key}` from base64
-2. `.github/actions/terraform-incus/action.yml` uses those files to create a Kubernetes
+2. `.github/actions/terraform/action.yml` uses those files to create a Kubernetes
    TLS secret in the cluster:
    ```yaml
    kubectl create secret tls atlas-ca-secret \

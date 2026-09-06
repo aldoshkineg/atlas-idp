@@ -150,7 +150,9 @@ make preflight
 # => tools/ci/preflight.sh
 ```
 
-It verifies, and must report **0 failures, 0 warnings**:
+It verifies, and must report **0 failures** (before `act-stage-base` one
+expected warning is allowed: `incus image alias missing: zot-cache`, it is
+created automatically by Terraform during `apply`):
 
 - **Binaries** — every tool in `docs/requirements.md` (Local CLI Tooling) is present.
 - **Daemons** — Docker and Incus are reachable.

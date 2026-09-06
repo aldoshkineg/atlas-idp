@@ -19,7 +19,7 @@ security/certs/ca.{crt,key}          (local, git-ignored)
 CI ci-base "Load ENV_FILE"  →  re-materialises security/certs/ca.{crt,key}
         │
         ▼
-terraform-incus action: kubectl create secret tls atlas-ca-secret -n cert-manager
+terraform action: kubectl create secret tls atlas-ca-secret -n cert-manager
         │
         ▼
 cert-manager ClusterIssuer atlas-ca-issuer   (ca: secretName: atlas-ca-secret)
@@ -77,7 +77,7 @@ embedded into `.env` and shipped as the single `ENV_FILE` secret:
   via a `ca` issuer backed by the `atlas-ca-secret` TLS secret.
 - **`atlas-ca-secret`** (namespace `cert-manager`) is a `tls` secret holding the
   CA cert+key. It is **not** GitOps-managed — it is created by the
-  `terraform-incus` composite action during `ci-base` from the reconstructed
+  `terraform` composite action during `ci-base` from the reconstructed
   `security/certs/ca.{crt,key}`. If this secret is missing, the issuer cannot
   sign.
 - **Per-service `Certificate`** resources under

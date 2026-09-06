@@ -209,9 +209,11 @@ KUBECONFIG=/var/tmp/atlas/talos/kubeconfig \
    mv security/cosign/cosign.pub /tmp/cosign.pub.old
    cosign generate-key-pair --output-key-prefix security/cosign/cosign
    ```
-2. **Update the GitHub Secret** with the new `cosign.key`:
+2. **Update `ENV_FILE`** with the new `cosign.key` (there is no separate
+   `COSIGN_PRIVATE_KEY` secret — the key is base64-embedded in `.env`):
    ```sh
-   gh secret set COSIGN_PRIVATE_KEY < security/cosign/cosign.key
+   COSIGN_PRIVATE_KEY_B64=$(base64 -w0 < security/cosign/cosign.key) make seed-gh
+   # => gh secret set ENV_FILE < .env
    ```
 3. **Commit the new `cosign.pub`.**
 4. **Update the embedded public key** in

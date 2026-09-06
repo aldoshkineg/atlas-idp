@@ -80,10 +80,10 @@ incus launch talos-1.11.2-drbd cp-1 --vm \
 incus list
 incus list --project <name>
 
-# Create VM from image
+# Create VM from image (machine config is passed via seed ISO, not
+# user.user-data — Incus does not read user.user-data for VMs, see above)
 incus instance create <image> <name> --type=virtual-machine \
   -c security.secureboot=false \
-  -c user.user-data="$(cat machine-config.yaml)" \
   -n incusbr0 \
   -s default
 
