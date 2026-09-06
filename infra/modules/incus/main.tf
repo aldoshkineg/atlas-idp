@@ -67,7 +67,10 @@ resource "null_resource" "download_image" {
           *) mv "$TMP" "$FILE" ;;
         esac
         rm -f "$TMP"
-        qemu-img info "$FILE" >/dev/null
+        if [ "$(stat -c %s "$FILE")" -lt 1048576 ]; then
+          echo "ERROR: downloaded image too small, aborting" >&2
+          exit 1
+        fi
         rm -f '${local.image_dir}/metadata.tar.gz'
       fi
     EOT
