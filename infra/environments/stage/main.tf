@@ -74,7 +74,7 @@ module "incus" {
   bridge_subnet        = "${var.gateway}/${split("/", var.cluster_cidr)[1]}"
   cluster_name         = var.cluster_name
   talos_image_file     = var.talos_image_path
-  talos_image_url      = "https://github.com/siderolabs/talos/releases/download/${var.talos_version}/ncloud-amd64.qcow2"
+  talos_image_url      = "https://factory.talos.dev/image/${var.talos_image_schematic}/${var.talos_version}/nocloud-amd64.qcow2.xz"
   image_alias          = "talos-${replace(var.talos_version, "v", "")}-drbd"
   controlplane_configs = module.talos_config.cp_configs
   worker_configs       = module.talos_config.worker_configs

@@ -10,8 +10,8 @@ variable "talos_image_file" {
 
 variable "talos_image_url" {
   type        = string
-  description = "URL to download the Talos qcow2 image if not present locally"
-  default     = "https://github.com/siderolabs/talos/releases/download/v1.11.2/ncloud-amd64.qcow2"
+  description = "URL to download the Talos image if not present locally (factory schematic with siderolabs/drbd, .qcow2.xz is decompressed on download)"
+  default     = "https://factory.talos.dev/image/e048aaf4461ff9f9576c9a42f760f2fef566559bd4933f322853ac291e46f238/v1.11.2/nocloud-amd64.qcow2.xz"
 }
 
 variable "image_alias" {

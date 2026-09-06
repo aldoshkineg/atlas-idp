@@ -105,6 +105,12 @@ variable "talos_image_path" {
   default     = "/var/tmp/atlas/incus/talos-drbd.qcow2"
 }
 
+variable "talos_image_schematic" {
+  description = "Talos factory schematic ID (official siderolabs/drbd extension)"
+  type        = string
+  default     = "e048aaf4461ff9f9576c9a42f760f2fef566559bd4933f322853ac291e46f238"
+}
+
 variable "files_dir" {
   description = "Directory for generated Talos configs, kubeconfig, and talosconfig"
   type        = string

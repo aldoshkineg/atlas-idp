@@ -43,7 +43,8 @@ locals {
   image_dir = abspath(dirname(var.talos_image_file))
 }
 
-# 3. Download Talos qcow2 image (only if missing)
+# 3. Download Talos image (factory schematic with siderolabs/drbd).
+# Re-downloads when the file is missing or broken (<1MB, e.g. a saved 404 page).
 resource "null_resource" "download_image" {
   triggers = {
     image_path = var.talos_image_file
@@ -52,10 +53,22 @@ resource "null_resource" "download_image" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      if [ ! -f '${var.talos_image_file}' ]; then
-        echo "=== Downloading from ${var.talos_image_url} ==="
-        mkdir -p "$(dirname '${var.talos_image_file}')"
-        curl -L -o '${var.talos_image_file}' '${var.talos_image_url}'
+      set -e
+      FILE='${var.talos_image_file}'
+      URL='${var.talos_image_url}'
+      if [ ! -f "$FILE" ] || [ "$(stat -c %s "$FILE")" -lt 1048576 ]; then
+        echo "=== Downloading from $URL ==="
+        mkdir -p "$(dirname "$FILE")"
+        TMP="$(mktemp)"
+        curl -fSL -o "$TMP" "$URL"
+        case "$URL" in
+          *.xz) xz -d -c "$TMP" > "$FILE" ;;
+          *.zst) zstd -d -c "$TMP" > "$FILE" ;;
+          *) mv "$TMP" "$FILE" ;;
+        esac
+        rm -f "$TMP"
+        qemu-img info "$FILE" >/dev/null
+        rm -f '${local.image_dir}/metadata.tar.gz'
       fi
     EOT
   }
