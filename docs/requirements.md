@@ -30,7 +30,7 @@ Single source of truth for pinned CLI tooling versions and platform sizing.
 | shellcheck     | 0.10.0.1           |
 | gitleaks       | 8.24.3             |
 | golangci-lint  | 2.12.2             |
-| atlasctl       | 0.60.0             |
+| atlasctl       | 0.61.0             |
 | vault          | 1.18.0             |
 | incus          | 7.2.0              |
 
